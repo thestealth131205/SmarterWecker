@@ -62,9 +62,18 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      ansteht, ohne dass der Nutzer manuell nachpflegen muss.
    - Monatsansicht zeigt pro Tag die zugeordnete(n) Schicht(en) farbig markiert;
      mehrere Einträge pro Tag möglich (z. B. Schicht + zusätzlicher Termin/Urlaub).
-   - **Kalender teilen**: eigener Kalender kann per Einladung mit anderen Personen
-     geteilt werden, mit granularer Freigabe, welche Bereiche sichtbar sind (z. B.
-     "Mein Job", "Termine", "Notizen" einzeln togglebar).
+   - **Kalender teilen** (bestätigtes Pflichtfeature): eigener Kalender kann per Einladung
+     mit anderen Personen geteilt werden, mit granularer Freigabe, welche Bereiche
+     sichtbar sind (z. B. "Mein Job", "Termine", "Notizen" einzeln togglebar).
+     - **Muss serverunabhängig funktionieren**: Sync/Teilen läuft direkt von
+       App-Nutzer zu App-Nutzer (Peer-to-Peer), nicht über einen zentralen
+       Smarter-Wecker-eigenen Server.
+     - Falls reines P2P (Erreichbarkeit/NAT, Einladungs-Handshake, Offline-Geräte)
+       technisch nicht zuverlässig genug ist, wird als schlanke Hilfskonstruktion eine
+       Hilfsfunktion/Endpoint im **Lethe-Backend** (`/opt/lethe/backend`) ergänzt — rein
+       als Vermittlungsstelle (z. B. Signaling für den P2P-Verbindungsaufbau oder
+       verschlüsseltes Store-and-Forward für Einladung/Deltas, falls Empfänger offline
+       ist), nicht als zentrale Datenhaltung für den gesamten Kalender.
    - Synchronisierbar mit **Google Calendar** und **Nextcloud** (CalDAV), bidirektional
      geplant (TBD ob Lesen reicht oder auch Schreiben nötig ist).
 
@@ -83,6 +92,22 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
      **Lethe-Bibliothek** als Sound-Quelle für den Alarmton.
 
+9. **UI/UX-Orientierung "Wecker" (Alarm-Bereich):**
+   - Grundlegendes Look & Feel orientiert sich bewusst an der **Google-Uhr-App**
+     (siehe Referenzbilder), damit sich Nutzer sofort zurechtfinden:
+     - **Alarmliste**: eine Karte pro Alarm mit großer Uhrzeit, Wiederholungsmuster als
+       Untertitel (z. B. "Jeden Tag"), Ein/Aus-Toggle rechts, farbiger Karten-Akzent,
+       FAB ("+") zum Anlegen neuer Alarme.
+     - **Uhrzeit-Eingabe** per Dialog mit antippbarem/ziehbarem 24h-Zifferblatt
+       (analoges Rad), alternativ direkte Zahleneingabe über Tastatur-Umschalter.
+     - **Weckton-Auswahl** als eigener Screen mit Tabs: "Töne" (lokale/aufgezeichnete
+       Töne) sowie je ein Tab pro Streaming-Quelle — bei uns **Spotify**, **Deezer**
+       und **Lethe-Bibliothek** (anstelle von YouTube Music) zum Durchsuchen/Auswählen
+       eines Songs als Weckton.
+   - Die eigenen Zusatzfunktionen (Health-Connect-Überwachung, Notfall-Alarm,
+     Schichtrotation-Verknüpfung je Alarm usw.) werden in dieses vertraute Grundgerüst
+     integriert, nicht als komplett eigenes UI-Paradigma entworfen.
+
 ## Architektur (noch offen / zu entscheiden)
 
 - Zielplattform: Android (nativ, analog zum Lethe-Messenger-Stack vermutlich Kotlin +
@@ -93,6 +118,12 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Alarm-Zuverlässigkeit: `AlarmManager` (exact alarms) + Foreground Service während der
   Überwachungsphase (Sensorik darf nicht durch Doze/Battery-Optimizations gekillt werden).
 - Kalendersync: Google Calendar API (OAuth) + CalDAV-Client für Nextcloud.
+- Kalender-Teilen (P2P): primär direkte App-zu-App-Synchronisation ohne eigenen
+  Smarter-Wecker-Server (z. B. lokal/WLAN oder über vorhandene P2P-Mechanismen).
+  Fallback/Hilfsfunktion bei Bedarf als schlanker Endpoint im Lethe-Backend
+  (`/opt/lethe/backend`) — nur als Vermittlung/Relay, keine zentrale Kalenderdatenhaltung.
+- Wecker-UI: Alarmliste, Zifferblatt-Zeitpicker und Weckton-Auswahl-Screen (Tabs)
+  orientieren sich an der Google-Uhr-App, siehe Kernfunktion 9.
 - Wetterdaten: OpenWeatherMap API (One Call / Current Weather), API-Key-Handling analog
   Iosync-Projekt (`/opt/Iosync`): Key aus `local.properties` lokal, aus GitHub-Secret
   `OPENWEATHER_API_KEY` im CI, Einbindung als `BuildConfig`-Feld — niemals im Repo.

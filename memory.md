@@ -47,6 +47,21 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
   Pflichtfeature bestätigt, daher nicht in CLAUDE.md als Kernfunktion aufgenommen,
   sondern nur beiläufig unter Kalender erwähnt.
 
+## Ergänzung (2026-10-08, Kalender teilen + Wecker-UI-Vorbild)
+
+- Nutzer hat bestätigt: **Kalender teilen ist Pflichtfeature** (vorher nur als Idee
+  vermerkt) und muss **serverunabhängig** sein — Sync direkt App-Nutzer zu App-Nutzer
+  (P2P), nicht über eigenen Smarter-Wecker-Server.
+- Falls P2P allein nicht zuverlässig genug ist, soll als Hilfskonstruktion eine
+  Hilfsfunktion im **Lethe-Backend** ergänzt werden (Repo liegt unter
+  `/opt/lethe/backend`) — nur als Vermittlungs-/Relay-Stelle (z. B. Signaling oder
+  Store-and-Forward für Einladungen/Deltas), nicht als zentrale Kalender-Datenbank.
+- Nutzer hat 3 Screenshots der **Google-Uhr-App** geschickt (Alarmliste mit Karten/
+  Toggle/FAB, Weckton-Auswahl-Screen mit Tabs "Töne"/YouTube Music/Spotify, Uhrzeit-
+  Auswahldialog mit antippbarem 24h-Zifferblatt). Die Wecker-Funktion der App soll sich
+  an diesem Look & Feel orientieren — bei der Weckton-Auswahl ersetzen wir die
+  Streaming-Tabs durch Spotify/Deezer/Lethe-Bibliothek statt YouTube Music.
+
 Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
 Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
 (Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.
