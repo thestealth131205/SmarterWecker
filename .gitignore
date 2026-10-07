@@ -1,0 +1,16 @@
+# Android / Gradle (vorbereitet für spätere Implementierung)
+*.iml
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+.idea/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# macOS/Linux
+.DS_Store
