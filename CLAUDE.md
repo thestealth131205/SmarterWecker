@@ -43,7 +43,28 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Schicht (und damit welche Weckzeit) gilt.
 
 6. **Kalender:**
-   - Eingebauter Kalender, der die Schichtrotation visualisiert.
+   - Eingebauter Kalender, der die Schichtrotation visualisiert. Funktionsumfang
+     orientiert sich an bestehenden Schichtplan-Apps (siehe Referenzbilder), soll aber
+     bewusst **übersichtlicher/aufgeräumter** umgesetzt werden (weniger visuelles
+     Rauschen in der Monatsansicht als im Vorbild).
+   - **Vorlagen-Verwaltung** in drei Kategorien:
+     - *Schichten*: Name, Farbe, Start-/Endzeit, Dauer (z. B. "früh" 06:00–14:00, 8h).
+     - *Jobs*: mehrere Jobs/Arbeitsstellen anlegbar, jeweils mit eigenem Satz an
+       Schichten (ein Nutzer kann z. B. Hauptjob + Nebenjob getrennt pflegen).
+     - *Rotationen*: eine Rotation ist eine Tag-für-Tag-Abfolge von Schichten, die der
+       Nutzer so lange einträgt, bis sich das Muster wiederholen würde (z. B. ein
+       84-Tage-Zyklus aus 4× Spät, 1× Frei, 2× Wochenende, wiederholt mit 4× Früh,
+       1× Frei, 2× Wochenende usw.). Eingabe über ein Raster (Tag-Nummer × 7
+       Wochentags-Spalten), pro Tag wird eine Schicht per Farbe/Kürzel zugewiesen.
+   - Sobald eine Rotation feststeht, trägt die App das Muster **fortlaufend automatisch**
+     in den Kalender ein — nicht nur für die nächsten Wochen, sondern **mehrere Jahre im
+     Voraus**, damit der Wecker jederzeit weiß, welche Schicht (und damit Weckzeit)
+     ansteht, ohne dass der Nutzer manuell nachpflegen muss.
+   - Monatsansicht zeigt pro Tag die zugeordnete(n) Schicht(en) farbig markiert;
+     mehrere Einträge pro Tag möglich (z. B. Schicht + zusätzlicher Termin/Urlaub).
+   - **Kalender teilen**: eigener Kalender kann per Einladung mit anderen Personen
+     geteilt werden, mit granularer Freigabe, welche Bereiche sichtbar sind (z. B.
+     "Mein Job", "Termine", "Notizen" einzeln togglebar).
    - Synchronisierbar mit **Google Calendar** und **Nextcloud** (CalDAV), bidirektional
      geplant (TBD ob Lesen reicht oder auch Schreiben nötig ist).
 

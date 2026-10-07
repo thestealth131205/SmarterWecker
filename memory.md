@@ -31,6 +31,22 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
   gestapelt — Datum klein oben, Uhrzeit riesig in der Mitte, darunter klein mit
   Wecker-Icon der nächste gestellte Alarm (Tag + Uhrzeit).
 
+## Ergänzung (2026-10-08, Kalender-Funktionsumfang)
+
+- Nutzer hat 6 Screenshots einer bestehenden Schichtplan-App als Vorbild geschickt.
+  Funktionsumfang soll übernommen werden, aber **übersichtlicher** umgesetzt werden.
+- Vorlagen-Konzept mit drei Tabs: Schichten (Name/Farbe/Zeit/Dauer), Jobs (mehrere Jobs
+  mit eigenen Schichten möglich), Rotationen (Tag-für-Tag-Muster per Raster-Eingabe,
+  z. B. 84-Tage-Zyklus).
+- Kernidee der Rotation: Nutzer trägt das Muster nur so lange ein, bis es sich
+  wiederholen würde — die App trägt es danach automatisch fortlaufend für mehrere Jahre
+  im Voraus in den Kalender ein, damit der Wecker durchgehend weiß, welche Schicht/
+  Weckzeit ansteht.
+- Vorbild bietet zusätzlich Kalender-Teilen mit anderen Personen (granular je Bereich:
+  Mein Job/Termine/Notizen) — als Idee vermerkt, aber noch nicht explizit vom Nutzer als
+  Pflichtfeature bestätigt, daher nicht in CLAUDE.md als Kernfunktion aufgenommen,
+  sondern nur beiläufig unter Kalender erwähnt.
+
 Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
 Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
 (Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.
