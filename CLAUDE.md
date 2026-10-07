@@ -49,6 +49,14 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 
 7. **Home-Screen-Widgets:**
    - Uhr-Widget und Wetter-Widget für den Android-Homescreen.
+   - Wetter-Widget nutzt **OpenWeatherMap** als Datenquelle (gleicher Ansatz wie im
+     Iosync-Projekt: API-Key über `local.properties`/CI-Secret `OPENWEATHER_API_KEY`,
+     nicht hart codiert).
+   - Uhr-Widget-Layout (siehe Referenzbild): transparent über dem Homescreen-Hintergrund,
+     von oben nach unten vertikal zentriert gestapelt:
+     1. Datum klein/hell (z. B. "Do., 8. Okt.")
+     2. Uhrzeit sehr groß (z. B. "00:29")
+     3. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47")
 
 8. **Ton-Auswahl für Wecker/Alarm:**
    - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
@@ -64,6 +72,9 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Alarm-Zuverlässigkeit: `AlarmManager` (exact alarms) + Foreground Service während der
   Überwachungsphase (Sensorik darf nicht durch Doze/Battery-Optimizations gekillt werden).
 - Kalendersync: Google Calendar API (OAuth) + CalDAV-Client für Nextcloud.
+- Wetterdaten: OpenWeatherMap API (One Call / Current Weather), API-Key-Handling analog
+  Iosync-Projekt (`/opt/Iosync`): Key aus `local.properties` lokal, aus GitHub-Secret
+  `OPENWEATHER_API_KEY` im CI, Einbindung als `BuildConfig`-Feld — niemals im Repo.
 
 ## Wichtig
 

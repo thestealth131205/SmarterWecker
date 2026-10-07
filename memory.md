@@ -21,6 +21,16 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 - Ton-Auswahl für den Wecker soll neben lokalen Tönen auch Spotify, Deezer und die
   Lethe-Bibliothek als Quelle anbieten.
 
+## Ergänzung (2026-10-08, Weather/Uhr-Widget)
+
+- Wetter-Widget-Datenquelle: OpenWeatherMap. API-Key wird genauso gehandhabt wie im
+  Iosync-Projekt (`/opt/Iosync`) — lokal über `local.properties`
+  (`OPENWEATHER_API_KEY=...`), im CI über GitHub Secret `OPENWEATHER_API_KEY`, Zugriff
+  im Code über generiertes `BuildConfig`-Feld. Key nie ins Repo committen.
+- Uhr-Widget-Layout vom Nutzer per Referenzbild vorgegeben: transparent über Wallpaper,
+  gestapelt — Datum klein oben, Uhrzeit riesig in der Mitte, darunter klein mit
+  Wecker-Icon der nächste gestellte Alarm (Tag + Uhrzeit).
+
 Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
 Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
 (Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.
