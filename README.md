@@ -29,4 +29,6 @@ simplem Wegdrücken wird nach dem Klingeln aktiv per Sensorik/Health Connect
 - `AlarmManager` (exact alarms) + Foreground Service für die Überwachungsphase
 - Google Calendar API (OAuth) + CalDAV-Client für Nextcloud
 
-Details und offene Fragen siehe [`CLAUDE.md`](CLAUDE.md).
+Details und offene Fragen siehe [`CLAUDE.md`](CLAUDE.md). Umsetzungsplan für die
+erste Phase (Grundfunktionen ohne Streaming-Ton-Quellen, ohne Kalender-Sync/Teilen)
+siehe [`PLAN.md`](PLAN.md).

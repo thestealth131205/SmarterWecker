@@ -76,6 +76,21 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 - In CLAUDE.md unter Kernfunktion 4 "Notfall-Alarm" als eigener Unterpunkt
   "Variierende Aufgabenstellung" ergänzt.
 
-Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
-Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
-(Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.
+## Ergänzung (2026-10-08, Phase-1-Plan / MVP-Scope)
+
+- Nutzer möchte einen ersten Plan für die Grundfunktionen **ohne** Spotify/Deezer/
+  Lethe-Bibliothek, aber **mit** lokal wählbaren Audiodateien als Weckton, sowie die
+  grundlegende Kalenderfunktion inkl. Rotation.
+- Daraus `PLAN.md` erstellt: Phase 1 umfasst Alarm-Grundfunktionen (Aufsteh-
+  Erkennung, Snooze, Stop-Weiterüberwachung, Notfall-Alarm-Puzzle), lokale
+  Weckton-Auswahl (System-Ringtones + eigene Audiodateien) und Kalender-
+  Grundfunktion (Schichten/Jobs/Rotationen, automatisches Fortschreiben, Monats-
+  ansicht, Alarm-Schicht-Verknüpfung).
+- Explizit **nicht** in Phase 1: Spotify/Deezer/Lethe als Ton-Quelle, Kalender-
+  Teilen (P2P/Lethe-Backend), Google-Calendar-/Nextcloud-Sync, Homescreen-Widgets.
+- Offene Entscheidungen vor Codestart laut Plan: Package-Name, Min-/Target-SDK, ob
+  Hilt schon in Phase 1 eingeführt wird.
+
+Noch keine technischen Entscheidungen final/kein Code — nächster Schritt wäre, die
+drei offenen Punkte aus `PLAN.md` mit dem Nutzer zu klären und dann das
+Gradle-Projekt-Grundgerüst aufzusetzen.
