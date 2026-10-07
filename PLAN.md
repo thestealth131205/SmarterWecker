@@ -55,8 +55,8 @@ späteren Phasen.
 
 ## Grobe Umsetzungsreihenfolge
 
-1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose, Package-Name,
-   Min-/Target-SDK festlegen (offene Entscheidung, siehe unten).
+1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,
+   minSdk = targetSdk = API 33 (Android 13), Package-Name festlegen.
 2. Datenmodell & lokale Persistenz (Room): `Alarm`, `Schicht`, `Job`, `Rotation`,
    `RotationTag`, Weckton-Referenz (URI).
 3. Alarmliste-UI + Zeit-Eingabe-Dialog (Zifferblatt), `AlarmManager`-Anbindung
@@ -75,11 +75,14 @@ späteren Phasen.
 11. Kalender-Monatsansicht (aufgeräumtes Layout).
 12. Verknüpfung Alarm ↔ Schicht/Rotation.
 
-## Offene Entscheidungen vor Umsetzungsstart
+## Entscheidungen (2026-10-08)
 
-- Package-Name der App (z. B. `de.<domain>.smarterwecker` o. ä.).
-- Min-/Target-SDK (Health Connect und exact alarms setzen gewisse API-Level
-  voraus – muss noch geprüft/festgelegt werden).
-- Ob Hilt (Dependency Injection) schon in Phase 1 eingeführt wird oder erst später.
-
-Diese drei Punkte sollten vor dem ersten Code-Commit kurz abgestimmt werden.
+- **minSdk = targetSdk = API 33 (Android 13)**. Keine Play-Store-Veröffentlichung
+  geplant, daher keine Rücksicht auf Play-Store-Mindestanforderungen nötig.
+- **Hilt** wird ab Phase 1 eingeführt (kostenlos, Apache-2.0/Open Source — passt
+  zum Ziel der FOSS-Kompatibilität).
+- **FOSS-Kompatibilität**: offene/freie Lizenzen bei Abhängigkeiten bevorzugen,
+  closed-source Komponenten (z. B. Spotify-/Deezer-SDKs in späteren Phasen) bleiben
+  optionale Zusatzfunktion, keine Kern-Abhängigkeit.
+- **Offen:** Package-Name der App (z. B. `de.<domain>.smarterwecker` o. ä.) — noch
+  nicht final geklärt.

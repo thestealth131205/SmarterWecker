@@ -91,6 +91,22 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 - Offene Entscheidungen vor Codestart laut Plan: Package-Name, Min-/Target-SDK, ob
   Hilt schon in Phase 1 eingeführt wird.
 
-Noch keine technischen Entscheidungen final/kein Code — nächster Schritt wäre, die
-drei offenen Punkte aus `PLAN.md` mit dem Nutzer zu klären und dann das
+## Ergänzung (2026-10-08, Architektur-Entscheidungen)
+
+- Nutzer hat entschieden: **minSdk = targetSdk = API 33 (Android 13)**. Play-Store-
+  Veröffentlichung interessiert ihn nicht, daher keine Rücksicht auf Play-Store-
+  Vorgaben nötig.
+- **Hilt** wird ab Phase 1 verwendet, nachdem bestätigt wurde, dass es kostenlos und
+  Open Source (Apache-2.0, Teil von Dagger/Google, Code offen auf GitHub) ist.
+- Neue generelle Leitlinie: Die App soll **FOSS-kompatibel** werden — bei
+  Abhängigkeiten offene/freie Lizenzen bevorzugen, proprietäre/closed-source
+  Komponenten vermeiden wo möglich. Spotify-/Deezer-SDKs (closed-source) bleiben
+  daher explizit optionale Zusatz-Tonquellen in späteren Phasen, keine
+  Kern-Abhängigkeit.
+- Einträge dazu in CLAUDE.md (Architektur-Abschnitt) und PLAN.md (Schritt 1 /
+  "Entscheidungen"-Abschnitt, ersetzt die vorherigen "offenen Entscheidungen")
+  aktualisiert.
+- Noch offen: Package-Name der App.
+
+Nächster Schritt wäre, den Package-Namen final zu klären und dann das
 Gradle-Projekt-Grundgerüst aufzusetzen.

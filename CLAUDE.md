@@ -124,10 +124,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Schichtrotation-Verknüpfung je Alarm usw.) werden in dieses vertraute Grundgerüst
      integriert, nicht als komplett eigenes UI-Paradigma entworfen.
 
-## Architektur (noch offen / zu entscheiden)
+## Architektur
 
-- Zielplattform: Android (nativ, analog zum Lethe-Messenger-Stack vermutlich Kotlin +
-  Jetpack Compose + Hilt, aber noch nicht festgelegt).
+- Zielplattform: Android (nativ), Kotlin + Jetpack Compose + Hilt (Dependency
+  Injection, Apache-2.0/Open Source, kostenlos) ab Phase 1.
+- **minSdk = targetSdk = API 33 (Android 13)**. Play-Store-Veröffentlichung ist
+  explizit kein Ziel, daher keine Rücksicht auf Play-Store-Vorgaben (z. B.
+  aktueller targetSdk) nötig.
+- **FOSS-Kompatibilität als Leitlinie**: Bei Abhängigkeiten werden offene/freie
+  Lizenzen bevorzugt, proprietäre/closed-source Komponenten möglichst vermieden.
+  Spotify-/Deezer-SDKs (closed-source, Streaming-Anbieter) bleiben rein optionale
+  Zusatz-Tonquellen, keine Kern-Abhängigkeit der App.
 - Health Connect: offizielle Android Health Connect API.
 - Bewegungserkennung ohne Health Connect: `SensorManager` mit `TYPE_ACCELEROMETER` /
   `TYPE_GYROSCOPE`, ggf. Schrittzähler-Sensor `TYPE_STEP_COUNTER`/`TYPE_STEP_DETECTOR`.
