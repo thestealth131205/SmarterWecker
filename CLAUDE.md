@@ -33,8 +33,24 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 4. **Notfall-Alarm:**
    - Lässt sich NICHT durch einfaches Drücken stoppen.
    - Tonart ändert sich fortlaufend/eskaliert weiter.
-   - Einzige Möglichkeit zum Stoppen: eine schnell lösbare
-     Farbkombinations-Aufgabe (kleines Puzzle/Minispiel) muss korrekt gelöst werden.
+   - Einzige Möglichkeit zum Stoppen: eine schnell lösbare Zuordnungs-Aufgabe
+     (kleines Drag-&-Drop-Puzzle/Minispiel) muss korrekt gelöst werden.
+   - **Variierende Aufgabenstellung** (nicht immer dieselbe Aufgabe, damit man sie sich
+     nicht einprägt/automatisiert löst):
+     - Grundprinzip: oben wird eine Reihe farbiger Geometrien/Symbole in einer
+       bestimmten Reihenfolge vorgegeben (z. B. 6 Elemente: blauer Kreis, gelbes
+       Dreieck, pinkes Quadrat, ...). Darunter liegt ein größerer Pool an Elementen
+       (z. B. 10 Geometrien, inkl. Ablenker, die nicht zur vorgegebenen Reihe passen),
+       aus dem der Nutzer die passenden per Drag & Drop an die richtige Position in der
+       zweiten Reihe ziehen muss.
+     - Sowohl die Form/Farbe der vorgegebenen Elemente als auch die Zusammensetzung des
+       Auswahl-Pools wechseln bei jedem Auftreten zufällig.
+     - Elementtyp variiert ebenfalls zwischen Weckungen (z. B. statt Geometrien auch
+       Smileys/Emojis), ebenso wie die Anzahl der zu sortierenden Elemente
+       (z. B. mal 6 Geometrien, mal 5 Smileys in vorgegebener Reihenfolge).
+     - Ziel: über mehrere Weckungen hinweg soll sich weder das visuelle Motiv noch die
+       exakte Aufgabengröße wiederholen, damit die Lösung jedes Mal echtes Hinschauen
+       statt Mustererkennung/Auswendiglernen erfordert.
 
 5. **Schichtplan-Rotation:**
    - Nutzer kann eigene Schichten definieren: Name der Schicht (z. B. "Frühschicht",

@@ -62,6 +62,20 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
   an diesem Look & Feel orientieren — bei der Weckton-Auswahl ersetzen wir die
   Streaming-Tabs durch Spotify/Deezer/Lethe-Bibliothek statt YouTube Music.
 
+## Ergänzung (2026-10-08, Notfall-Alarm-Puzzle variiert)
+
+- Die Zuordnungs-Aufgabe zum Stoppen des Notfall-Alarms soll zwischen Weckungen
+  variieren, nicht immer identisch sein (sonst prägt man sich die Lösung ein).
+- Beispielmechanik vom Nutzer: oben eine vorgegebene Reihe farbiger Geometrien
+  (z. B. 6 Elemente: blauer Kreis, gelbes Dreieck, pinkes Quadrat ...), darunter ein
+  größerer Pool (z. B. 10 Geometrien inkl. Ablenker), aus dem die passenden Elemente
+  per Drag & Drop an die richtige Position in der zweiten Reihe gezogen werden müssen.
+- Variiert wird: Farbe/Form der Elemente, Zusammensetzung des Pools, Elementtyp
+  (Geometrien vs. z. B. 5 Smileys in vorgegebener Reihenfolge) und Anzahl der zu
+  sortierenden Elemente — jeweils bei jedem Auftreten neu.
+- In CLAUDE.md unter Kernfunktion 4 "Notfall-Alarm" als eigener Unterpunkt
+  "Variierende Aufgabenstellung" ergänzt.
+
 Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
 Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
 (Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.
