@@ -128,6 +128,8 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 
 - Zielplattform: Android (nativ), Kotlin + Jetpack Compose + Hilt (Dependency
   Injection, Apache-2.0/Open Source, kostenlos) ab Phase 1.
+- **Package-Name: `de.letheapp.nocturn`** (Reverse-Domain von letheapp.de,
+  App-Name "NocTurn").
 - **minSdk = targetSdk = API 33 (Android 13)**. Play-Store-Veröffentlichung ist
   explizit kein Ziel, daher keine Rücksicht auf Play-Store-Vorgaben (z. B.
   aktueller targetSdk) nötig.

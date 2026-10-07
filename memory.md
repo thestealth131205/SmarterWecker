@@ -106,7 +106,9 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 - Einträge dazu in CLAUDE.md (Architektur-Abschnitt) und PLAN.md (Schritt 1 /
   "Entscheidungen"-Abschnitt, ersetzt die vorherigen "offenen Entscheidungen")
   aktualisiert.
-- Noch offen: Package-Name der App.
+- **Package-Name final festgelegt: `de.letheapp.nocturn`** (Reverse-Domain von
+  letheapp.de, nicht thestealth-Domain — letheapp.de ist die Domain, auf die sich
+  der Nutzer bezieht, z. B. im Zusammenhang mit dem Lethe-Projekt).
 
-Nächster Schritt wäre, den Package-Namen final zu klären und dann das
-Gradle-Projekt-Grundgerüst aufzusetzen.
+Damit sind alle drei offenen Entscheidungen (Package-Name, Min-/Target-SDK, Hilt)
+geklärt. Nächster Schritt wäre das Gradle-Projekt-Grundgerüst aufzusetzen.

@@ -56,7 +56,7 @@ späteren Phasen.
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,
-   minSdk = targetSdk = API 33 (Android 13), Package-Name festlegen.
+   minSdk = targetSdk = API 33 (Android 13), Package-Name `de.letheapp.nocturn`.
 2. Datenmodell & lokale Persistenz (Room): `Alarm`, `Schicht`, `Job`, `Rotation`,
    `RotationTag`, Weckton-Referenz (URI).
 3. Alarmliste-UI + Zeit-Eingabe-Dialog (Zifferblatt), `AlarmManager`-Anbindung
@@ -84,5 +84,4 @@ späteren Phasen.
 - **FOSS-Kompatibilität**: offene/freie Lizenzen bei Abhängigkeiten bevorzugen,
   closed-source Komponenten (z. B. Spotify-/Deezer-SDKs in späteren Phasen) bleiben
   optionale Zusatzfunktion, keine Kern-Abhängigkeit.
-- **Offen:** Package-Name der App (z. B. `de.<domain>.smarterwecker` o. ä.) — noch
-  nicht final geklärt.
+- **Package-Name: `de.letheapp.nocturn`** (Reverse-Domain von letheapp.de).
