@@ -15,6 +15,12 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 - Schichtplan-Rotation: benannte Schichten mit frei wählbarer Farbe, Rotation hinterlegt.
 - Eingebauter Kalender, synchronisierbar mit Google Calendar und Nextcloud.
 
+## Ergänzung (2026-10-08)
+
+- Home-Screen-Widgets: Uhr-Widget und Wetter-Widget.
+- Ton-Auswahl für den Wecker soll neben lokalen Tönen auch Spotify, Deezer und die
+  Lethe-Bibliothek als Quelle anbieten.
+
 Noch keine technischen Entscheidungen/Code — nächster Schritt wäre, mit dem Nutzer die
 Architektur (siehe CLAUDE.md "Architektur") konkret festzulegen und erste Screens/Setup
 (Gradle-Projekt, Package-Name, Min/Target SDK) aufzusetzen.

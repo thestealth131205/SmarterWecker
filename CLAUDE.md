@@ -47,6 +47,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - Synchronisierbar mit **Google Calendar** und **Nextcloud** (CalDAV), bidirektional
      geplant (TBD ob Lesen reicht oder auch Schreiben nötig ist).
 
+7. **Home-Screen-Widgets:**
+   - Uhr-Widget und Wetter-Widget für den Android-Homescreen.
+
+8. **Ton-Auswahl für Wecker/Alarm:**
+   - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
+     **Lethe-Bibliothek** als Sound-Quelle für den Alarmton.
+
 ## Architektur (noch offen / zu entscheiden)
 
 - Zielplattform: Android (nativ, analog zum Lethe-Messenger-Stack vermutlich Kotlin +
