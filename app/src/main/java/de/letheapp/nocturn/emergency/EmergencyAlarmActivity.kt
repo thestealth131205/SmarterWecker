@@ -1,6 +1,9 @@
 package de.letheapp.nocturn.emergency
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -13,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import de.letheapp.nocturn.emergency.puzzle.PuzzleGenerator
 import de.letheapp.nocturn.emergency.puzzle.PuzzleScreen
+import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 
 /**
@@ -22,14 +26,27 @@ import de.letheapp.nocturn.ui.theme.NocTurnTheme
  */
 class EmergencyAlarmActivity : ComponentActivity() {
 
+    private val autoResolvedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         showOverLockScreen()
         ContextCompat.startForegroundService(this, Intent(this, EmergencyAlarmService::class.java))
+        ContextCompat.registerReceiver(
+            this,
+            autoResolvedReceiver,
+            IntentFilter(ACTION_EMERGENCY_AUTO_RESOLVED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         setContent {
             NocTurnTheme {
-                // Zurück-Taste absichtlich wirkungslos: einziger Ausweg ist das Puzzle.
+                // Zurück-Taste absichtlich wirkungslos: einziger Ausweg ist das Puzzle
+                // (oder tatsächlich erkanntes Aufstehen+Laufen, siehe autoResolvedReceiver).
                 BackHandler(enabled = true) { }
 
                 Scaffold { innerPadding ->
@@ -41,6 +58,7 @@ class EmergencyAlarmActivity : ComponentActivity() {
                                     Intent(this@EmergencyAlarmActivity, EmergencyAlarmService::class.java)
                                         .setAction(ACTION_EMERGENCY_SOLVED)
                                 )
+                                stopService(Intent(this@EmergencyAlarmActivity, PostAlarmMonitoringService::class.java))
                                 finish()
                             }
                         )
@@ -48,6 +66,11 @@ class EmergencyAlarmActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(autoResolvedReceiver)
     }
 
     private fun showOverLockScreen() {

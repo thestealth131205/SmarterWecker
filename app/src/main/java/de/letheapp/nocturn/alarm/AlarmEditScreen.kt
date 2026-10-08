@@ -48,6 +48,7 @@ fun AlarmEditScreen(
     val rotationOptions by viewModel.rotationOptions.collectAsState()
     var alarm by remember { mutableStateOf<AlarmEntity?>(null) }
     var showRotationDialog by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(alarms) {
         if (alarm == null) {
@@ -86,8 +87,14 @@ fun AlarmEditScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
-            Text(text = "%02d:%02d".format(current.hour, current.minute))
-            if (current.rotationId != null || current.timetableJobId != null) {
+            val timeEditable = current.rotationId == null && current.timetableJobId == null
+            Text(
+                text = "%02d:%02d".format(current.hour, current.minute),
+                style = MaterialTheme.typography.displaySmall,
+                modifier = Modifier
+                    .clickable(enabled = timeEditable) { showTimePicker = true }
+            )
+            if (!timeEditable) {
                 Text(
                     text = "Uhrzeit folgt der Schicht/dem Stundenplan",
                     style = MaterialTheme.typography.bodySmall,
@@ -156,6 +163,18 @@ fun AlarmEditScreen(
                 )
             }
         }
+    }
+
+    if (showTimePicker) {
+        NocturnTimePickerDialog(
+            initialHour = current.hour,
+            initialMinute = current.minute,
+            onConfirm = { hour, minute ->
+                alarm = current.copy(hour = hour, minute = minute)
+                showTimePicker = false
+            },
+            onDismiss = { showTimePicker = false }
+        )
     }
 
     if (showRotationDialog) {

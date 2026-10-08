@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 const val ACTION_EMERGENCY_SOLVED = "de.letheapp.nocturn.action.EMERGENCY_SOLVED"
+/** Broadcast an [EmergencyAlarmActivity]: Bewegung wurde erkannt, Screen kann sich ohne gelöstes Puzzle schließen. */
+const val ACTION_EMERGENCY_AUTO_RESOLVED = "de.letheapp.nocturn.action.EMERGENCY_AUTO_RESOLVED"
 const val CHANNEL_EMERGENCY = "emergency_alarm"
 const val NOTIFICATION_ID_EMERGENCY = 1003
 private const val ESCALATION_STEP_MILLIS = 30_000L

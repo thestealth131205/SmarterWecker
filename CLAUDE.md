@@ -25,10 +25,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      sich nicht an einen Sound gewöhnt und ihn ausblendet.
 
 3. **"Stop" ist kein Freifahrtschein:**
-   - Drückt man statt "Snooze" auf "Stop", wird trotzdem weiter überwacht (Sensorik/
-     Health Connect), ob der Nutzer innerhalb von max. 10 Minuten tatsächlich aufsteht
-     und läuft.
-   - Steht der Nutzer nicht rechtzeitig auf, wird ein **Notfall-Alarm** ausgelöst.
+   - Drückt man statt "Snooze" auf "Stop", öffnet sich **sofort** die Notfall-Alarm-Aufgabe
+     (eskalierender Ton + Zuordnungs-Puzzle, siehe Kernfunktion 4) — der Weckton reißt dabei
+     nicht ab, sondern läuft nahtlos weiter.
+   - Parallel dazu wird weiter per Sensorik/Health Connect überwacht, ob der Nutzer
+     tatsächlich aufsteht und läuft (max. 10 Minuten bzw. bis zur "spätestens
+     aufstehen"-Deadline, siehe Kernfunktion 5): wird echte Bewegung erkannt, beendet sich
+     der Notfall-Alarm automatisch, **auch ohne gelöstes Puzzle**.
+   - Ohne erkannte Bewegung bleibt das Lösen des Puzzles der einzige Weg, den Notfall-Alarm
+     zu beenden.
 
 4. **Notfall-Alarm:**
    - Lässt sich NICHT durch einfaches Drücken stoppen.

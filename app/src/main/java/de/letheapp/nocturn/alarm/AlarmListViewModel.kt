@@ -52,9 +52,9 @@ class AlarmListViewModel @Inject constructor(
         rotationOptions + timetableOptions
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun createAlarm(hour: Int, minute: Int) {
+    fun createAlarm(hour: Int, minute: Int, repeatDays: Int = 0) {
         viewModelScope.launch {
-            val alarm = AlarmEntity(hour = hour, minute = minute, enabled = true)
+            val alarm = AlarmEntity(hour = hour, minute = minute, repeatDays = repeatDays, enabled = true)
             val id = alarmRepository.save(alarm)
             alarmScheduler.schedule(alarm.copy(id = id))
         }

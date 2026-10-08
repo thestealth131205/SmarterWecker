@@ -19,6 +19,7 @@ import de.letheapp.nocturn.alarm.AlarmScheduler
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.repository.AlarmRepository
+import de.letheapp.nocturn.emergency.EmergencyAlarmActivity
 import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
@@ -152,12 +153,28 @@ class AlarmRingingService : Service() {
         stopSelf()
     }
 
+    /**
+     * "Stop" ist kein Freifahrtschein: statt den Wecker einfach verstummen zu lassen, öffnet
+     * sich sofort die Notfall-Alarm-Aufgabe (eskalierender Ton + Zuordnungs-Puzzle) – der Ton
+     * reißt dabei nicht ab, da der Notfall-Alarm-Dienst direkt übernimmt. Parallel überwacht
+     * [PostAlarmMonitoringService] per Sensorik/Health Connect, ob tatsächlich aufgestanden und
+     * gelaufen wird; wird das erkannt, beendet sich der Notfall-Alarm automatisch auch ohne
+     * gelöstes Puzzle.
+     */
     private fun handleStop() {
         stopSoundAndEscalation()
-        val startIntent = Intent(this, PostAlarmMonitoringService::class.java).apply {
+
+        val emergencyIntent = Intent(this, EmergencyAlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_ALARM_ID, currentAlarmId)
         }
-        ContextCompat.startForegroundService(this, startIntent)
+        startActivity(emergencyIntent)
+
+        val monitoringIntent = Intent(this, PostAlarmMonitoringService::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, currentAlarmId)
+        }
+        ContextCompat.startForegroundService(this, monitoringIntent)
+
         stopForegroundCompat()
         stopSelf()
     }

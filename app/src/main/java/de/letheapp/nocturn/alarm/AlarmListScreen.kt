@@ -21,8 +21,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +60,9 @@ fun AlarmListScreen(
 ) {
     val alarms by viewModel.alarms.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
+    var showWeekdayPicker by remember { mutableStateOf(false) }
+    var pendingHour by remember { mutableIntStateOf(0) }
+    var pendingMinute by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -114,12 +121,62 @@ fun AlarmListScreen(
             initialHour = now.hour,
             initialMinute = now.minute,
             onConfirm = { hour, minute ->
-                viewModel.createAlarm(hour, minute)
+                pendingHour = hour
+                pendingMinute = minute
                 showTimePicker = false
+                showWeekdayPicker = true
             },
             onDismiss = { showTimePicker = false }
         )
     }
+
+    if (showWeekdayPicker) {
+        WeekdayPickerDialog(
+            onConfirm = { repeatDays ->
+                viewModel.createAlarm(pendingHour, pendingMinute, repeatDays)
+                showWeekdayPicker = false
+            },
+            onDismiss = { showWeekdayPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun WeekdayPickerDialog(onConfirm: (repeatDays: Int) -> Unit, onDismiss: () -> Unit) {
+    var repeatDays by remember { mutableStateOf(0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Wiederholung") },
+        text = {
+            Column {
+                Text(
+                    text = AlarmRepeat.describe(repeatDays),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Row {
+                    listOf(
+                        DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY,
+                        DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
+                    ).forEach { day ->
+                        FilterChip(
+                            selected = AlarmRepeat.isSet(repeatDays, day),
+                            onClick = { repeatDays = AlarmRepeat.toggle(repeatDays, day) },
+                            label = { Text(AlarmRepeat.shortLabel(day)) },
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(repeatDays) }) { Text("Alarm anlegen") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
 }
 
 @Composable
