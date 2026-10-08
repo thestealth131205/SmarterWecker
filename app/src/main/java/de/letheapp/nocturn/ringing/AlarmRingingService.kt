@@ -19,7 +19,7 @@ import de.letheapp.nocturn.alarm.AlarmScheduler
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.repository.AlarmRepository
-import de.letheapp.nocturn.emergency.EmergencyAlarmActivity
+import de.letheapp.nocturn.emergency.EmergencyAlarmService
 import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
@@ -155,26 +155,30 @@ class AlarmRingingService : Service() {
 
     /**
      * "Stop" ist kein Freifahrtschein: statt den Wecker einfach verstummen zu lassen, öffnet
-     * sich sofort die Notfall-Alarm-Aufgabe (eskalierender Ton + Zuordnungs-Puzzle) – der Ton
-     * reißt dabei nicht ab, da der Notfall-Alarm-Dienst direkt übernimmt. Parallel überwacht
+     * sich sofort die Notfall-Alarm-Aufgabe (eskalierender Ton + Zuordnungs-Puzzle). Der
+     * Notfall-Alarm-Dienst wird dafür VOR dem Stoppen des eigenen Tons gestartet und zeigt sich
+     * selbst per Full-Screen-Intent-Benachrichtigung an (zuverlässig, unabhängig vom
+     * Hintergrundstatus der App – ein direkter `startActivity()` aus einem Service heraus wird
+     * von Android sonst als Hintergrund-Activity-Start verzögert/blockiert). So reißt der Ton
+     * nie ab: der Notfall-Ton läuft bereits, bevor der Wecker-Ton stoppt. Parallel überwacht
      * [PostAlarmMonitoringService] per Sensorik/Health Connect, ob tatsächlich aufgestanden und
      * gelaufen wird; wird das erkannt, beendet sich der Notfall-Alarm automatisch auch ohne
      * gelöstes Puzzle.
      */
     private fun handleStop() {
-        stopSoundAndEscalation()
+        escalationJob?.cancel()
 
-        val emergencyIntent = Intent(this, EmergencyAlarmActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val emergencyIntent = Intent(this, EmergencyAlarmService::class.java).apply {
             putExtra(EXTRA_ALARM_ID, currentAlarmId)
         }
-        startActivity(emergencyIntent)
+        ContextCompat.startForegroundService(this, emergencyIntent)
 
         val monitoringIntent = Intent(this, PostAlarmMonitoringService::class.java).apply {
             putExtra(EXTRA_ALARM_ID, currentAlarmId)
         }
         ContextCompat.startForegroundService(this, monitoringIntent)
 
+        stopSoundAndEscalation()
         stopForegroundCompat()
         stopSelf()
     }

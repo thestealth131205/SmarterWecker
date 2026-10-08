@@ -3,6 +3,7 @@ package de.letheapp.nocturn.emergency
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
+import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -42,6 +44,8 @@ class EmergencyAlarmService : Service() {
     private var escalationJob: Job? = null
     private var mediaPlayer: MediaPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var alarmId: Long = -1
+    private var isRinging = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -51,10 +55,18 @@ class EmergencyAlarmService : Service() {
             return START_NOT_STICKY
         }
 
-        acquireWakeLock()
+        alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: alarmId
+        // Full-Screen-Intent-Benachrichtigung zeigt die Aufgabe zuverlässig sofort an, auch
+        // wenn die App gerade keine sichtbare Activity hat – deshalb immer aktuell halten,
+        // aber Ton/Eskalation nur einmal starten (sonst Audio-Hänger bei mehrfachem Aufruf,
+        // z. B. wenn [EmergencyAlarmActivity] den Dienst zusätzlich anstößt).
         startForeground(NOTIFICATION_ID_EMERGENCY, buildNotification())
-        playSound()
-        startEscalation()
+        if (!isRinging) {
+            isRinging = true
+            acquireWakeLock()
+            playSound()
+            startEscalation()
+        }
         return START_STICKY
     }
 
@@ -92,6 +104,7 @@ class EmergencyAlarmService : Service() {
     }
 
     private fun stopRinging() {
+        isRinging = false
         escalationJob?.cancel()
         mediaPlayer?.stop()
         mediaPlayer?.release()
@@ -113,12 +126,24 @@ class EmergencyAlarmService : Service() {
         notificationManager.createNotificationChannel(
             NotificationChannel(CHANNEL_EMERGENCY, "Notfall-Alarm", NotificationManager.IMPORTANCE_HIGH)
         )
+
+        val activityIntent = Intent(this, EmergencyAlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(EXTRA_ALARM_ID, alarmId)
+        }
+        val activityPendingIntent = PendingIntent.getActivity(
+            this, alarmId.toInt(), activityIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_EMERGENCY)
             .setContentTitle("Notfall-Alarm")
             .setContentText("Löse das Puzzle, um den Alarm zu stoppen")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(activityPendingIntent, true)
+            .setContentIntent(activityPendingIntent)
             .setOngoing(true)
             .build()
     }

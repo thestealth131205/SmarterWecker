@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.emergency.puzzle.PuzzleGenerator
 import de.letheapp.nocturn.emergency.puzzle.PuzzleScreen
 import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
@@ -35,7 +36,10 @@ class EmergencyAlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         showOverLockScreen()
-        ContextCompat.startForegroundService(this, Intent(this, EmergencyAlarmService::class.java))
+        val serviceIntent = Intent(this, EmergencyAlarmService::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, intent.getLongExtra(EXTRA_ALARM_ID, -1L))
+        }
+        ContextCompat.startForegroundService(this, serviceIntent)
         ContextCompat.registerReceiver(
             this,
             autoResolvedReceiver,
