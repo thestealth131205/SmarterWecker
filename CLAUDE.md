@@ -163,6 +163,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 8. **Ton-Auswahl für Wecker/Alarm:**
    - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
      **Lethe-Bibliothek** als Sound-Quelle für den Alarmton.
+   - **Lethe-Bibliothek-Tab (umgesetzt)**: NocTurn bekommt dafür bewusst NIEMALS einen vollen
+     Lethe-Login-JWT oder Zugriff auf den UMK (Ende-zu-Ende-Verschlüsselungs-Schlüssel) des
+     Lethe Messengers, sondern nur einen schmalen, jederzeit widerrufbaren `media:read`-Scope-
+     Token (`nm_<token>`, eigener Codepfad/eigene DB-Tabelle `nocturn_media_grants` im
+     Lethe-Backend, komplett getrennt vom Login-/Geräte-Authentifizierungs-Flow). Ablauf: Nutzer
+     gibt im Lethe-Bibliothek-Tab Telefonnummer+Passwort ein (beweist nur Kontoinhaberschaft,
+     wird nicht gespeichert) → Push-Benachrichtigung an das Lethe-Messenger-Host-Gerät → Nutzer
+     bestätigt dort mit einem Tap (kein Passwort/Biometrie-Gate nötig, da die Anfrage schon
+     passwortgesichert war) → NocTurn pollt den Token und speichert ihn AES/GCM-verschlüsselt
+     (Android Keystore, wie beim Nextcloud-App-Passwort). Verwaltung/Widerruf der Kopplung über
+     "Bekannte Geräte" im Lethe Messenger. Siehe `/opt/lethe/backend` Architektur-Abschnitt.
 
 9. **UI/UX-Orientierung "Wecker" (Alarm-Bereich):**
    - Grundlegendes Look & Feel orientiert sich bewusst an der **Google-Uhr-App**
@@ -270,6 +281,20 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   das bereits vorhandene OkHttp + Androids eingebautes `org.json` (keine neue JSON-Lib-
   Abhängigkeit). Ergebnisse werden pro Bundesland/Jahr lokal in Room gecacht, damit der
   Kalender auch offline funktioniert und nicht bei jedem Öffnen neu angefragt wird.
+- Lethe-Bibliothek als Weckton-Quelle (Kernfunktion 8, neues Package `sound/lethe`): eigener
+  `media:read`-Scope statt des Lethe-Login-JWT/UMK, umgesetzt als neue, vom Login komplett
+  getrennte Tabelle `nocturn_media_grants` + Routen `/nocturn/media/pair/*` und
+  `/nocturn/media/{library,stream/{id}}` im Lethe-Backend (`/opt/letheapp/Debian Server/main.py`)
+  sowie `/nocturn/media/grants` zur Verwaltung/zum Widerruf. Freigabe-Push über denselben
+  WS/FCM-Mechanismus wie die bestehende Geräte-Authentifizierung (`_create_device_auth_request`),
+  aber eigener Push-Typ `nocturn_media_grant_request` und eigener Freigabe-Screen im Lethe
+  Messenger (`NocturnMediaGrantScreen.kt`) ohne Passwort-/Biometrie-Gate (die Anfrage selbst ist
+  bereits passwortgesichert). Stream-Endpoint prüft den Scope bei jedem Request neu (sofortiger
+  Effekt bei Widerruf), statt den offenen `/uploads`-Static-Mount zu nutzen; Token zusätzlich als
+  `?token=`-Query-Parameter akzeptiert, da Androids `MediaPlayer` beim Abspielen einer reinen URI
+  keine eigenen Header mitsenden kann. NocTurn speichert den Scope-Token AES/GCM-verschlüsselt
+  mit Android-Keystore-Schlüssel (`LetheMediaCredentialsStore`, gleiches Muster wie das
+  Nextcloud-App-Passwort), ohne das Lethe-Passwort selbst je zu speichern.
 
 ## Wichtig
 

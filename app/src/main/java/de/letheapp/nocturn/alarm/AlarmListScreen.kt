@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
@@ -63,6 +64,7 @@ fun AlarmListScreen(
     onOpenPermissions: () -> Unit,
     onOpenNextcloudSync: () -> Unit,
     onOpenHolidaySettings: () -> Unit,
+    onOpenHealthConnectStatus: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -87,6 +89,14 @@ fun AlarmListScreen(
                         DropdownMenuItem(
                             text = { Text("Wecker") },
                             onClick = { showOverflowMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Status") },
+                            leadingIcon = { Icon(Icons.Filled.MonitorHeart, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenHealthConnectStatus()
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text("Kalender") },

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -149,6 +150,23 @@
             android:name=".emergency.EmergencyAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!--
+            NocturnApplication initialisiert WorkManager selbst on-demand (Configuration.Provider
+            mit HiltWorkerFactory, siehe NocturnApplication.kt) statt über den automatischen
+            App-Startup-Initializer der work-runtime-Bibliothek — der Initializer-Eintrag aus deren
+            Manifest muss daher explizit entfernt werden, sonst schlägt lintVitalRelease fehl.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <!-- Für die Fotos des Foto-Imports (Kernfunktion 5): liefert eine content://-Uri an die Kamera-App. -->
         <provider
