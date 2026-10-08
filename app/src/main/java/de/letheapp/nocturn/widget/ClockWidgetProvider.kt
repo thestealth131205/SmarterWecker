@@ -85,7 +85,7 @@ class ClockWidgetProvider : AppWidgetProvider() {
     private fun scheduleTicks(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val firstTriggerAt = (System.currentTimeMillis() / 60_000L + 1) * 60_000L
-        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, AlarmManager.INTERVAL_MINUTE, tickPendingIntent(context))
+        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, 60_000L, tickPendingIntent(context))
     }
 
     private fun tickPendingIntent(context: Context): PendingIntent {
