@@ -143,3 +143,21 @@ interface CalendarEntryDao {
     )
     suspend fun getNextWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity?
 }
+
+@Dao
+interface AppointmentDao {
+    @Query(
+        "SELECT * FROM appointments WHERE startEpochDay <= :toEpochDay AND endEpochDay >= :fromEpochDay " +
+            "ORDER BY startEpochMillis"
+    )
+    fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<AppointmentEntity>>
+
+    @Insert
+    suspend fun insert(appointment: AppointmentEntity): Long
+
+    @Update
+    suspend fun update(appointment: AppointmentEntity)
+
+    @Delete
+    suspend fun delete(appointment: AppointmentEntity)
+}

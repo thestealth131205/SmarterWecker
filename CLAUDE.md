@@ -103,6 +103,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      ansteht, ohne dass der Nutzer manuell nachpflegen muss.
    - Monatsansicht zeigt pro Tag die zugeordnete(n) Schicht(en) farbig markiert;
      mehrere Einträge pro Tag möglich (z. B. Schicht + zusätzlicher Termin/Urlaub).
+     Tageskacheln großzügig bemessen (mehr Platz unter der Tageszahl), zeigen bis zu
+     4 Punkte sowie den Namen des ersten Eintrags klein darunter.
+   - **Freie Termine**: eigenständige Termine (z. B. Kinoticket, Arzttermin) unabhängig
+     von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht.
+   - **System-Registrierung als Kalender-Ziel für "Zum Kalender hinzufügen"**: NocTurn
+     bietet sich über einen Manifest-Intent-Filter (`ACTION_INSERT`/`ACTION_EDIT` auf
+     `CalendarContract.Events`) im Android-Auswahlmenü an, wenn eine Fremd-App (z. B.
+     Kinoticket-/Buchungs-App) einen "Termin speichern"-Button anbietet. Titel/Ort/Zeit
+     werden aus den Intent-Extras vorbefüllt und vor dem Speichern vom Nutzer bestätigt.
    - **Kalender teilen** (bestätigtes Pflichtfeature): eigener Kalender kann per Einladung
      mit anderen Personen geteilt werden, mit granularer Freigabe, welche Bereiche
      sichtbar sind (z. B. "Mein Job", "Termine", "Notizen" einzeln togglebar).
@@ -138,7 +147,8 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      (siehe Referenzbilder), damit sich Nutzer sofort zurechtfinden:
      - **Alarmliste**: eine Karte pro Alarm mit großer Uhrzeit, Wiederholungsmuster als
        Untertitel (z. B. "Jeden Tag"), Ein/Aus-Toggle rechts, farbiger Karten-Akzent,
-       FAB ("+") zum Anlegen neuer Alarme.
+       FAB ("+") zum Anlegen neuer Alarme. 3-Punkte-Menü in der Titelleiste zur
+       Navigation zwischen den Hauptbereichen "Wecker" und "Kalender".
      - **Uhrzeit-Eingabe** per Dialog mit antippbarem/ziehbarem 24h-Zifferblatt
        (analoges Rad), alternativ direkte Zahleneingabe über Tastatur-Umschalter.
      - **Weckton-Auswahl** als eigener Screen mit Tabs: "Töne" (lokale/aufgezeichnete

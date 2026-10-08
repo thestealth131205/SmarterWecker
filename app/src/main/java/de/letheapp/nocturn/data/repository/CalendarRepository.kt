@@ -1,5 +1,7 @@
 package de.letheapp.nocturn.data.repository
 
+import de.letheapp.nocturn.data.db.AppointmentDao
+import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.CalendarEntryEntity
 import de.letheapp.nocturn.data.db.JobDao
@@ -26,10 +28,14 @@ class CalendarRepository @Inject constructor(
     private val shiftDao: ShiftDao,
     private val rotationDao: RotationDao,
     private val calendarEntryDao: CalendarEntryDao,
-    private val lessonDao: LessonDao
+    private val lessonDao: LessonDao,
+    private val appointmentDao: AppointmentDao
 ) {
     companion object {
         const val FORECAST_YEARS = 5
+
+        /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
+        const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFF7043.toInt()
     }
 
     // Jobs
@@ -156,4 +162,42 @@ class CalendarRepository @Inject constructor(
      */
     suspend fun getNextCalendarEntryWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity? =
         calendarEntryDao.getNextWithShift(rotationId, fromEpochDay)
+
+    // Termine
+
+    fun observeAppointments(fromEpochDay: Long, toEpochDay: Long): Flow<List<AppointmentEntity>> =
+        appointmentDao.observeRange(fromEpochDay, toEpochDay)
+
+    /**
+     * Legt einen Termin an, u. a. Ziel von [de.letheapp.nocturn.calendar.AddAppointmentActivity],
+     * wenn sich NocTurn im System-"Zum Kalender hinzufügen"-Menü einer Fremd-App anbietet.
+     */
+    suspend fun addAppointment(
+        title: String,
+        location: String,
+        description: String,
+        startEpochMillis: Long,
+        endEpochMillis: Long,
+        allDay: Boolean,
+        colorArgb: Int = DEFAULT_APPOINTMENT_COLOR_ARGB
+    ): Long {
+        val zone = java.time.ZoneId.systemDefault()
+        val startDay = java.time.Instant.ofEpochMilli(startEpochMillis).atZone(zone).toLocalDate().toEpochDay()
+        val endDay = java.time.Instant.ofEpochMilli(endEpochMillis).atZone(zone).toLocalDate().toEpochDay()
+        return appointmentDao.insert(
+            AppointmentEntity(
+                title = title,
+                location = location,
+                description = description,
+                startEpochMillis = startEpochMillis,
+                endEpochMillis = endEpochMillis,
+                startEpochDay = startDay,
+                endEpochDay = maxOf(startDay, endDay),
+                allDay = allDay,
+                colorArgb = colorArgb
+            )
+        )
+    }
+
+    suspend fun deleteAppointment(appointment: AppointmentEntity) = appointmentDao.delete(appointment)
 }

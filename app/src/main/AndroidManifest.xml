@@ -62,6 +62,29 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Damit NocTurn im Android-"Zum Kalender hinzufügen"-Auswahlmenü erscheint, z. B. bei
+            einem "Termin speichern"-Button in einer Kinoticket-/Buchungs-App (CLAUDE.md
+            Kernfunktion 6). Android/andere Apps senden dafür ACTION_INSERT bzw. ACTION_EDIT auf
+            den CalendarContract.Events-MIME-Typ.
+        -->
+        <activity
+            android:name=".calendar.AddAppointmentActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.NocTurn">
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/event" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/event" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ringing.AlarmRingingActivity"
             android:exported="false"

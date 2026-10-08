@@ -20,9 +20,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -63,6 +66,7 @@ fun AlarmListScreen(
     var showWeekdayPicker by remember { mutableStateOf(false) }
     var pendingHour by remember { mutableIntStateOf(0) }
     var pendingMinute by remember { mutableIntStateOf(0) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -77,6 +81,22 @@ fun AlarmListScreen(
                     }
                     IconButton(onClick = onOpenCalendarTemplates) {
                         Icon(Icons.Filled.CalendarMonth, contentDescription = "Kalender-Vorlagen")
+                    }
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Weitere Optionen")
+                    }
+                    DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Wecker") },
+                            onClick = { showOverflowMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Kalender") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenCalendarMonth()
+                            }
+                        )
                     }
                 }
             )

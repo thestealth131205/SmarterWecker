@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.time.LocalDate
@@ -46,12 +47,14 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 private val WEEKDAY_HEADERS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
-private const val MAX_DOTS_PER_DAY = 3
+private const val MAX_DOTS_PER_DAY = 4
+private val DAY_CELL_MIN_HEIGHT = 92.dp
 
 /**
- * Übersichtliche Monatsansicht: ein Punkt pro Schicht am jeweiligen Tag (max. 3, Rest als
- * "+N"), Details per Tap auf den Tag. Bewusst reduzierter als klassische Schichtplan-Apps
- * (siehe CLAUDE.md Kernfunktion 6) — keine Text-Kürzel/volle Beschriftung in der Kachel.
+ * Übersichtliche Monatsansicht: ein Punkt pro Schicht/Termin am jeweiligen Tag (max. 4, Rest
+ * als "+N") plus der erste Eintragsname klein darunter, Details per Tap auf den Tag. Bewusst
+ * reduzierter als klassische Schichtplan-Apps (siehe CLAUDE.md Kernfunktion 6) — großzügigere
+ * Zellen als in früheren Versionen, damit pro Tag mehr erkennbar ist, ohne überladen zu wirken.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,7 +116,7 @@ fun CalendarMonthScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(leadingBlanks) {
-                    Box(modifier = Modifier.aspectRatio(1f))
+                    Box(modifier = Modifier.heightIn(min = DAY_CELL_MIN_HEIGHT))
                 }
 
                 items(daysInMonth) { index ->
@@ -121,7 +124,7 @@ fun CalendarMonthScreen(
                     DayCell(
                         date = date,
                         isToday = date == today,
-                        shifts = entriesByDay[date].orEmpty(),
+                        entries = entriesByDay[date].orEmpty(),
                         onClick = { if (entriesByDay[date].orEmpty().isNotEmpty()) selectedDay = date }
                     )
                 }
@@ -130,21 +133,23 @@ fun CalendarMonthScreen(
     }
 
     selectedDay?.let { date ->
-        DayDetailsDialog(date = date, shifts = entriesByDay[date].orEmpty(), onDismiss = { selectedDay = null })
+        DayDetailsDialog(date = date, entries = entriesByDay[date].orEmpty(), onDismiss = { selectedDay = null })
     }
 }
 
 @Composable
-private fun DayCell(date: LocalDate, isToday: Boolean, shifts: List<DayShiftInfo>, onClick: () -> Unit) {
+private fun DayCell(date: LocalDate, isToday: Boolean, entries: List<CalendarDayEntry>, onClick: () -> Unit) {
     Column(
         modifier = Modifier
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
+            .fillMaxWidth()
+            .heightIn(min = DAY_CELL_MIN_HEIGHT)
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(28.dp)
                 .background(
                     if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
                     CircleShape
@@ -159,34 +164,45 @@ private fun DayCell(date: LocalDate, isToday: Boolean, shifts: List<DayShiftInfo
         }
 
         Row(
-            modifier = Modifier.padding(top = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            shifts.take(MAX_DOTS_PER_DAY).forEach { shift ->
+            entries.take(MAX_DOTS_PER_DAY).forEach { entry ->
                 Box(
                     modifier = Modifier
-                        .size(6.dp)
-                        .background(Color(shift.colorArgb), CircleShape)
+                        .size(7.dp)
+                        .background(Color(entry.colorArgb), CircleShape)
                 )
             }
-            if (shifts.size > MAX_DOTS_PER_DAY) {
+            if (entries.size > MAX_DOTS_PER_DAY) {
                 Text(
-                    text = "+${shifts.size - MAX_DOTS_PER_DAY}",
+                    text = "+${entries.size - MAX_DOTS_PER_DAY}",
                     style = MaterialTheme.typography.labelSmall
                 )
             }
+        }
+
+        if (entries.isNotEmpty()) {
+            Text(
+                text = entries.first().label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = 2.dp, end = 2.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun DayDetailsDialog(date: LocalDate, shifts: List<DayShiftInfo>, onDismiss: () -> Unit) {
+private fun DayDetailsDialog(date: LocalDate, entries: List<CalendarDayEntry>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(date.toString()) },
         text = {
             Column {
-                shifts.forEach { shift ->
+                entries.forEach { entry ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -194,12 +210,13 @@ private fun DayDetailsDialog(date: LocalDate, shifts: List<DayShiftInfo>, onDism
                         Box(
                             modifier = Modifier
                                 .size(12.dp)
-                                .background(Color(shift.colorArgb), CircleShape)
+                                .background(Color(entry.colorArgb), CircleShape)
                         )
-                        Text(
-                            text = if (shift.jobName.isNotBlank()) "${shift.shiftName} · ${shift.jobName}" else shift.shiftName,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
+                        val text = when (entry) {
+                            is ShiftDayEntry -> if (entry.jobName.isNotBlank()) "${entry.shiftName} · ${entry.jobName}" else entry.shiftName
+                            is AppointmentDayEntry -> entry.title
+                        }
+                        Text(text = text, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }

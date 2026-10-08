@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import de.letheapp.nocturn.data.db.AlarmDao
+import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.LessonDao
@@ -46,4 +47,7 @@ object DatabaseModule {
 
     @Provides
     fun provideLessonDao(db: NocturnDatabase): LessonDao = db.lessonDao()
+
+    @Provides
+    fun provideAppointmentDao(db: NocturnDatabase): AppointmentDao = db.appointmentDao()
 }

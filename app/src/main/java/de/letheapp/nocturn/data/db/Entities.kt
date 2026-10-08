@@ -170,3 +170,24 @@ data class CalendarEntryEntity(
     val dateEpochDay: Long,
     val shiftId: Long?
 )
+
+/**
+ * Frei angelegter Kalender-Termin (z. B. Kinoticket, Arzttermin) — unabhängig von
+ * Schichten/Rotationen. Wird sowohl über die eigene Kalender-Ansicht angelegt als auch
+ * über externe Apps, die NocTurn im Android-"Zum Kalender hinzufügen"-Menü auswählen
+ * (siehe [de.letheapp.nocturn.calendar.AddAppointmentActivity]).
+ */
+@Entity(tableName = "appointments")
+data class AppointmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val location: String = "",
+    val description: String = "",
+    val startEpochMillis: Long,
+    val endEpochMillis: Long,
+    /** Für die Tag-Zuordnung in der Monatsansicht vorab aus den Millis berechnet. */
+    val startEpochDay: Long,
+    val endEpochDay: Long,
+    val allDay: Boolean = false,
+    val colorArgb: Int
+)
