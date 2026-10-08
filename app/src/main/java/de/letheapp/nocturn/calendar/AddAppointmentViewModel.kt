@@ -3,6 +3,7 @@ package de.letheapp.nocturn.calendar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import de.letheapp.nocturn.data.db.AppointmentPriority
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,6 +20,7 @@ class AddAppointmentViewModel @Inject constructor(
         startEpochMillis: Long,
         endEpochMillis: Long,
         allDay: Boolean,
+        priority: AppointmentPriority = AppointmentPriority.NORMAL,
         onSaved: () -> Unit
     ) {
         if (title.isBlank()) return
@@ -29,7 +31,8 @@ class AddAppointmentViewModel @Inject constructor(
                 description = description,
                 startEpochMillis = startEpochMillis,
                 endEpochMillis = maxOf(startEpochMillis, endEpochMillis),
-                allDay = allDay
+                allDay = allDay,
+                priority = priority
             )
             onSaved()
         }

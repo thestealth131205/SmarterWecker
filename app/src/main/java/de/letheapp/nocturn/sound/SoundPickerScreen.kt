@@ -47,6 +47,7 @@ fun SoundPickerScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedUri by remember { mutableStateOf(currentSoundUri) }
     var customSounds by remember { mutableStateOf(viewModel.customSounds()) }
+    val bundledSounds = remember { viewModel.bundledSounds() }
     val systemSounds = remember { viewModel.systemSounds() }
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
@@ -97,6 +98,14 @@ fun SoundPickerScreen(
                             Text("Eigene Audiodatei wählen…", modifier = Modifier.padding(start = 16.dp))
                         }
                         Divider()
+                    }
+
+                    item { SectionLabel("Wecker-Töne") }
+                    items(bundledSounds) { option ->
+                        SoundRow(option, selectedUri) { uri ->
+                            selectedUri = uri
+                            onSoundSelected(uri)
+                        }
                     }
 
                     if (customSounds.isNotEmpty()) {

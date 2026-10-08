@@ -233,6 +233,72 @@ bleibt weiterhin offen/zukünftig:
   hat zudem keinen x86_64-Sysroot). Verifikation erfolgt daher ausschließlich über die GitHub
   Action `build-apk.yml` auf x86_64-Runnern.
 
+## Nachträglich ergänzte Anforderungen (2026-10-08, Uhr- und Kalender-Widget, umgesetzt)
+
+Phase 1 schloss Home-Screen-Widgets explizit aus (siehe oben); auf Nutzerwunsch
+("Baue das Uhr Widget ein sowie ein Widget für Termine Kalender") jetzt Uhr- und
+Kalender-/Termine-Widget nachträglich umgesetzt. Wetter-Widget bleibt weiterhin offen
+(nicht Teil dieser Anfrage).
+
+- [x] **`ClockWidgetProvider`** (`widget`-Package): klassischer `AppWidgetProvider` +
+  `RemoteViews` (keine Glance-Abhängigkeit, FOSS-Minimalismus). Zeigt Datum/Uhrzeit/
+  nächsten Alarm transparent über dem Wallpaper, exakt nach Nutzer-Referenzbild gestapelt.
+  "Nächster Alarm" kommt direkt von `AlarmManager.getNextAlarmClock()`, keine eigene DB-
+  Abfrage nötig, da `AlarmScheduler` bereits über `setAlarmClock` plant. Minütliches
+  Update selbst über `AlarmManager.setRepeating` angestoßen (offizielle
+  `updatePeriodMillis`-Updates sind auf 30 Minuten limitiert, zu grob für eine Uhr).
+- [x] **`CalendarWidgetProvider`**: zeigt die nächsten bis zu 4 anstehenden Einträge
+  (Schichten aus Rotationen + freie Termine, 14-Tage-Vorschau) als Agenda mit farbigem
+  Punkt, Tag/Uhrzeit und Bezeichnung. Nutzt Hilt-`@AndroidEntryPoint` direkt auf dem
+  `AppWidgetProvider` (derselbe Ansatz wie bei `BootReceiver`/`AlarmReceiver`, da
+  `AppWidgetProvider` selbst ein `BroadcastReceiver` ist) für den Zugriff auf
+  `CalendarRepository.getUpcomingAgenda(...)` (neue Methode). Tippen öffnet
+  `MainActivity` direkt in der Kalender-Monatsansicht (neuer `EXTRA_OPEN_CALENDAR`-Intent-
+  Extra).
+- Beide Widgets rein über klassische XML-Layouts/`RemoteViews` umgesetzt statt Jetpack
+  Glance, da für zwei überwiegend statische Widgets keine zusätzliche Compose-für-Widgets-
+  Abhängigkeit nötig ist.
+- **Bekannte Einschränkung**: Diesmal ließ sich nicht einmal der bisherige
+  `compileDebugKotlin`-Workaround (Ausschluss der `aapt2`-abhängigen Resource-Tasks)
+  nutzen, da der neue Widget-Code tatsächlich `R.layout.widget_clock`/`R.id....`
+  referenziert und damit ein echtes `R.jar` benötigt — der Workaround griff bisher nur,
+  wenn keine Quelldatei die `R`-Klasse referenzierte. Verifikation läuft daher
+  ausschließlich über die GitHub Action `build-apk.yml` beim nächsten Push; der Code wurde
+  stattdessen besonders sorgfältig manuell durchgegangen (Layout-IDs ↔ Kotlin-Referenzen,
+  Manifest-Receiver-Registrierung, Action-String-Konsistenz zwischen Manifest und Provider).
+
+## Nachträglich ergänzte Anforderungen (2026-10-08, Kalender-FAB + Ferien/Feiertage, umgesetzt)
+
+Nutzerwunsch: "+"-Button in der Kalender-Monatsansicht zum Anlegen von Terminen/Schichten,
+plus ein neuer Menüpunkt "Ferien & Feiertage" (Bundesland wählen, Feiertage/Schulferien
+optional im Kalender anzeigen).
+
+- [x] **FAB "+" in `CalendarMonthScreen`**: fragt "Termin" oder "Schicht" ab. Ein zuvor
+  angetippter Tag wird als Datums-Vorbelegung übernommen (dünn umrandet markiert), bleibt
+  aber im Folgeformular über einen neuen `NocturnDatePickerDialog` (Material3-`DatePicker`-
+  Wrapper) änderbar.
+- [x] **Termin-Formular erweitert** (`AddAppointmentScreen`, bisher nur für den externen
+  "Zum Kalender hinzufügen"-Chooser-Flow): jetzt zusätzlich mit Datums-Zeile und
+  "Wichtigkeit"-Auswahl (Niedrig/Normal/Hoch, neues `AppointmentEntity.priority`-Feld),
+  für beide Einstiege (FAB und externer Chooser) gemeinsam genutzt.
+- [x] **Neuer Screen `AddShiftEntryScreen`** für die FAB-Option "Schicht": Job → Schicht →
+  Datum, gespeichert als neue `ManualShiftEntryEntity` — ergänzt automatisch aus Rotationen
+  fortgeschriebene Einträge, ersetzt sie nicht.
+- [x] **Neues `holidays`-Package**: `HolidaySettingsScreen` (Bundesland-Auswahl aus allen
+  16 deutschen Ländern, zwei Toggles für Feiertage/Ferien) + `HolidayRepository`/
+  `HolidaysApi`. Datenquelle: kostenlose, schlüssellose **OpenHolidaysAPI**
+  (openholidaysapi.org, ODbL) — als eine der wenigen freien Quellen recherchiert, die
+  sowohl gesetzliche Feiertage als auch Schulferien pro Bundesland liefert. Ergebnisse
+  werden pro Bundesland/Jahr lokal in Room gecacht (`holidays`-Tabelle), Anzeige in der
+  Monatsansicht als zusätzliche farbige Punkte (rot = Feiertag, grün = Ferien).
+- DB-Schema-Version 5 → 6 (`manual_shift_entries`, `holiday_settings`, `holidays`,
+  `appointments.priority`) — via `fallbackToDestructiveMigration()` ohne manuelle Migration.
+- **Bekannte Einschränkung**: lokale Verifikation weiterhin durch das aapt2-Problem
+  blockiert (siehe oben); Code besonders sorgfältig manuell durchgegangen, u. a.
+  Material3-`ExposedDropdownMenuBox`/`DatePickerDialog`-API-Signaturen vorab per Websuche
+  gegen die im Projekt gepinnte Compose-BOM-Version 2024.09.03 verifiziert. Echte
+  Verifikation läuft über die GitHub Action `build-apk.yml` beim nächsten Push.
+
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,

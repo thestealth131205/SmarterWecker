@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import de.letheapp.nocturn.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +19,20 @@ data class SoundOption(
 class SoundRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    fun defaultAlarmSoundUri(): Uri =
-        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: Uri.EMPTY
+    /** In der App gebündelte Wecktöne (res/raw), stehen ohne jede Berechtigung sofort zur Verfügung. */
+    fun bundledSounds(): List<SoundOption> = listOf(
+        SoundOption(bundledUri(R.raw.alarm_ton_1), "Wecker-Ton 1"),
+        SoundOption(bundledUri(R.raw.alarm_ton_2), "Wecker-Ton 2"),
+        SoundOption(bundledUri(R.raw.alarm_ton_3), "Wecker-Ton 3"),
+        SoundOption(bundledUri(R.raw.alarm_ton_4), "Wecker-Ton 4"),
+        SoundOption(bundledUri(R.raw.alarm_ton_5), "Wecker-Ton 5")
+    )
+
+    private fun bundledUri(resId: Int): Uri =
+        Uri.parse("android.resource://${context.packageName}/$resId")
+
+    /** Standard-Weckton der App, falls ein Alarm keinen eigenen Ton gewählt hat. */
+    fun defaultAlarmSoundUri(): Uri = bundledUri(R.raw.alarm_ton_1)
 
     fun systemAlarmSounds(): List<SoundOption> {
         val manager = RingtoneManager(context).apply { setType(RingtoneManager.TYPE_ALARM) }

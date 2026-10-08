@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -26,15 +27,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.alarm.NocturnTimePickerDialog
+import de.letheapp.nocturn.data.db.AppointmentPriority
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 /**
- * Bestätigungsscreen, der erscheint, wenn NocTurn aus einer Fremd-App (z. B. Kinoticket,
- * Buchungsbestätigung) heraus über den "Zum Kalender hinzufügen"-Dialog von Android als
- * Kalender-App ausgewählt wurde (siehe [AddAppointmentActivity]). Datum bleibt wie von der
- * Fremd-App vorgegeben, Uhrzeiten/Titel/Ort/Notiz sind vor dem Speichern noch korrigierbar.
+ * Termin-Formular: sowohl für den Bestätigungsscreen, der erscheint, wenn NocTurn aus einer
+ * Fremd-App (z. B. Kinoticket, Buchungsbestätigung) heraus über den "Zum Kalender
+ * hinzufügen"-Dialog von Android als Kalender-App ausgewählt wurde (siehe
+ * [AddAppointmentActivity]), als auch für den "+"-Button in [CalendarMonthScreen]. Datum,
+ * Uhrzeiten, Titel/Ort/Notiz und Wichtigkeit sind vor dem Speichern korrigierbar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +49,7 @@ fun AddAppointmentScreen(
     initialBeginMillis: Long,
     initialEndMillis: Long,
     initialAllDay: Boolean,
+    initialPriority: AppointmentPriority = AppointmentPriority.NORMAL,
     onSaved: () -> Unit,
     onCancelled: () -> Unit,
     viewModel: AddAppointmentViewModel = hiltViewModel()
@@ -53,10 +58,12 @@ fun AddAppointmentScreen(
     var location by remember { mutableStateOf(initialLocation) }
     var description by remember { mutableStateOf(initialDescription) }
     var allDay by remember { mutableStateOf(initialAllDay) }
+    var priority by remember { mutableStateOf(initialPriority) }
     var beginMillis by remember { mutableLongStateOf(initialBeginMillis) }
     var endMillis by remember { mutableLongStateOf(initialEndMillis) }
     var editingBegin by remember { mutableStateOf(false) }
     var editingEnd by remember { mutableStateOf(false) }
+    var editingDate by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -85,6 +92,29 @@ fun AddAppointmentScreen(
                 label = { Text("Notiz") },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { editingDate = true },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Datum", modifier = Modifier.weight(1f))
+                Text(formatDate(beginMillis), style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Text("Wichtigkeit", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    AppointmentPriority.LOW to "Niedrig",
+                    AppointmentPriority.NORMAL to "Normal",
+                    AppointmentPriority.HIGH to "Hoch"
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = priority == value,
+                        onClick = { priority = value },
+                        label = { Text(label) }
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -124,6 +154,7 @@ fun AddAppointmentScreen(
                         startEpochMillis = beginMillis,
                         endEpochMillis = endMillis,
                         allDay = allDay,
+                        priority = priority,
                         onSaved = onSaved
                     )
                 }) { Text("Speichern") }
@@ -157,9 +188,29 @@ fun AddAppointmentScreen(
             onDismiss = { editingEnd = false }
         )
     }
+
+    if (editingDate) {
+        val beginZoned = Instant.ofEpochMilli(beginMillis).atZone(ZoneId.systemDefault())
+        val endZoned = Instant.ofEpochMilli(endMillis).atZone(ZoneId.systemDefault())
+        NocturnDatePickerDialog(
+            initialDate = beginZoned.toLocalDate(),
+            onConfirm = { newDate ->
+                val deltaDays = ChronoUnit.DAYS.between(beginZoned.toLocalDate(), newDate)
+                beginMillis = beginZoned.plusDays(deltaDays).toInstant().toEpochMilli()
+                endMillis = endZoned.plusDays(deltaDays).toInstant().toEpochMilli()
+                editingDate = false
+            },
+            onDismiss = { editingDate = false }
+        )
+    }
 }
 
 private fun formatDateTime(epochMillis: Long): String {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+    return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(formatter)
+}
+
+private fun formatDate(epochMillis: Long): String {
+    val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(formatter)
 }

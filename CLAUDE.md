@@ -106,7 +106,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Tageskacheln großzügig bemessen (mehr Platz unter der Tageszahl), zeigen bis zu
      4 Punkte sowie den Namen des ersten Eintrags klein darunter.
    - **Freie Termine**: eigenständige Termine (z. B. Kinoticket, Arzttermin) unabhängig
-     von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht.
+     von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht, mit Titel,
+     Ort, Notiz und wählbarer **Wichtigkeit** (Niedrig/Normal/Hoch).
+   - **"+"-Button in der Monatsansicht**: fragt ab, ob ein Termin oder eine Schicht
+     angelegt werden soll. Als Datum wird der zuvor angetippte Tag vorbelegt (alternativ
+     frei wählbar über einen Datums-Dialog). Eine manuell für einen einzelnen Tag
+     eingetragene Schicht (Job + Schicht wählen) ergänzt die automatisch aus Rotationen
+     fortgeschriebenen Einträge, ohne sie zu ersetzen.
+   - **Ferien & gesetzliche Feiertage**: über einen eigenen Einstellungs-Screen (3-Punkte-
+     Menü der Alarmliste) wird ein Bundesland gewählt; Feiertage und Schulferien werden
+     optional (je einzeln togglebar) farbig in der Monatsansicht angezeigt. Datenquelle:
+     kostenlose, schlüssellose **OpenHolidaysAPI** (openholidaysapi.org, ODbL-Lizenz) —
+     liefert als eine der wenigen freien Quellen sowohl Feiertage als auch Schulferien
+     pro Bundesland; Ergebnisse werden pro Bundesland/Jahr lokal gecacht.
    - **System-Registrierung als Kalender-Ziel für "Zum Kalender hinzufügen"**: NocTurn
      bietet sich über einen Manifest-Intent-Filter (`ACTION_INSERT`/`ACTION_EDIT` auf
      `CalendarContract.Events`) im Android-Auswahlmenü an, wenn eine Fremd-App (z. B.
@@ -134,15 +146,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      periodischer Hintergrund-Sync alle 4 Stunden über WorkManager.
 
 7. **Home-Screen-Widgets:**
-   - Uhr-Widget und Wetter-Widget für den Android-Homescreen.
+   - Uhr-Widget, Kalender-/Termine-Widget und Wetter-Widget für den Android-Homescreen.
    - Wetter-Widget nutzt **OpenWeatherMap** als Datenquelle (gleicher Ansatz wie im
      Iosync-Projekt: API-Key über `local.properties`/CI-Secret `OPENWEATHER_API_KEY`,
-     nicht hart codiert).
+     nicht hart codiert). **Noch nicht umgesetzt.**
    - Uhr-Widget-Layout (siehe Referenzbild): transparent über dem Homescreen-Hintergrund,
      von oben nach unten vertikal zentriert gestapelt:
      1. Datum klein/hell (z. B. "Do., 8. Okt.")
      2. Uhrzeit sehr groß (z. B. "00:29")
      3. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47")
+   - Kalender-/Termine-Widget: Agenda-Ansicht der nächsten anstehenden Einträge
+     (Schichten aus Rotationen + freie Termine), je Zeile farbiger Punkt passend zur
+     Schicht-/Termin-Farbe, Tag/Uhrzeit und Bezeichnung. Tippen öffnet die App direkt in
+     der Kalender-Monatsansicht.
 
 8. **Ton-Auswahl für Wecker/Alarm:**
    - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
@@ -237,6 +253,23 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - System-Registrierung (Kernfunktion 11): Manifest-Intent-Filter für
   `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/`SNOOZE_ALARM` sowie die Kategorien
   `APP_CALENDAR`/`APP_CLOCK`.
+- Home-Screen-Widgets (Kernfunktion 7): klassische `AppWidgetProvider`/`RemoteViews`
+  statt Jetpack Glance, um keine zusätzliche Abhängigkeit einzuführen (FOSS-Minimalismus-
+  Leitlinie) — für zwei einfache, überwiegend statische Widgets reicht das. Uhr-Widget
+  stößt sich minütlich per `AlarmManager.setRepeating` selbst neu an (offizielle
+  `updatePeriodMillis`-Updates sind auf 30-Minuten-Minimum begrenzt); "nächster Alarm"
+  kommt direkt von `AlarmManager.getNextAlarmClock()` statt aus der eigenen DB, da
+  `AlarmScheduler` Alarme bereits über `setAlarmClock` plant. Kalender-Widget liest
+  `CalendarRepository.getUpcomingAgenda(...)` per Hilt-`@AndroidEntryPoint` auf dem
+  `AppWidgetProvider` (gleiches Pattern wie bei `BootReceiver`/`AlarmReceiver`, da
+  `AppWidgetProvider` selbst ein `BroadcastReceiver` ist).
+- Ferien/Feiertage (Kernfunktion 6, neues Package `holidays`): Datenquelle ist die
+  kostenlose, schlüssellose **OpenHolidaysAPI** (openholidaysapi.org, ODbL-Lizenz) —
+  liefert sowohl gesetzliche Feiertage als auch Schulferien pro Bundesland über dieselbe
+  API, daher gegenüber z. B. feiertage-api.de (nur Feiertage) bevorzugt. Anfragen über
+  das bereits vorhandene OkHttp + Androids eingebautes `org.json` (keine neue JSON-Lib-
+  Abhängigkeit). Ergebnisse werden pro Bundesland/Jahr lokal in Room gecacht, damit der
+  Kalender auch offline funktioniert und nicht bei jedem Öffnen neu angefragt wird.
 
 ## Wichtig
 
@@ -245,3 +278,7 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Ausgewählt im Chat-Dropdown unter `/var/www` als "Smarter Wecker".
 - Phase 1 (siehe PLAN.md) ist umgesetzt (Code vorhanden); neue Konzept-Erweiterungen
   werden weiterhin zuerst hier dokumentiert, bevor sie implementiert werden.
+- **Commit & Push nur auf ausdrückliche Anweisung**: Code-Änderungen lokal umsetzen
+  (inkl. Dokumentation in CLAUDE.md/PLAN.md/memory.md), aber `git commit`/`git push`
+  erst ausführen, wenn der Nutzer das explizit in der jeweiligen Anfrage sagt — nicht
+  automatisch nach jeder Implementierung wie bisher üblich.

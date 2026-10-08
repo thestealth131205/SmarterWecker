@@ -111,6 +111,30 @@
             </intent-filter>
         </receiver>
 
+        <!-- Homescreen-Widgets (CLAUDE.md Kernfunktion 7): Uhr-Widget und Kalender-/Termine-Widget. -->
+        <receiver
+            android:name=".widget.ClockWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="de.letheapp.nocturn.widget.ACTION_CLOCK_TICK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/clock_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CalendarWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calendar_widget_info" />
+        </receiver>
+
         <service
             android:name=".ringing.AlarmRingingService"
             android:exported="false"

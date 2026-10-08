@@ -16,12 +16,15 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,11 +63,15 @@ private val DAY_CELL_MIN_HEIGHT = 92.dp
 @Composable
 fun CalendarMonthScreen(
     onBack: () -> Unit,
+    onAddAppointment: (LocalDate) -> Unit,
+    onAddShift: (LocalDate) -> Unit,
     viewModel: CalendarMonthViewModel = hiltViewModel()
 ) {
     val month by viewModel.month.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
+    var detailsDialogDay by remember { mutableStateOf<LocalDate?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -89,6 +96,11 @@ fun CalendarMonthScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
+            }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 8.dp)) {
@@ -124,21 +136,54 @@ fun CalendarMonthScreen(
                     DayCell(
                         date = date,
                         isToday = date == today,
+                        isSelected = date == selectedDay,
                         entries = entriesByDay[date].orEmpty(),
-                        onClick = { if (entriesByDay[date].orEmpty().isNotEmpty()) selectedDay = date }
+                        onClick = {
+                            selectedDay = date
+                            if (entriesByDay[date].orEmpty().isNotEmpty()) detailsDialogDay = date
+                        }
                     )
                 }
             }
         }
     }
 
-    selectedDay?.let { date ->
-        DayDetailsDialog(date = date, entries = entriesByDay[date].orEmpty(), onDismiss = { selectedDay = null })
+    detailsDialogDay?.let { date ->
+        DayDetailsDialog(date = date, entries = entriesByDay[date].orEmpty(), onDismiss = { detailsDialogDay = null })
+    }
+
+    if (showAddDialog) {
+        AddEntryTypeDialog(
+            onPickAppointment = {
+                showAddDialog = false
+                onAddAppointment(selectedDay ?: LocalDate.now())
+            },
+            onPickShift = {
+                showAddDialog = false
+                onAddShift(selectedDay ?: LocalDate.now())
+            },
+            onDismiss = { showAddDialog = false }
+        )
     }
 }
 
 @Composable
-private fun DayCell(date: LocalDate, isToday: Boolean, entries: List<CalendarDayEntry>, onClick: () -> Unit) {
+private fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Eintrag hinzufügen") },
+        text = { Text("Was möchtest du anlegen?") },
+        confirmButton = {
+            TextButton(onClick = onPickAppointment) { Text("Termin") }
+        },
+        dismissButton = {
+            TextButton(onClick = onPickShift) { Text("Schicht") }
+        }
+    )
+}
+
+@Composable
+private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entries: List<CalendarDayEntry>, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -153,6 +198,13 @@ private fun DayCell(date: LocalDate, isToday: Boolean, entries: List<CalendarDay
                 .background(
                     if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
                     CircleShape
+                )
+                .then(
+                    if (isSelected && !isToday) {
+                        Modifier.border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    } else {
+                        Modifier
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -214,7 +266,8 @@ private fun DayDetailsDialog(date: LocalDate, entries: List<CalendarDayEntry>, o
                         )
                         val text = when (entry) {
                             is ShiftDayEntry -> if (entry.jobName.isNotBlank()) "${entry.shiftName} · ${entry.jobName}" else entry.shiftName
-                            is AppointmentDayEntry -> entry.title
+                            is AppointmentDayEntry -> if (entry.priority == "HIGH") "${entry.title} (wichtig)" else entry.title
+                            is HolidayDayEntry -> if (entry.isSchoolHoliday) "${entry.name} (Ferien)" else entry.name
                         }
                         Text(text = text, modifier = Modifier.padding(start = 8.dp))
                     }

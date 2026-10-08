@@ -176,6 +176,51 @@ interface AppointmentDao {
 }
 
 @Dao
+interface ManualShiftEntryDao {
+    @Query("SELECT * FROM manual_shift_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
+    fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<ManualShiftEntryEntity>>
+
+    @Insert
+    suspend fun insert(entry: ManualShiftEntryEntity): Long
+
+    @Delete
+    suspend fun delete(entry: ManualShiftEntryEntity)
+}
+
+@Dao
+interface HolidaySettingsDao {
+    @Query("SELECT * FROM holiday_settings LIMIT 1")
+    fun observe(): Flow<HolidaySettingsEntity?>
+
+    @Query("SELECT * FROM holiday_settings LIMIT 1")
+    suspend fun getOnce(): HolidaySettingsEntity?
+
+    @Insert
+    suspend fun insert(entity: HolidaySettingsEntity): Long
+
+    @Update
+    suspend fun update(entity: HolidaySettingsEntity)
+}
+
+@Dao
+interface HolidayDao {
+    @Insert
+    suspend fun insertAll(holidays: List<HolidayEntity>)
+
+    @Query(
+        "SELECT * FROM holidays WHERE subdivisionCode = :subdivisionCode " +
+            "AND startEpochDay <= :toEpochDay AND endEpochDay >= :fromEpochDay"
+    )
+    fun observeRange(subdivisionCode: String, fromEpochDay: Long, toEpochDay: Long): Flow<List<HolidayEntity>>
+
+    @Query(
+        "SELECT COUNT(*) FROM holidays WHERE subdivisionCode = :subdivisionCode AND type = :type " +
+            "AND startEpochDay <= :yearEndEpochDay AND endEpochDay >= :yearStartEpochDay"
+    )
+    suspend fun countForYear(subdivisionCode: String, type: String, yearStartEpochDay: Long, yearEndEpochDay: Long): Int
+}
+
+@Dao
 interface CalDavAccountDao {
     @Query("SELECT * FROM caldav_accounts LIMIT 1")
     fun observeAccount(): Flow<CalDavAccountEntity?>

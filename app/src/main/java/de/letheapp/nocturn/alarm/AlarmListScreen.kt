@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.CloudSync
@@ -61,6 +62,7 @@ fun AlarmListScreen(
     onOpenCalendarMonth: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenNextcloudSync: () -> Unit,
+    onOpenHolidaySettings: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -75,14 +77,8 @@ fun AlarmListScreen(
             TopAppBar(
                 title = { Text("NocTurn") },
                 actions = {
-                    IconButton(onClick = onOpenPermissions) {
-                        Icon(Icons.Filled.Shield, contentDescription = "Berechtigungen")
-                    }
                     IconButton(onClick = onOpenCalendarMonth) {
                         Icon(Icons.Filled.CalendarViewMonth, contentDescription = "Kalender")
-                    }
-                    IconButton(onClick = onOpenCalendarTemplates) {
-                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Kalender-Vorlagen")
                     }
                     IconButton(onClick = { showOverflowMenu = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "Weitere Optionen")
@@ -97,6 +93,30 @@ fun AlarmListScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenCalendarMonth()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Kalender-Vorlagen") },
+                            leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenCalendarTemplates()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ferien & Feiertage") },
+                            leadingIcon = { Icon(Icons.Filled.BeachAccess, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenHolidaySettings()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Berechtigungen") },
+                            leadingIcon = { Icon(Icons.Filled.Shield, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenPermissions()
                             }
                         )
                         DropdownMenuItem(

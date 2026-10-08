@@ -10,6 +10,8 @@ class SoundPickerViewModel @Inject constructor(
     private val soundRepository: SoundRepository
 ) : ViewModel() {
 
+    fun bundledSounds(): List<SoundOption> = soundRepository.bundledSounds()
+
     fun systemSounds(): List<SoundOption> = soundRepository.systemAlarmSounds()
 
     fun customSounds(): List<SoundOption> = soundRepository.customSounds()

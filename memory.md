@@ -324,3 +324,76 @@ genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
   außerhalb des eigentlichen Auftrags) — stattdessen sorgfältige manuelle Code-Durchsicht
   (inkl. Verifikation von `Icons.Filled.CloudSync` direkt im `material-icons-extended`-Jar
   im Gradle-Cache) und Verifikation wie gewohnt über die GitHub Action `build-apk.yml`.
+
+## Ergänzung (2026-10-08, Uhr- und Kalender-Widget umgesetzt + neue Arbeitsregel)
+
+- Nutzer: "Baue das [Uhr] Widget ein sowie ein Widget für Termine Kalender" →
+  `ClockWidgetProvider` und `CalendarWidgetProvider` (neues `widget`-Package) implementiert.
+  Details siehe PLAN.md, Abschnitt "Nachträglich ergänzte Anforderungen (Uhr- und
+  Kalender-Widget)". Wetter-Widget bleibt weiterhin offen (nicht Teil dieser Anfrage).
+- Technische Leitentscheidung: klassische `AppWidgetProvider`/`RemoteViews` statt Jetpack
+  Glance (FOSS-Minimalismus, keine zusätzliche Abhängigkeit für zwei überwiegend statische
+  Widgets nötig). "Nächster Alarm" im Uhr-Widget kommt direkt von
+  `AlarmManager.getNextAlarmClock()` statt aus der DB.
+- **Wichtige neue Arbeitsregel vom Nutzer**: Ab jetzt **nur noch commit/push ausführen,
+  wenn der Nutzer das explizit sagt** — nicht mehr automatisch nach jeder Implementierung
+  wie in allen bisherigen Runden dieser Session. In CLAUDE.md unter "Wichtig" als
+  dauerhafte Regel festgehalten. Diese Widget-Änderung selbst ist daher bewusst **nicht**
+  committet/gepusht, bis der Nutzer es anweist.
+- Lokale Verifikation diesmal eingeschränkter als zuvor: der bisherige
+  `compileDebugKotlin`-Workaround (aapt2-abhängige Tasks ausschließen) greift nicht mehr,
+  weil der neue Widget-Code echte `R`-Referenzen (`R.layout...`, `R.id...`) enthält und
+  damit ein gebautes `R.jar` braucht. `processDebugResources` selbst schlägt wie zuvor an
+  `aapt2` (x86_64-only-Binary auf diesem aarch64-Pi) fehl. Nur `./gradlew
+  :app:compileDebugKotlin` ohne Resource-Ausschlüsse wurde versucht (schlägt erwartungsgemäß
+  an `processDebugResources`/`AarResourcesCompilerTransform` fehl) — echte Verifikation
+  bleibt der GitHub Action vorbehalten, sobald gepusht wird.
+
+## Ergänzung (2026-10-08, Hauptbildschirm-Icons gebündelt, gebündelte Wecktöne, Kalender-FAB + Ferien/Feiertage)
+
+- Hauptbildschirm der Alarmliste zeigt jetzt nur noch das Kalender-Icon direkt in der
+  TopAppBar, alle übrigen Einträge (Berechtigungen, Kalender-Vorlagen, Nextcloud-Sync,
+  jetzt auch "Ferien & Feiertage") liegen im 3-Punkte-Menü.
+- 5 vom Nutzer hochgeladene MP3s sind als gebündelte Wecktöne unter
+  `app/src/main/res/raw/alarm_ton_1.mp3` … `alarm_ton_5.mp3` eingebunden
+  (`SoundRepository.bundledSounds()`, eigene Sektion "Wecker-Töne" im Weckton-Auswahl-
+  Screen). `alarm_ton_1` ist der neue Standard-Weckton (ersetzt den bisherigen
+  `RingtoneManager`-Systemton als Default), auch als Fallback-Ton für den Notfall-Alarm.
+- **Kalender-Monatsansicht hat jetzt einen FAB ("+")**: Tippen fragt "Termin" oder
+  "Schicht" ab. Ein zuvor angetippter Tag (auch ohne vorhandene Einträge, jetzt dünn
+  umrandet markiert) wird als Vorbelegung für das Datum im Folgeformular verwendet, ist
+  dort aber änderbar (neuer `NocturnDatePickerDialog`, Material3 `DatePicker`-Wrapper).
+  - "Termin" nutzt das bestehende `AddAppointmentScreen` (bisher nur für den externen
+    "Zum Kalender hinzufügen"-Chooser-Flow da) — jetzt zusätzlich mit Datums-Zeile und
+    einer "Wichtigkeit"-Auswahl (Niedrig/Normal/Hoch, neues `AppointmentEntity.priority`-
+    Feld), für beide Einstiege gemeinsam verwendet.
+  - "Schicht" ist ein neuer Screen `AddShiftEntryScreen`: Job → Schicht (beide per
+    `ExposedDropdownMenuBox`) → Datum, gespeichert als neue, von Rotationen unabhängige
+    `ManualShiftEntryEntity` (eigene Tabelle statt Wiederverwendung von
+    `CalendarEntryEntity`, um dessen NOT-NULL-`rotationId`-Fremdschlüssel nicht anfassen
+    zu müssen — bewusst nach demselben Muster wie `AppointmentEntity` als eigenständiger,
+    manuell gepflegter Eintragstyp neben den automatisch fortgeschriebenen
+    Rotations-Einträgen).
+- **Neues `holidays`-Package**: "Ferien & Feiertage"-Einstellungsscreen (Bundesland-Wahl
+  aus allen 16 deutschen Ländern + zwei Anzeige-Toggles für Feiertage/Ferien getrennt).
+  Datenquelle ist die **OpenHolidaysAPI** (`openholidaysapi.org`) — kostenlos, ohne
+  API-Key, ODbL-lizenziert, und bewusst statt z. B. feiertage-api.de gewählt, weil sie
+  als einzige der recherchierten freien Quellen **sowohl gesetzliche Feiertage als auch
+  Schulferien** pro Bundesland liefert (ein Datensatz für beide vom Nutzer gewünschten
+  Kategorien). Ergebnisse werden pro Bundesland/Jahr einmalig lokal in einer neuen
+  `holidays`-Tabelle gecacht (`HolidayRepository.ensureYearLoaded`, Abfrage nur bei
+  Cache-Miss) — kein JSON-Lib-Zusatz, sondern Androids eingebautes `org.json` über das
+  bereits vorhandene OkHttp, passend zur FOSS-Minimalismus-Leitlinie. Feiertage/Ferien
+  erscheinen in der Monatsansicht als zusätzliche farbige Punkte (rot = Feiertag, grün =
+  Ferien) neben Schichten/Terminen.
+- DB-Schema-Version 5 → 6 (neue Tabellen `manual_shift_entries`, `holiday_settings`,
+  `holidays`, neue Spalte `appointments.priority`) — dank weiterhin aktivem
+  `fallbackToDestructiveMigration()` ohne manuelle Room-Migration möglich (siehe
+  CLAUDE.md/`DatabaseModule.kt`: bewusst so, solange es noch keine veröffentlichte
+  Version mit Bestandsdaten gibt).
+- Lokale Verifikation weiterhin durch das aapt2-Problem blockiert (`compileDebugKotlin`
+  scheitert jetzt schon an `processDebugResources`, nicht erst bei eigenen
+  `R`-Referenzen) — Code besonders sorgfältig manuell durchgegangen (u. a. Material3-
+  `ExposedDropdownMenuBox`/`menuAnchor()`-API und `DatePickerDialog`-Signatur vorab per
+  Websuche gegen die im Projekt gepinnte Compose-BOM-Version 2024.09.03 verifiziert),
+  echte Verifikation bleibt der GitHub Action vorbehalten.

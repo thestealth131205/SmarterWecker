@@ -2,6 +2,7 @@ package de.letheapp.nocturn.data.repository
 
 import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.AppointmentEntity
+import de.letheapp.nocturn.data.db.AppointmentPriority
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.CalendarEntryEntity
 import de.letheapp.nocturn.data.db.JobDao
@@ -9,12 +10,19 @@ import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.db.LessonDao
 import de.letheapp.nocturn.data.db.LessonEntity
+import de.letheapp.nocturn.data.db.ManualShiftEntryDao
+import de.letheapp.nocturn.data.db.ManualShiftEntryEntity
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.RotationDayEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.ShiftEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /**
@@ -29,13 +37,17 @@ class CalendarRepository @Inject constructor(
     private val rotationDao: RotationDao,
     private val calendarEntryDao: CalendarEntryDao,
     private val lessonDao: LessonDao,
-    private val appointmentDao: AppointmentDao
+    private val appointmentDao: AppointmentDao,
+    private val manualShiftEntryDao: ManualShiftEntryDao
 ) {
     companion object {
         const val FORECAST_YEARS = 5
 
         /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
         const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFF7043.toInt()
+
+        /** Zeitfenster, in dem das Kalender-Widget nach anstehenden Einträgen sucht. */
+        private const val AGENDA_LOOKAHEAD_DAYS = 14L
     }
 
     // Jobs
@@ -179,6 +191,7 @@ class CalendarRepository @Inject constructor(
         startEpochMillis: Long,
         endEpochMillis: Long,
         allDay: Boolean,
+        priority: AppointmentPriority = AppointmentPriority.NORMAL,
         colorArgb: Int = DEFAULT_APPOINTMENT_COLOR_ARGB
     ): Long {
         val zone = java.time.ZoneId.systemDefault()
@@ -194,10 +207,71 @@ class CalendarRepository @Inject constructor(
                 startEpochDay = startDay,
                 endEpochDay = maxOf(startDay, endDay),
                 allDay = allDay,
-                colorArgb = colorArgb
+                colorArgb = colorArgb,
+                priority = priority.name
             )
         )
     }
 
     suspend fun deleteAppointment(appointment: AppointmentEntity) = appointmentDao.delete(appointment)
+
+    // Manuell eingetragene Einzel-Schichten (siehe CalendarMonthScreen-FAB, Option "Schicht")
+
+    fun observeManualShifts(fromEpochDay: Long, toEpochDay: Long): Flow<List<ManualShiftEntryEntity>> =
+        manualShiftEntryDao.observeRange(fromEpochDay, toEpochDay)
+
+    suspend fun saveManualShiftEntry(jobId: Long, shiftId: Long, dateEpochDay: Long): Long =
+        manualShiftEntryDao.insert(ManualShiftEntryEntity(jobId = jobId, shiftId = shiftId, dateEpochDay = dateEpochDay))
+
+    suspend fun deleteManualShiftEntry(entry: ManualShiftEntryEntity) = manualShiftEntryDao.delete(entry)
+
+    /**
+     * Für das Kalender-Homescreen-Widget: die nächsten [maxItems] anstehenden Einträge
+     * (Schichten aus Rotationen + freie Termine) ab heute, über die nächsten
+     * [AGENDA_LOOKAHEAD_DAYS] Tage, chronologisch sortiert.
+     */
+    suspend fun getUpcomingAgenda(maxItems: Int): List<AgendaEntry> {
+        val today = LocalDate.now().toEpochDay()
+        val toDay = today + AGENDA_LOOKAHEAD_DAYS
+
+        val entries = calendarEntryDao.observeRange(today, toDay).first()
+        val shiftsById = shiftDao.observeAll().first().associateBy { it.id }
+        val appointments = appointmentDao.observeRange(today, toDay).first()
+        val zone = ZoneId.systemDefault()
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+        val shiftAgenda = entries.mapNotNull { entry ->
+            val shiftId = entry.shiftId ?: return@mapNotNull null
+            val shift = shiftsById[shiftId] ?: return@mapNotNull null
+            AgendaEntry(
+                epochDay = entry.dateEpochDay,
+                label = shift.name,
+                colorArgb = shift.colorArgb,
+                timeLabel = "%02d:%02d".format(shift.startHour, shift.startMinute)
+            )
+        }
+
+        val appointmentAgenda = appointments.map { appointment ->
+            AgendaEntry(
+                epochDay = appointment.startEpochDay,
+                label = appointment.title,
+                colorArgb = appointment.colorArgb,
+                timeLabel = if (appointment.allDay) {
+                    null
+                } else {
+                    Instant.ofEpochMilli(appointment.startEpochMillis).atZone(zone).toLocalTime().format(timeFormatter)
+                }
+            )
+        }
+
+        return (shiftAgenda + appointmentAgenda).sortedBy { it.epochDay }.take(maxItems)
+    }
 }
+
+/** Ein Eintrag im Kalender-Widget: entweder eine Schicht an einem Rotationstag oder ein freier Termin. */
+data class AgendaEntry(
+    val epochDay: Long,
+    val label: String,
+    val colorArgb: Int,
+    val timeLabel: String?
+)

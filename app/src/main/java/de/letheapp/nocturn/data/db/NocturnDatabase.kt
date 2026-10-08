@@ -14,9 +14,12 @@ import androidx.room.RoomDatabase
         LessonEntity::class,
         AppointmentEntity::class,
         CalDavAccountEntity::class,
-        SyncedEventEntity::class
+        SyncedEventEntity::class,
+        ManualShiftEntryEntity::class,
+        HolidaySettingsEntity::class,
+        HolidayEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class NocturnDatabase : RoomDatabase() {
@@ -29,4 +32,7 @@ abstract class NocturnDatabase : RoomDatabase() {
     abstract fun appointmentDao(): AppointmentDao
     abstract fun calDavAccountDao(): CalDavAccountDao
     abstract fun syncedEventDao(): SyncedEventDao
+    abstract fun manualShiftEntryDao(): ManualShiftEntryDao
+    abstract fun holidaySettingsDao(): HolidaySettingsDao
+    abstract fun holidayDao(): HolidayDao
 }

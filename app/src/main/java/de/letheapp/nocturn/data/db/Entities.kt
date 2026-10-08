@@ -171,6 +171,13 @@ data class CalendarEntryEntity(
     val shiftId: Long?
 )
 
+/** Wichtigkeit eines frei angelegten Termins, wählbar beim Anlegen über die Kalender-Monatsansicht. */
+enum class AppointmentPriority {
+    LOW,
+    NORMAL,
+    HIGH
+}
+
 /**
  * Frei angelegter Kalender-Termin (z. B. Kinoticket, Arzttermin) — unabhängig von
  * Schichten/Rotationen. Wird sowohl über die eigene Kalender-Ansicht angelegt als auch
@@ -190,8 +197,80 @@ data class AppointmentEntity(
     val endEpochDay: Long,
     val allDay: Boolean = false,
     val colorArgb: Int,
+    val priority: String = AppointmentPriority.NORMAL.name,
     /** True = seit dem letzten Nextcloud-Sync lokal verändert/neu angelegt, muss noch hochgeladen werden. */
     val dirty: Boolean = true
+)
+
+/**
+ * Manuell für einen einzelnen Tag eingetragene Schicht, unabhängig von einer Rotation
+ * (siehe FAB in [de.letheapp.nocturn.calendar.CalendarMonthScreen], Option "Schicht").
+ * Wird zusätzlich zu ggf. vorhandenen Rotations-Einträgen ([CalendarEntryEntity]) desselben
+ * Tages angezeigt, nicht mit ihnen verrechnet.
+ */
+@Entity(
+    tableName = "manual_shift_entries",
+    foreignKeys = [
+        ForeignKey(
+            entity = JobEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["jobId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ShiftEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["shiftId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("jobId"), Index("shiftId"), Index("dateEpochDay")]
+)
+data class ManualShiftEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val jobId: Long,
+    val shiftId: Long,
+    val dateEpochDay: Long
+)
+
+/** Ob ein gecachter [HolidayEntity]-Eintrag ein gesetzlicher Feiertag oder eine Schulferien-Periode ist. */
+enum class HolidayType {
+    PUBLIC,
+    SCHOOL
+}
+
+/**
+ * Einstellung für die Ferien-/Feiertage-Anzeige im Kalender (siehe CLAUDE.md, 3-Punkte-Menü
+ * "Ferien & Feiertage"): gewähltes Bundesland (ISO-3166-2-Subdivision-Code, z. B. "DE-NW")
+ * sowie ob Feiertage/Ferien jeweils eingeblendet werden sollen. Singleton-Tabelle, analog
+ * [CalDavAccountEntity].
+ */
+@Entity(tableName = "holiday_settings")
+data class HolidaySettingsEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subdivisionCode: String,
+    val subdivisionLabel: String,
+    val showPublicHolidays: Boolean = true,
+    val showSchoolHolidays: Boolean = true
+)
+
+/**
+ * Lokal gecachter Feiertag/Ferienzeitraum, von der kostenlosen, schlüssellosen OpenHolidaysAPI
+ * (openholidaysapi.org, ODbL) pro Bundesland und Jahr nachgeladen (siehe
+ * [de.letheapp.nocturn.holidays.HolidayRepository]), damit der Kalender auch offline
+ * funktioniert und nicht bei jedem Öffnen neu abgefragt werden muss.
+ */
+@Entity(
+    tableName = "holidays",
+    indices = [Index(value = ["subdivisionCode", "type", "startEpochDay"]), Index("endEpochDay")]
+)
+data class HolidayEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val subdivisionCode: String,
+    val type: String,
+    val name: String,
+    val startEpochDay: Long,
+    val endEpochDay: Long
 )
 
 /**

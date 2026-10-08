@@ -11,8 +11,11 @@ import de.letheapp.nocturn.data.db.AlarmDao
 import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.CalDavAccountDao
 import de.letheapp.nocturn.data.db.CalendarEntryDao
+import de.letheapp.nocturn.data.db.HolidayDao
+import de.letheapp.nocturn.data.db.HolidaySettingsDao
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.LessonDao
+import de.letheapp.nocturn.data.db.ManualShiftEntryDao
 import de.letheapp.nocturn.data.db.NocturnDatabase
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.ShiftDao
@@ -58,4 +61,13 @@ object DatabaseModule {
 
     @Provides
     fun provideSyncedEventDao(db: NocturnDatabase): SyncedEventDao = db.syncedEventDao()
+
+    @Provides
+    fun provideManualShiftEntryDao(db: NocturnDatabase): ManualShiftEntryDao = db.manualShiftEntryDao()
+
+    @Provides
+    fun provideHolidaySettingsDao(db: NocturnDatabase): HolidaySettingsDao = db.holidaySettingsDao()
+
+    @Provides
+    fun provideHolidayDao(db: NocturnDatabase): HolidayDao = db.holidayDao()
 }

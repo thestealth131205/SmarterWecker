@@ -13,10 +13,13 @@ import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.AlarmEditScreen
 import de.letheapp.nocturn.alarm.AlarmListScreen
+import de.letheapp.nocturn.calendar.AddAppointmentScreen
+import de.letheapp.nocturn.calendar.AddShiftEntryScreen
 import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
+import de.letheapp.nocturn.holidays.HolidaySettingsScreen
 import de.letheapp.nocturn.ocr.PhotoImportScreen
 import de.letheapp.nocturn.onboarding.AppPreferences
 import de.letheapp.nocturn.onboarding.PermissionsScreen
@@ -25,6 +28,8 @@ import de.letheapp.nocturn.sync.NextcloudSyncScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 private const val ROUTE_ALARM_LIST = "alarmList"
@@ -34,10 +39,16 @@ private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
+private const val ROUTE_CALENDAR_ADD_APPOINTMENT = "calendarAddAppointment/{epochDay}"
+private const val ROUTE_CALENDAR_ADD_SHIFT = "calendarAddShift/{epochDay}"
+private const val ROUTE_HOLIDAY_SETTINGS = "holidaySettings"
 private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
 private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
 private const val ROUTE_NEXTCLOUD_SYNC = "nextcloudSync"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
+
+/** Von Widgets (siehe `widget`-Package) genutzt, um nach dem Start direkt die Monatsansicht zu öffnen. */
+const val EXTRA_OPEN_CALENDAR = "de.letheapp.nocturn.EXTRA_OPEN_CALENDAR"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -47,10 +58,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val startDestination = if (appPreferences.isOnboardingCompleted()) {
-            ROUTE_ALARM_LIST
-        } else {
-            "permissions/true"
+        val openCalendar = intent?.getBooleanExtra(EXTRA_OPEN_CALENDAR, false) == true
+        val startDestination = when {
+            !appPreferences.isOnboardingCompleted() -> "permissions/true"
+            openCalendar -> ROUTE_CALENDAR_MONTH
+            else -> ROUTE_ALARM_LIST
         }
         setContent {
             NocTurnTheme {
@@ -71,8 +83,13 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
                 onOpenPermissions = { navController.navigate("permissions/false") },
-                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) }
+                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
+                onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) }
             )
+        }
+
+        composable(ROUTE_HOLIDAY_SETTINGS) {
+            HolidaySettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_NEXTCLOUD_SYNC) {
@@ -102,7 +119,39 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
         }
 
         composable(ROUTE_CALENDAR_MONTH) {
-            CalendarMonthScreen(onBack = { navController.popBackStack() })
+            CalendarMonthScreen(
+                onBack = { navController.popBackStack() },
+                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
+                onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") }
+            )
+        }
+
+        composable(ROUTE_CALENDAR_ADD_APPOINTMENT) { backStackEntry ->
+            val epochDay = backStackEntry.arguments?.getString("epochDay")?.toLongOrNull() ?: LocalDate.now().toEpochDay()
+            val date = LocalDate.ofEpochDay(epochDay)
+            val zone = ZoneId.systemDefault()
+            val beginMillis = date.atTime(8, 0).atZone(zone).toInstant().toEpochMilli()
+            val endMillis = date.atTime(9, 0).atZone(zone).toInstant().toEpochMilli()
+
+            AddAppointmentScreen(
+                initialTitle = "",
+                initialLocation = "",
+                initialDescription = "",
+                initialBeginMillis = beginMillis,
+                initialEndMillis = endMillis,
+                initialAllDay = false,
+                onSaved = { navController.popBackStack() },
+                onCancelled = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_CALENDAR_ADD_SHIFT) { backStackEntry ->
+            val epochDay = backStackEntry.arguments?.getString("epochDay")?.toLongOrNull() ?: LocalDate.now().toEpochDay()
+            AddShiftEntryScreen(
+                initialEpochDay = epochDay,
+                onSaved = { navController.popBackStack() },
+                onCancelled = { navController.popBackStack() }
+            )
         }
 
         composable(ROUTE_JOB_LIST) {

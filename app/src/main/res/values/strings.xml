@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NocTurn</string>
+    <string name="widget_clock_description">Uhrzeit, Datum und nächster Alarm</string>
+    <string name="widget_calendar_description">Nächste Termine und Schichten</string>
+    <string name="widget_calendar_title">Nächste Termine</string>
+    <string name="widget_calendar_empty">Keine anstehenden Termine</string>
+    <string name="widget_calendar_today">Heute</string>
 </resources>
