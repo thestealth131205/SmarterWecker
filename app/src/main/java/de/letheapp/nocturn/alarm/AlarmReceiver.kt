@@ -35,9 +35,9 @@ class AlarmReceiver : BroadcastReceiver() {
                     }
                     ContextCompat.startForegroundService(context, serviceIntent)
 
-                    // Für wiederholende Alarme direkt die nächste Woche vorplanen,
-                    // damit ein Snooze-Durchlauf den regulären Zyklus nicht kappt.
-                    if (!isSnooze && alarm.repeatDays != 0) {
+                    // Für wiederholende bzw. rotationsgebundene Alarme direkt den nächsten
+                    // Termin vorplanen, damit ein Snooze-Durchlauf den regulären Zyklus nicht kappt.
+                    if (!isSnooze && (alarm.repeatDays != 0 || alarm.rotationId != null)) {
                         alarmScheduler.schedule(alarm)
                     }
                 }

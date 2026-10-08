@@ -98,7 +98,20 @@ späteren Phasen.
   für `FORECAST_YEARS` (5) Jahre im Voraus fort (Modulo über die Zykluslänge).
   Neue Room-Entity `CalendarEntryEntity`, DB-Version auf 2 angehoben mit
   `fallbackToDestructiveMigration()` (keine Bestandsdaten vorhanden).
-- [ ] Schritt 11–12: Kalender-Monatsansicht, Alarm↔Schicht-Verknüpfung – noch offen.
+- [x] **Schritt 11 – Kalender-Monatsansicht**: `CalendarMonthScreen` + `CalendarMonthViewModel`
+  zeigen eine aufgeräumte Monatsansicht (7-Spalten-Raster, Mo–So), pro Tag maximal 3 farbige
+  Punkte für die an dem Tag laut Rotation(en) geltenden Schichten (+"N" bei mehr), Details per
+  Tap auf den Tag als Dialog (Schicht- und Job-Name). Aggregiert über alle Jobs/Rotationen
+  hinweg (neue DAO-Queries `ShiftDao.observeAll`/`getById`, `RotationDao.observeAll`).
+  Einstieg über neues Kalender-Icon in der Alarmliste (`AlarmListScreen`), getrennt vom
+  bisherigen Vorlagen-Icon.
+- [x] **Schritt 12 – Alarm↔Schicht-Verknüpfung**: `AlarmEditScreen` erlaubt, einen Alarm statt
+  an eine feste Uhrzeit/Wiederholung an eine Rotation zu koppeln (`AlarmEntity.rotationId`,
+  Auswahl-Dialog über alle Jobs). `AlarmScheduler.schedule` ist jetzt `suspend` und leitet bei
+  verknüpfter Rotation die nächste Weckzeit aus dem nächsten anstehenden Schicht-Termin ab
+  (`CalendarRepository.getNextCalendarEntryWithShift`, neue DAO-Query `getNextWithShift`);
+  freie Tage laut Rotation werden dabei automatisch übersprungen. `AlarmReceiver` plant
+  rotationsgebundene Alarme nach dem Klingeln ebenfalls automatisch den nächsten Termin vor.
 
 **Bekannte Vereinfachungen (Phase 1, bewusst zurückgestellt):** Health-Connect-
 Berechtigungsanfrage läuft nur best-effort (keine eigene Onboarding-/Rationale-UI);
@@ -126,8 +139,10 @@ Zusatz-Library einzuführen.
 9. Kalender-Vorlagenverwaltung: Schichten-CRUD, Jobs-CRUD.
 10. Rotationen: Raster-Eingabe-UI, Zyklus-Erkennung, Fortschreib-Logik
     (mehrere Jahre im Voraus).
-11. Kalender-Monatsansicht (aufgeräumtes Layout).
-12. Verknüpfung Alarm ↔ Schicht/Rotation.
+11. ✅ Kalender-Monatsansicht (aufgeräumtes Layout).
+12. ✅ Verknüpfung Alarm ↔ Schicht/Rotation.
+
+Damit ist der komplette Phase-1-Scope (Schritte 1–12) umgesetzt.
 
 ## Entscheidungen (2026-10-08)
 

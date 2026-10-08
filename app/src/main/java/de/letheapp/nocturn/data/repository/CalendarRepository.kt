@@ -42,6 +42,10 @@ class CalendarRepository @Inject constructor(
 
     fun observeShiftsForJob(jobId: Long): Flow<List<ShiftEntity>> = shiftDao.observeForJob(jobId)
 
+    fun observeAllShifts(): Flow<List<ShiftEntity>> = shiftDao.observeAll()
+
+    suspend fun getShift(shiftId: Long): ShiftEntity? = shiftDao.getById(shiftId)
+
     suspend fun saveShift(shift: ShiftEntity): Long =
         if (shift.id == 0L) shiftDao.insert(shift) else shiftDao.update(shift).let { shift.id }
 
@@ -50,6 +54,8 @@ class CalendarRepository @Inject constructor(
     // Rotationen
 
     fun observeRotationsForJob(jobId: Long): Flow<List<RotationEntity>> = rotationDao.observeForJob(jobId)
+
+    fun observeAllRotations(): Flow<List<RotationEntity>> = rotationDao.observeAll()
 
     fun observeRotationDays(rotationId: Long): Flow<List<RotationDayEntity>> = rotationDao.observeDays(rotationId)
 
@@ -118,4 +124,12 @@ class CalendarRepository @Inject constructor(
         calendarEntryDao.observeRange(fromEpochDay, toEpochDay)
 
     suspend fun getCalendarEntryForDate(epochDay: Long): CalendarEntryEntity? = calendarEntryDao.getForDate(epochDay)
+
+    /**
+     * Nächster Kalendereintrag einer Rotation ab [fromEpochDay] (inklusive), an dem laut
+     * Rotationsmuster tatsächlich eine Schicht ansteht (freie Tage werden übersprungen).
+     * Grundlage für Alarme, die an eine Rotation statt an eine feste Uhrzeit gekoppelt sind.
+     */
+    suspend fun getNextCalendarEntryWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity? =
+        calendarEntryDao.getNextWithShift(rotationId, fromEpochDay)
 }

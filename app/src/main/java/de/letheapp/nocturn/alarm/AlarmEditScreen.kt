@@ -7,15 +7,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +45,9 @@ fun AlarmEditScreen(
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
+    val rotationOptions by viewModel.rotationOptions.collectAsState()
     var alarm by remember { mutableStateOf<AlarmEntity?>(null) }
+    var showRotationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(alarms) {
         if (alarm == null) {
@@ -81,6 +87,13 @@ fun AlarmEditScreen(
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
             Text(text = "%02d:%02d".format(current.hour, current.minute))
+            if (current.rotationId != null) {
+                Text(
+                    text = "Uhrzeit folgt der Schicht",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             OutlinedTextField(
                 value = current.label,
@@ -99,9 +112,17 @@ fun AlarmEditScreen(
                         selected = AlarmRepeat.isSet(current.repeatDays, day),
                         onClick = { alarm = current.copy(repeatDays = AlarmRepeat.toggle(current.repeatDays, day)) },
                         label = { Text(AlarmRepeat.shortLabel(day)) },
+                        enabled = current.rotationId == null,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                 }
+            }
+            if (current.rotationId != null) {
+                Text(
+                    text = "Wird ignoriert, solange eine Schicht verknüpft ist",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Row(
@@ -117,6 +138,61 @@ fun AlarmEditScreen(
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clickable { showRotationDialog = true },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.CalendarViewMonth, contentDescription = null)
+                Text(
+                    text = rotationOptions.find { it.id == current.rotationId }?.label
+                        ?: "Nicht mit Schicht verknüpft",
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
         }
     }
+
+    if (showRotationDialog) {
+        RotationLinkDialog(
+            options = rotationOptions,
+            selectedId = current.rotationId,
+            onSelect = { rotationId ->
+                alarm = current.copy(rotationId = rotationId)
+                showRotationDialog = false
+            },
+            onDismiss = { showRotationDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun RotationLinkDialog(
+    options: List<RotationOption>,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mit Schicht verknüpfen") },
+        text = {
+            Column {
+                TextButton(onClick = { onSelect(null) }) {
+                    Text(if (selectedId == null) "✓ Keine Verknüpfung" else "Keine Verknüpfung")
+                }
+                options.forEach { option ->
+                    TextButton(onClick = { onSelect(option.id) }) {
+                        Text(if (option.id == selectedId) "✓ ${option.label}" else option.label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fertig") }
+        }
+    )
 }

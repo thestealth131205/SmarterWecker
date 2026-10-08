@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.AlarmEditScreen
 import de.letheapp.nocturn.alarm.AlarmListScreen
+import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
@@ -27,6 +28,7 @@ private const val ROUTE_SOUND_PICKER = "soundPicker/{currentUri}"
 private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
+private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 @AndroidEntryPoint
@@ -50,8 +52,13 @@ private fun NocturnNavHost() {
         composable(ROUTE_ALARM_LIST) {
             AlarmListScreen(
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
-                onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) }
+                onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
+                onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) }
             )
+        }
+
+        composable(ROUTE_CALENDAR_MONTH) {
+            CalendarMonthScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_JOB_LIST) {

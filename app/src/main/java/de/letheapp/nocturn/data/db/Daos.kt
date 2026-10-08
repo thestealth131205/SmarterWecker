@@ -45,6 +45,12 @@ interface ShiftDao {
     @Query("SELECT * FROM shifts WHERE jobId = :jobId ORDER BY startHour, startMinute")
     fun observeForJob(jobId: Long): Flow<List<ShiftEntity>>
 
+    @Query("SELECT * FROM shifts")
+    fun observeAll(): Flow<List<ShiftEntity>>
+
+    @Query("SELECT * FROM shifts WHERE id = :id")
+    suspend fun getById(id: Long): ShiftEntity?
+
     @Insert
     suspend fun insert(shift: ShiftEntity): Long
 
@@ -59,6 +65,9 @@ interface ShiftDao {
 interface RotationDao {
     @Query("SELECT * FROM rotations WHERE jobId = :jobId ORDER BY name")
     fun observeForJob(jobId: Long): Flow<List<RotationEntity>>
+
+    @Query("SELECT * FROM rotations ORDER BY name")
+    fun observeAll(): Flow<List<RotationEntity>>
 
     @Query("SELECT * FROM rotations WHERE id = :id")
     suspend fun getById(id: Long): RotationEntity?
@@ -98,4 +107,10 @@ interface CalendarEntryDao {
 
     @Query("SELECT * FROM calendar_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<CalendarEntryEntity>>
+
+    @Query(
+        "SELECT * FROM calendar_entries WHERE rotationId = :rotationId AND dateEpochDay >= :fromEpochDay " +
+            "AND shiftId IS NOT NULL ORDER BY dateEpochDay LIMIT 1"
+    )
+    suspend fun getNextWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity?
 }
