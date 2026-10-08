@@ -1,9 +1,12 @@
 package de.letheapp.nocturn.sound
 
+import android.content.Context
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.sound.lethe.LetheMediaApiException
 import de.letheapp.nocturn.sound.lethe.LetheMediaRepository
 import de.letheapp.nocturn.sound.lethe.LetheMediaTrack
@@ -28,9 +31,34 @@ sealed class LetheLibraryState {
 
 @HiltViewModel
 class SoundPickerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val soundRepository: SoundRepository,
     private val letheMediaRepository: LetheMediaRepository
 ) : ViewModel() {
+
+    private var previewPlayer: MediaPlayer? = null
+
+    /** Spielt den gewählten Ton kurz zur Vorschau ab, bricht eine evtl. laufende Vorschau ab. */
+    fun previewSound(uri: String) {
+        stopPreview()
+        previewPlayer = MediaPlayer().apply {
+            runCatching {
+                setDataSource(context, Uri.parse(uri))
+                setOnPreparedListener { it.start() }
+                setOnCompletionListener { stopPreview() }
+                setOnErrorListener { _, _, _ -> stopPreview(); true }
+                prepareAsync()
+            }
+        }
+    }
+
+    fun stopPreview() {
+        previewPlayer?.let { player ->
+            runCatching { player.stop() }
+            player.release()
+        }
+        previewPlayer = null
+    }
 
     fun bundledSounds(): List<SoundOption> = soundRepository.bundledSounds()
 
@@ -124,5 +152,6 @@ class SoundPickerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         pollJob?.cancel()
+        stopPreview()
     }
 }

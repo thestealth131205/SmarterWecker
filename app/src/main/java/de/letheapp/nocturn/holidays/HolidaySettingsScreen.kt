@@ -113,8 +113,7 @@ fun HolidaySettingsScreen(onBack: () -> Unit, viewModel: HolidaySettingsViewMode
 
             Button(
                 onClick = {
-                    viewModel.save(selectedState, showPublic, showSchool)
-                    onBack()
+                    viewModel.save(selectedState, showPublic, showSchool, onSaved = onBack)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Speichern") }

@@ -86,6 +86,21 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Pflicht-Gegenstück zur Health-Connect-Berechtigungsanfrage (siehe
+            PermissionsRationaleActivity.kt): ohne diese registrierte Aktivität bleibt die
+            Berechtigungsvergabe für "Schritte" bei manchen Health-Connect-Versionen unzuverlässig.
+        -->
+        <activity
+            android:name=".monitoring.PermissionsRationaleActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.NocTurn">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ringing.AlarmRingingActivity"
             android:exported="false"

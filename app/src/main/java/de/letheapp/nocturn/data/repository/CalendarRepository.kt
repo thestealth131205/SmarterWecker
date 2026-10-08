@@ -162,6 +162,31 @@ class CalendarRepository @Inject constructor(
         calendarEntryDao.insertAll(entries)
     }
 
+    /**
+     * Wendet eine bereits bestehende Rotation ab [startEpochDay] für [totalDays] Tage erneut an
+     * (Seitenleiste in der Kalender-Monatsansicht: Rotation wählen → Starttag antippen → Dauer
+     * im schwebenden Fenster festlegen). Ersetzt nur die Einträge dieser Rotation im gewählten
+     * Zeitraum, lässt ihr beim Anlegen gespeichertes Standard-Fortschreibefenster unangetastet.
+     */
+    suspend fun applyRotationRange(rotationId: Long, startEpochDay: Long, totalDays: Int) {
+        val rotation = rotationDao.getById(rotationId) ?: return
+        val days = rotationDao.getDaysOnce(rotationId).sortedBy { it.dayIndex }
+        val cycleLength = days.size
+        if (cycleLength == 0 || totalDays <= 0) return
+
+        val endEpochDay = startEpochDay + totalDays - 1
+        calendarEntryDao.deleteForRotationInRange(rotationId, startEpochDay, endEpochDay)
+        val entries = (0 until totalDays).map { offset ->
+            CalendarEntryEntity(
+                jobId = rotation.jobId,
+                rotationId = rotationId,
+                dateEpochDay = startEpochDay + offset,
+                shiftId = days[offset % cycleLength].shiftId
+            )
+        }
+        calendarEntryDao.insertAll(entries)
+    }
+
     fun observeCalendarEntries(fromEpochDay: Long, toEpochDay: Long): Flow<List<CalendarEntryEntity>> =
         calendarEntryDao.observeRange(fromEpochDay, toEpochDay)
 

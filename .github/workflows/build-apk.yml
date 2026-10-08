@@ -19,6 +19,8 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -38,7 +40,26 @@ jobs:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: ./gradlew :app:assembleDebug --no-daemon
 
-      - name: Release-APK bauen (unsigned)
+      - name: Release-Keystore einrichten
+        if: github.event_name != 'pull_request'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p keystore
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > keystore/release.keystore.p12
+
+      - name: Release-APK bauen (signiert)
+        if: github.event_name != 'pull_request'
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          RELEASE_KEYSTORE_PATH: keystore/release.keystore.p12
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Release-APK bauen (unsigned, Pull Requests)
+        if: github.event_name == 'pull_request'
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: ./gradlew :app:assembleRelease --no-daemon
@@ -50,9 +71,25 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-      - name: Release-APK hochladen (unsigned)
+      - name: Release-APK hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: nocturn-release-unsigned-${{ github.run_number }}
+          name: nocturn-release-${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
+
+      - name: Versionsname auslesen
+        if: github.event_name != 'pull_request'
+        id: version
+        run: |
+          NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: GitHub Release veröffentlichen
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}-${{ github.run_number }}
+          name: NocTurn ${{ steps.version.outputs.name }} (Build ${{ github.run_number }})
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true

@@ -15,6 +15,7 @@ import de.letheapp.nocturn.alarm.AlarmEditScreen
 import de.letheapp.nocturn.alarm.AlarmListScreen
 import de.letheapp.nocturn.calendar.AddAppointmentScreen
 import de.letheapp.nocturn.calendar.AddShiftEntryScreen
+import de.letheapp.nocturn.calendar.CalendarDayScreen
 import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
@@ -40,6 +41,7 @@ private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
+private const val ROUTE_CALENDAR_DAY = "calendarDay/{epochDay}"
 private const val ROUTE_CALENDAR_ADD_APPOINTMENT = "calendarAddAppointment/{epochDay}"
 private const val ROUTE_CALENDAR_ADD_SHIFT = "calendarAddShift/{epochDay}"
 private const val ROUTE_HOLIDAY_SETTINGS = "holidaySettings"
@@ -127,6 +129,15 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
 
         composable(ROUTE_CALENDAR_MONTH) {
             CalendarMonthScreen(
+                onBack = { navController.popBackStack() },
+                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
+                onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
+                onOpenDay = { date -> navController.navigate("calendarDay/${date.toEpochDay()}") }
+            )
+        }
+
+        composable(ROUTE_CALENDAR_DAY) {
+            CalendarDayScreen(
                 onBack = { navController.popBackStack() },
                 onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
                 onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") }

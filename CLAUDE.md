@@ -295,6 +295,18 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   keine eigenen Header mitsenden kann. NocTurn speichert den Scope-Token AES/GCM-verschlüsselt
   mit Android-Keystore-Schlüssel (`LetheMediaCredentialsStore`, gleiches Muster wie das
   Nextcloud-App-Passwort), ohne das Lethe-Passwort selbst je zu speichern.
+- **Release-Signierung**: eigener PKCS12-Keystore unter `keystore/release.keystore.p12`
+  (gitignored, niemals im Repo), Firma/Inhaber im Zertifikat hinterlegt (CN=NocTurn,
+  O=letheapp.de, OU=Dennis Bassy). Pfad/Passwörter werden analog zum
+  `OPENWEATHER_API_KEY`-Handling gelesen: lokal aus `local.properties`
+  (`RELEASE_KEYSTORE_PATH`/`RELEASE_KEYSTORE_PASSWORD`/`RELEASE_KEY_ALIAS`/
+  `RELEASE_KEY_PASSWORD`), im CI aus gleichnamigen GitHub Secrets (Keystore selbst als
+  `RELEASE_KEYSTORE_BASE64`-Secret, wird im Workflow vor dem Release-Build dekodiert).
+  `app/build.gradle.kts` signiert `release` nur, wenn ein Keystore-Pfad gefunden wird —
+  PR-Builds ohne Secrets bleiben unsigniert. Der GitHub-Actions-Workflow
+  (`build-apk.yml`) veröffentlicht bei Push auf `main`/`workflow_dispatch` zusätzlich ein
+  echtes GitHub Release (Tag `v<versionName>-<run_number>`) mit der signierten APK als
+  Anhang.
 
 ## Wichtig
 

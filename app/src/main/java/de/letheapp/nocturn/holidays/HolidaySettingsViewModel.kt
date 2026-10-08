@@ -18,9 +18,16 @@ class HolidaySettingsViewModel @Inject constructor(
     val settings: StateFlow<HolidaySettingsEntity?> = holidayRepository.observeSettings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    fun save(state: GermanState, showPublicHolidays: Boolean, showSchoolHolidays: Boolean) {
+    /**
+     * [onSaved] wird erst nach Abschluss des DB-Schreibvorgangs aufgerufen — ruft der Screen
+     * stattdessen sofort nach dem Start von save() ein popBackStack() auf, wird dieser
+     * ViewModel-Scope abgebrochen, bevor die suspend-DB-Operation überhaupt läuft, und die
+     * Einstellung geht verloren (Ursache des Bugs "Feiertage werden trotz Auswahl nicht angezeigt").
+     */
+    fun save(state: GermanState, showPublicHolidays: Boolean, showSchoolHolidays: Boolean, onSaved: () -> Unit) {
         viewModelScope.launch {
             holidayRepository.saveSettings(state.subdivisionCode, state.displayName, showPublicHolidays, showSchoolHolidays)
+            onSaved()
         }
     }
 }

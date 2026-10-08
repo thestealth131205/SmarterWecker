@@ -55,6 +55,9 @@ data class HolidayDayEntry(
 private const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
 private const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
 
+/** Eine Rotation zur Anzeige in der Seitenleiste, mit dem Namen ihres Jobs zur Unterscheidung. */
+data class RotationOption(val id: Long, val name: String, val jobName: String)
+
 @HiltViewModel
 class CalendarMonthViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
@@ -174,5 +177,21 @@ class CalendarMonthViewModel @Inject constructor(
 
     fun goToCurrentMonth() {
         _month.value = YearMonth.now()
+    }
+
+    /** Für die ausklappbare Seitenleiste: alle vorhandenen Rotationen jobübergreifend zur Auswahl. */
+    val rotations: StateFlow<List<RotationOption>> = combine(
+        calendarRepository.observeAllRotations(),
+        calendarRepository.observeJobs()
+    ) { rotations, jobs ->
+        val jobsById = jobs.associateBy { it.id }
+        rotations.map { rotation -> RotationOption(rotation.id, rotation.name, jobsById[rotation.jobId]?.name.orEmpty()) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Wendet eine über die Seitenleiste gewählte Rotation ab [startEpochDay] für [totalDays] Tage an. */
+    fun applyRotation(rotationId: Long, startEpochDay: Long, totalDays: Int) {
+        viewModelScope.launch {
+            calendarRepository.applyRotationRange(rotationId, startEpochDay, totalDays)
+        }
     }
 }

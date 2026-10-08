@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +8,19 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
+
+// Release-Signierung: Keystore-Pfad/Passwörter kommen lokal aus local.properties (bereits
+// gitignored), im CI aus GitHub-Secrets als gleichnamige Umgebungsvariablen — analog zum
+// OPENWEATHER_API_KEY-Handling aus dem Iosync-Projekt (siehe CLAUDE.md). Der Keystore selbst
+// liegt unter keystore/ (ebenfalls gitignored), niemals im Repo.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) load(FileInputStream(file))
+}
+
+fun signingProperty(key: String): String? = localProperties.getProperty(key) ?: System.getenv(key)
+
+val releaseStoreFilePath = signingProperty("RELEASE_KEYSTORE_PATH")
 
 android {
     namespace = "de.letheapp.nocturn"
@@ -18,9 +34,23 @@ android {
         versionName = "0.3.0"
     }
 
+    signingConfigs {
+        if (releaseStoreFilePath != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFilePath)
+                storePassword = signingProperty("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = signingProperty("RELEASE_KEY_ALIAS")
+                keyPassword = signingProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseStoreFilePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

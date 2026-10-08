@@ -397,3 +397,78 @@ genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
   `ExposedDropdownMenuBox`/`menuAnchor()`-API und `DatePickerDialog`-Signatur vorab per
   Websuche gegen die im Projekt gepinnte Compose-BOM-Version 2024.09.03 verifiziert),
   echte Verifikation bleibt der GitHub Action vorbehalten.
+
+## Ergänzung (2026-10-08, Release-Signierung, Ton-Vorschau, Health-Connect-Fix, Kalender-Erweiterungen)
+
+Nutzer hatte in einer Anfrage mit 4 Screenshots sieben Einzelpunkte genannt; eine erste
+Antwort darauf brach wegen eines abgelaufenen OAuth-Tokens ab, der Nutzer bat danach "Setze
+meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/gepusht
+(Standing-Regel), da nicht explizit angewiesen:
+
+- **Release-Signierung**: Da auf diesem Pi kein `keytool`/JDK vorhanden war (zum
+  Zeitpunkt der Keystore-Erzeugung), wurde der PKCS12-Keystore per `openssl req` +
+  `openssl pkcs12 -export` erzeugt (Android/Gradle akzeptiert PKCS12 genauso wie JKS).
+  Zertifikat: CN=NocTurn, O=letheapp.de, OU=Dennis Bassy. Passwörter zufällig generiert,
+  liegen in `local.properties` (gitignored) sowie als vier GitHub-Actions-Secrets
+  (`RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`,
+  `RELEASE_KEY_PASSWORD`) — Upload erfolgte über die GitHub-REST-API mit dem Token aus
+  `/opt/githubtok3n.txt` (kein `gh`-CLI installiert), Verschlüsselung des Secret-Werts
+  via neu in einem venv installiertem `pynacl` (sealed box, wie von der API verlangt).
+  **Wichtig: die Keystore-Passwörter sind nur im `local.properties`-Klartext und als
+  verschlüsselte GitHub-Secrets vorhanden — ohne Backup des `keystore/`-Ordners oder der
+  Passwörter kann künftig keine APK mehr mit demselben Schlüssel signiert werden.**
+  `build-apk.yml` baut bei `main`-Push/`workflow_dispatch` eine signierte Release-APK und
+  veröffentlicht sie automatisch als GitHub Release (Tag `v<versionName>-<run_number>`).
+- **Ton-Vorschau**: `SoundPickerViewModel` bekam einen `MediaPlayer`-basierten
+  `previewSound()`/`stopPreview()`, der bei jeder Auswahl in der Töne-Liste **und** im
+  Lethe-Bibliothek-Tab automatisch kurz anspielt; Vorschau stoppt beim Tab-Wechsel bzw.
+  beim Verlassen des Screens (`onCleared`).
+- **Health-Connect-Berechtigungs-Bug recherchiert und behoben**: Health Connect verlangt
+  laut offizieller Doku eine registrierte `PermissionsRationaleActivity`
+  (`androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`-Intent-Filter) als
+  Datenschutz-Gegenstück zum Berechtigungsdialog — NocTurn hatte diese bislang nicht,
+  was die unzuverlässige Berechtigungsvergabe erklären dürfte (jetzt ergänzt). Zusätzlich
+  ist bekannt, dass Android nach zweimaligem Ablehnen die erneute Anfrage systemseitig
+  sperrt (recherchiert); dafür gibt's jetzt im Health-Connect-Status-Screen einen "In
+  Health Connect öffnen"-Button (`HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS`),
+  über den der Nutzer die Berechtigung notfalls manuell erteilen kann.
+- **Feiertage-Anzeige-Bug gefunden und behoben**: `HolidaySettingsViewModel.save()` rief
+  `onBack()` auf, bevor der im `viewModelScope` gestartete DB-Schreibvorgang
+  abgeschlossen war — beim Zurücknavigieren wird der ViewModel-Scope abgebrochen, der
+  Speichervorgang lief oft nie durch (Race Condition). Fix: `save()` nimmt jetzt einen
+  `onSaved`-Callback, der erst nach dem `suspend`-DB-Call aufgerufen wird — exakt das
+  Muster, das `RotationEditorViewModel.save(onDone)` bereits vorher richtig gemacht hat.
+- **Swipe zum Monatswechsel**: `CalendarMonthScreen` erkennt horizontale Drag-Gesten
+  (`detectHorizontalDragGestures`) über dem Kalendergitter und wechselt bei
+  Überschreiten eines Schwellwerts den Monat.
+- **Neue Tagesansicht** (`CalendarDayScreen`/`CalendarDayViewModel`, Route
+  `calendarDay/{epochDay}`): beim Antippen eines Tages mit Termin/Feiertag/Schicht
+  öffnet sich jetzt eine eigene Tagesansicht (an Google Kalender angelehnt) statt des
+  bisherigen `AlertDialog` — ganztägige Einträge (Feiertage/Ferien, ganztägige Termine)
+  als Banner oben, darunter zeitlich sortierte Einträge mit Start-/Endzeit (Schicht-Zeit
+  aus `ShiftEntity.startHour/startMinute/durationMinutes`, Termin-Zeit aus
+  `AppointmentEntity.startEpochMillis/endEpochMillis`). Leere Tage öffnen weiterhin nur
+  die Tagesauswahl für den "+"-Schnellzugriff, keine neue Ansicht.
+- **Rotations-Seitenleiste** (`ModalNavigationDrawer` in `CalendarMonthScreen`, Vorbild:
+  ausklappbares Google-Kalender-Menü): zeigt alle vorhandenen Rotationen jobübergreifend
+  (`CalendarMonthViewModel.rotations`, neuer `CalendarRepository`/`CalendarEntryDao`-Weg
+  `applyRotationRange`/`deleteForRotationInRange`). Flow: Rotation in der Seitenleiste
+  antippen → Hinweis-Karte "Tippe auf den Starttag" → Starttag im Kalender antippen →
+  schwebendes Dialogfenster mit Dauer-Auswahl (1/3/6 Monate, 1/2 Jahre) → Rotation wird ab
+  diesem Tag für die gewählte Dauer neu eingetragen, **ohne** das beim Anlegen der
+  Rotation gespeicherte Standard-Fortschreibefenster (5 Jahre ab ursprünglichem
+  Startdatum) zu löschen — nur der neu gewählte Zeitraum wird für diese Rotation
+  überschrieben.
+- **Verifikation**: Für diese Session wurde erstmals versucht, ein lokales Android-SDK
+  samt Build-Tools 34 neu aufzusetzen (JDK 17 per `apt`, SDK per `sdkmanager`) — `aapt2`
+  bleibt aber weiterhin ein reines x86_64-Binary (auch in Build-Tools bis 37 noch keine
+  Linux-ARM64-Variante von Google veröffentlicht). Ein Versuch, dies über
+  `qemu-user-static` + `dpkg --add-architecture amd64`/`libc6:amd64` lauffähig zu machen,
+  wurde **abgebrochen**, nachdem die Multiarch-Paketauflösung Kernsystempakete
+  (libc6, tar, util-linux) als nicht installierbar meldete — zu hohes Risiko, das
+  System zu beschädigen; `dpkg --remove-architecture amd64` wurde sofort danach
+  ausgeführt, System-Zustand verifiziert sauber. `compileDebugKotlin` scheitert daher
+  weiterhin an `processDebugResources`/fehlendem `R.jar` — echte Verifikation bleibt wie
+  in allen vorherigen Sessions der GitHub Action vorbehalten; alle Änderungen wurden
+  stattdessen besonders sorgfältig manuell gegen bestehende Code-Muster und exakte
+  DAO-/Repository-Signaturen geprüft.

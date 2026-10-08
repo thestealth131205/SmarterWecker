@@ -68,6 +68,7 @@ fun SoundPickerScreen(
     val letheState by viewModel.letheState.collectAsState()
 
     LaunchedEffect(selectedTab) {
+        viewModel.stopPreview()
         if (selectedTab == LETHE_TAB_INDEX) viewModel.onLetheTabOpened()
     }
 
@@ -128,6 +129,7 @@ fun SoundPickerScreen(
                         SoundRow(option, selectedUri) { uri ->
                             selectedUri = uri
                             onSoundSelected(uri)
+                            viewModel.previewSound(uri)
                         }
                     }
 
@@ -137,6 +139,7 @@ fun SoundPickerScreen(
                             SoundRow(option, selectedUri) { uri ->
                                 selectedUri = uri
                                 onSoundSelected(uri)
+                                viewModel.previewSound(uri)
                             }
                         }
                     }
@@ -146,6 +149,7 @@ fun SoundPickerScreen(
                         SoundRow(option, selectedUri) { uri ->
                             selectedUri = uri
                             onSoundSelected(uri)
+                            viewModel.previewSound(uri)
                         }
                     }
                 }
@@ -160,6 +164,7 @@ fun SoundPickerScreen(
                     onTrackSelected = { uri ->
                         selectedUri = uri
                         onSoundSelected(uri)
+                        viewModel.previewSound(uri)
                     }
                 )
             }

@@ -7,6 +7,10 @@ captures/
 .cxx/
 local.properties
 .idea/
+
+# Release-Signierschlüssel (siehe CLAUDE.md "Release-Signierung") — niemals ins Repo,
+# Passwörter liegen lokal in local.properties bzw. im CI als GitHub Secrets.
+keystore/
 *.apk
 *.aab
 *.ap_

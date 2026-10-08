@@ -128,6 +128,12 @@ interface CalendarEntryDao {
     @Query("DELETE FROM calendar_entries WHERE rotationId = :rotationId")
     suspend fun deleteForRotation(rotationId: Long)
 
+    @Query(
+        "DELETE FROM calendar_entries WHERE rotationId = :rotationId " +
+            "AND dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay"
+    )
+    suspend fun deleteForRotationInRange(rotationId: Long, fromEpochDay: Long, toEpochDay: Long)
+
     @Insert
     suspend fun insertAll(entries: List<CalendarEntryEntity>)
 

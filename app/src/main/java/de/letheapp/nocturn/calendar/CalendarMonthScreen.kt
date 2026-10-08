@@ -2,6 +2,7 @@ package de.letheapp.nocturn.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,29 +23,41 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.EventRepeat
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -52,6 +65,7 @@ import java.util.Locale
 private val WEEKDAY_HEADERS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
 private const val MAX_DOTS_PER_DAY = 4
 private val DAY_CELL_MIN_HEIGHT = 92.dp
+private const val SWIPE_THRESHOLD_PX = 120f
 
 /**
  * Übersichtliche Monatsansicht: ein Punkt pro Schicht/Termin am jeweiligen Tag (max. 4, Rest
@@ -65,110 +79,250 @@ fun CalendarMonthScreen(
     onBack: () -> Unit,
     onAddAppointment: (LocalDate) -> Unit,
     onAddShift: (LocalDate) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     viewModel: CalendarMonthViewModel = hiltViewModel()
 ) {
     val month by viewModel.month.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
+    val rotations by viewModel.rotations.collectAsState()
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
-    var detailsDialogDay by remember { mutableStateOf<LocalDate?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
+    var durationDialogFor by remember { mutableStateOf<Pair<RotationOption, LocalDate>?>(null) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val drawerScope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                NavigationDrawerItem(
+                    label = { Text("Zurück zur Übersicht") },
+                    icon = { Icon(Icons.Filled.ArrowBack, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        drawerScope.launch { drawerState.close() }
+                        onBack()
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "Rotation anwenden",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                if (rotations.isEmpty()) {
                     Text(
-                        month.month.getDisplayName(TextStyle.FULL, Locale.GERMAN)
-                            .replaceFirstChar { it.uppercase() } + " ${month.year}"
+                        "Noch keine Rotationen angelegt.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = viewModel::previousMonth) {
-                        Icon(Icons.Filled.ChevronLeft, contentDescription = "Vorheriger Monat")
-                    }
-                    IconButton(onClick = viewModel::nextMonth) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "Nächster Monat")
+                } else {
+                    rotations.forEach { rotation ->
+                        NavigationDrawerItem(
+                            label = {
+                                Text(if (rotation.jobName.isNotBlank()) "${rotation.name} · ${rotation.jobName}" else rotation.name)
+                            },
+                            icon = { Icon(Icons.Filled.EventRepeat, contentDescription = null) },
+                            selected = pendingRotation?.id == rotation.id,
+                            onClick = {
+                                pendingRotation = rotation
+                                drawerScope.launch { drawerState.close() }
+                            },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
                     }
                 }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
             }
         }
-    ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 8.dp)) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                WEEKDAY_HEADERS.forEach { label ->
-                    Text(
-                        text = label,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-
-            val firstOfMonth = month.atDay(1)
-            val leadingBlanks = firstOfMonth.dayOfWeek.value - 1
-            val daysInMonth = month.lengthOfMonth()
-            val today = LocalDate.now()
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(7),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(leadingBlanks) {
-                    Box(modifier = Modifier.heightIn(min = DAY_CELL_MIN_HEIGHT))
-                }
-
-                items(daysInMonth) { index ->
-                    val date = firstOfMonth.plusDays(index.toLong())
-                    DayCell(
-                        date = date,
-                        isToday = date == today,
-                        isSelected = date == selectedDay,
-                        entries = entriesByDay[date].orEmpty(),
-                        onClick = {
-                            selectedDay = date
-                            if (entriesByDay[date].orEmpty().isNotEmpty()) detailsDialogDay = date
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            month.month.getDisplayName(TextStyle.FULL, Locale.GERMAN)
+                                .replaceFirstChar { it.uppercase() } + " ${month.year}"
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { drawerScope.launch { drawerState.open() } }) {
+                            Icon(Icons.Filled.Menu, contentDescription = "Menü")
                         }
-                    )
+                    },
+                    actions = {
+                        IconButton(onClick = viewModel::previousMonth) {
+                            Icon(Icons.Filled.ChevronLeft, contentDescription = "Vorheriger Monat")
+                        }
+                        IconButton(onClick = viewModel::nextMonth) {
+                            Icon(Icons.Filled.ChevronRight, contentDescription = "Nächster Monat")
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
+                }
+            }
+        ) { innerPadding ->
+            var dragAccumulated by remember { mutableStateOf(0f) }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 8.dp)
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                when {
+                                    dragAccumulated <= -SWIPE_THRESHOLD_PX -> viewModel.nextMonth()
+                                    dragAccumulated >= SWIPE_THRESHOLD_PX -> viewModel.previousMonth()
+                                }
+                                dragAccumulated = 0f
+                            },
+                            onDragCancel = { dragAccumulated = 0f }
+                        ) { change, dragAmount ->
+                            change.consume()
+                            dragAccumulated += dragAmount
+                        }
+                    }
+            ) {
+                pendingRotation?.let { rotation ->
+                    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                        Text(
+                            "Tippe auf den Starttag für „${rotation.name}“ im Kalender.",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    WEEKDAY_HEADERS.forEach { label ->
+                        Text(
+                            text = label,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
+                val firstOfMonth = month.atDay(1)
+                val leadingBlanks = firstOfMonth.dayOfWeek.value - 1
+                val daysInMonth = month.lengthOfMonth()
+                val today = LocalDate.now()
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(7),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(leadingBlanks) {
+                        Box(modifier = Modifier.heightIn(min = DAY_CELL_MIN_HEIGHT))
+                    }
+
+                    items(daysInMonth) { index ->
+                        val date = firstOfMonth.plusDays(index.toLong())
+                        DayCell(
+                            date = date,
+                            isToday = date == today,
+                            isSelected = date == selectedDay,
+                            entries = entriesByDay[date].orEmpty(),
+                            onClick = {
+                                val rotation = pendingRotation
+                                if (rotation != null) {
+                                    durationDialogFor = rotation to date
+                                    pendingRotation = null
+                                } else {
+                                    selectedDay = date
+                                    if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
-    }
 
-    detailsDialogDay?.let { date ->
-        DayDetailsDialog(date = date, entries = entriesByDay[date].orEmpty(), onDismiss = { detailsDialogDay = null })
-    }
+        if (showAddDialog) {
+            AddEntryTypeDialog(
+                onPickAppointment = {
+                    showAddDialog = false
+                    onAddAppointment(selectedDay ?: LocalDate.now())
+                },
+                onPickShift = {
+                    showAddDialog = false
+                    onAddShift(selectedDay ?: LocalDate.now())
+                },
+                onDismiss = { showAddDialog = false }
+            )
+        }
 
-    if (showAddDialog) {
-        AddEntryTypeDialog(
-            onPickAppointment = {
-                showAddDialog = false
-                onAddAppointment(selectedDay ?: LocalDate.now())
-            },
-            onPickShift = {
-                showAddDialog = false
-                onAddShift(selectedDay ?: LocalDate.now())
-            },
-            onDismiss = { showAddDialog = false }
-        )
+        durationDialogFor?.let { (rotation, startDate) ->
+            RotationDurationDialog(
+                rotationName = rotation.name,
+                startDate = startDate,
+                onPickMonths = { months ->
+                    val totalDays = (startDate.plusMonths(months.toLong()).toEpochDay() - startDate.toEpochDay()).toInt()
+                    viewModel.applyRotation(rotation.id, startDate.toEpochDay(), totalDays)
+                    durationDialogFor = null
+                },
+                onDismiss = { durationDialogFor = null }
+            )
+        }
     }
 }
 
+private val ROTATION_DURATION_OPTIONS = listOf(
+    "1 Monat" to 1,
+    "3 Monate" to 3,
+    "6 Monate" to 6,
+    "1 Jahr" to 12,
+    "2 Jahre" to 24
+)
+
 @Composable
-private fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -> Unit, onDismiss: () -> Unit) {
+private fun RotationDurationDialog(
+    rotationName: String,
+    startDate: LocalDate,
+    onPickMonths: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("„$rotationName“ ab $startDate anwenden") },
+        text = {
+            Column {
+                Text(
+                    "Wie lange soll die Rotation ab diesem Tag in den Kalender eingetragen werden?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                ROTATION_DURATION_OPTIONS.forEach { (label, months) ->
+                    TextButton(
+                        onClick = { onPickMonths(months) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
+}
+
+@Composable
+internal fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Eintrag hinzufügen") },
@@ -247,35 +401,3 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entr
     }
 }
 
-@Composable
-private fun DayDetailsDialog(date: LocalDate, entries: List<CalendarDayEntry>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(date.toString()) },
-        text = {
-            Column {
-                entries.forEach { entry ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .background(Color(entry.colorArgb), CircleShape)
-                        )
-                        val text = when (entry) {
-                            is ShiftDayEntry -> if (entry.jobName.isNotBlank()) "${entry.shiftName} · ${entry.jobName}" else entry.shiftName
-                            is AppointmentDayEntry -> if (entry.priority == "HIGH") "${entry.title} (wichtig)" else entry.title
-                            is HolidayDayEntry -> if (entry.isSchoolHoliday) "${entry.name} (Ferien)" else entry.name
-                        }
-                        Text(text = text, modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Schließen") }
-        }
-    )
-}

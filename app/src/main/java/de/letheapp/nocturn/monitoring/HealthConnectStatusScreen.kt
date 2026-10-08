@@ -190,6 +190,22 @@ fun HealthConnectStatusScreen(onBack: () -> Unit) {
                 ) { Text("Berechtigungen") }
             }
 
+            if (availability == HealthConnectAvailability.AVAILABLE && !stepsGranted) {
+                Text(
+                    "Falls der Berechtigungsdialog beim Tippen nichts zu bewirken scheint: Android " +
+                        "sperrt die Anfrage nach zweimaligem Ablehnen automatisch. Öffne in diesem Fall " +
+                        "Health Connect direkt und erteile die Berechtigung für NocTurn dort manuell.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("In Health Connect öffnen") }
+            }
+
             if (availability == HealthConnectAvailability.AVAILABLE) {
                 Text("Verfügbare Datentypen", style = MaterialTheme.typography.labelMedium)
                 Card(modifier = Modifier.fillMaxWidth()) {
