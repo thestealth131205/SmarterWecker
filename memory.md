@@ -246,3 +246,48 @@ genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
 - Nebenbei korrigiert: Der "Wichtig"-Abschnitt in CLAUDE.md behauptete noch "noch kein
   Code vorhanden" — das war seit dem Phase-1-Grundgerüst (Schritt 1) nicht mehr aktuell
   und wurde auf den tatsächlichen Stand (Phase 1 umgesetzt) korrigiert.
+
+## Ergänzung (2026-10-08, die fünf nachträglichen Anforderungen umgesetzt)
+
+- Nutzer: "Setze es um" → alle fünf in der vorigen Runde nur dokumentierten Erweiterungen
+  implementiert (Details siehe PLAN.md, Abschnitt "Nachträglich ergänzte Anforderungen"):
+  Berechtigungen-Onboarding, System-Registrierung, Schüler/Student-Modus (Wochenstundenplan),
+  Foto-Import/OCR, konfigurierbarer Weckzeit-Abstand.
+- **Technische Leitentscheidung OCR**: Tesseract4Android (Apache-2.0, FOSS) als OCR-Lib
+  final gewählt (vorher in CLAUDE.md noch als "TBD" vermerkt). Wichtig für die Zukunft:
+  die Lib wird **nicht** auf Maven Central veröffentlicht, nur über **JitPack**
+  (`https://jitpack.io`, Koordinate `com.github.adaptech-cz.Tesseract4Android:tesseract4android`,
+  Version 4.8.0) — das wurde durch direktes Abfragen der JitPack-API/Maven-Metadaten
+  verifiziert, bevor es ins Projekt übernommen wurde. `settings.gradle.kts` enthält jetzt
+  zusätzlich das JitPack-Repository.
+- Sprachdaten für Tesseract (`deu.traineddata`, ~15 MB) werden bewusst **nicht** ins Repo
+  gelegt, sondern von `TesseractOcrEngine` beim ersten Foto-Import einmalig von der
+  offiziellen `tesseract-ocr/tessdata`-GitHub-Quelle in den App-internen Speicher
+  nachgeladen (dafür neue `INTERNET`-Permission im Manifest).
+- **Wichtige technische Erkenntnis zur lokalen Build-Verifikation**: Diesmal stand
+  tatsächlich Internetzugriff im Sandbox-Terminal zur Verfügung (anders als in früheren
+  Runden vermutet/dokumentiert) — ein lokales Android-SDK (Kommandozeilen-Tools +
+  Platform 34) ließ sich installieren. `./gradlew :app:compileDebugKotlin` lief damit
+  erfolgreich durch (inkl. KSP-Lauf für Room/Hilt, d. h. der komplette Dagger/Hilt-Graph
+  wurde validiert). Einschränkung bleibt: ein vollständiger `assembleDebug`-Lauf ist auf
+  dieser Maschine weiterhin nicht möglich, weil Googles `aapt2`-Binary (Ressourcen-Compiler)
+  **keine Linux-ARM64-Variante** besitzt (nur x86_64/macOS/Windows) — die Maschine hier
+  läuft auf `aarch64` (Raspberry Pi). Für künftige Sessions: Kotlin-Compile-Verifikation via
+  `compileDebugKotlin` (mit einem leeren Platzhalter-`R.jar` und `-x processDebugResources
+  -x mergeDebugResources -x packageDebugResources -x parseDebugLocalResources
+  -x createDebugCompatibleScreenManifests -x extractDeepLinksDebug`, falls `R` von keiner
+  Quelldatei referenziert wird) ist auf diesem Pi möglich und sinnvoll, ein echter
+  `assembleDebug`/`aapt2`-Lauf bleibt der GitHub Action vorbehalten.
+- Neue Datenmodell-Felder: `JobEntity.mode` (Enum `JobMode.SHIFT`/`STUDENT`),
+  `ShiftEntity`/neue `LessonEntity` haben je `earliestWakeOffsetMinutes`/
+  `latestWakeupOffsetMinutes`, `AlarmEntity.timetableJobId` (Alternative zu `rotationId`
+  für Student-Modus-Jobs). DB-Version auf 3 angehoben (weiterhin
+  `fallbackToDestructiveMigration()`, da noch keine Nutzerdaten im Feld).
+- Neue Klasse `WakeWindowResolver` (Package `alarm`) bündelt die gemeinsame Logik von
+  `AlarmScheduler` (nächster Weck-Zeitpunkt) und `PostAlarmMonitoringService`
+  (Aufsteh-Deadline nach "Stop") für Rotation- **und** Stundenplan-Verknüpfungen.
+- **Bewusste Vereinfachung Foto-Import**: OCR liefert nur Fließtext ohne Tabellenstruktur;
+  im Student-Modus muss der Nutzer jeder erkannten Zeile im Korrektur-Dialog selbst einen
+  Wochentag zuweisen, das wird nicht automatisch aus dem Foto-Layout erkannt.
+- **Bekannte Lücke**: `CalendarMonthScreen` zeigt bislang nur Rotations-Einträge, noch
+  keine Student-Modus-Wochenstundenpläne.

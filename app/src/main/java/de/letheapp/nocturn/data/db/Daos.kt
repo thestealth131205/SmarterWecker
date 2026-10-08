@@ -31,13 +31,42 @@ interface JobDao {
     fun observeAll(): Flow<List<JobEntity>>
 
     @Query("SELECT * FROM jobs WHERE id = :id")
+    fun observeById(id: Long): Flow<JobEntity?>
+
+    @Query("SELECT * FROM jobs WHERE id = :id")
     suspend fun getById(id: Long): JobEntity?
 
     @Insert
     suspend fun insert(job: JobEntity): Long
 
+    @Update
+    suspend fun update(job: JobEntity)
+
     @Delete
     suspend fun delete(job: JobEntity)
+}
+
+@Dao
+interface LessonDao {
+    @Query("SELECT * FROM lessons WHERE jobId = :jobId ORDER BY weekday, startHour, startMinute")
+    fun observeForJob(jobId: Long): Flow<List<LessonEntity>>
+
+    @Query("SELECT * FROM lessons WHERE jobId = :jobId AND weekday = :weekday ORDER BY startHour, startMinute")
+    suspend fun getForJobAndWeekday(jobId: Long, weekday: Int): List<LessonEntity>
+
+    @Query(
+        "SELECT * FROM lessons WHERE jobId = :jobId AND weekday = :weekday ORDER BY startHour, startMinute LIMIT 1"
+    )
+    suspend fun getFirstForJobAndWeekday(jobId: Long, weekday: Int): LessonEntity?
+
+    @Insert
+    suspend fun insert(lesson: LessonEntity): Long
+
+    @Update
+    suspend fun update(lesson: LessonEntity)
+
+    @Delete
+    suspend fun delete(lesson: LessonEntity)
 }
 
 @Dao

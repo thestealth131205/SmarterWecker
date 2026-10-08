@@ -199,9 +199,12 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Wetterdaten: OpenWeatherMap API (One Call / Current Weather), API-Key-Handling analog
   Iosync-Projekt (`/opt/Iosync`): Key aus `local.properties` lokal, aus GitHub-Secret
   `OPENWEATHER_API_KEY` im CI, Einbindung als `BuildConfig`-Feld — niemals im Repo.
-- Foto-Import/OCR (Kernfunktion 5): Texterkennung on-device. FOSS-Kandidat
-  **Tesseract4Android** (Apache-2.0) wird gemäß FOSS-Leitlinie gegenüber Google ML Kit
-  (closed-source, aber kostenlos) bevorzugt; finale Bibliothekswahl noch offen (TBD).
+- Foto-Import/OCR (Kernfunktion 5): Texterkennung on-device über **Tesseract4Android**
+  (Apache-2.0), final gewählt gemäß FOSS-Leitlinie gegenüber Googles closed-source ML Kit.
+  Wird nicht auf Maven Central, sondern nur über **JitPack** veröffentlicht (Repository in
+  `settings.gradle.kts` ergänzt). Die deutschen Trainingsdaten werden nicht ins Repo gelegt,
+  sondern beim ersten Foto-Import einmalig von der offiziellen `tesseract-ocr/tessdata`-
+  Quelle in den App-internen Speicher nachgeladen.
 - Berechtigungs-Onboarding (Kernfunktion 10): eigener Onboarding-Screen beim ersten
   Start, der alle benötigten Berechtigungen inkl. Begründung anfragt.
 - System-Registrierung (Kernfunktion 11): Manifest-Intent-Filter für

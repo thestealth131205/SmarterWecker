@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.data.db.AlarmEntity
-import de.letheapp.nocturn.data.repository.CalendarRepository
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import javax.inject.Inject
@@ -16,22 +14,21 @@ import javax.inject.Singleton
 const val EXTRA_ALARM_ID = "extra_alarm_id"
 const val EXTRA_IS_SNOOZE = "extra_is_snooze"
 
-/** Obergrenze für die Tage-Suche nach dem nächsten Schicht-Termin einer Rotation (Sicherheitsnetz). */
-private const val MAX_ROTATION_LOOKAHEAD_DAYS = 400
-
 @Singleton
 class AlarmScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val calendarRepository: CalendarRepository
+    private val wakeWindowResolver: WakeWindowResolver
 ) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     fun canScheduleExactAlarms(): Boolean = alarmManager.canScheduleExactAlarms()
 
     /**
-     * Plant den Alarm. Ist er mit einer Rotation verknüpft ([AlarmEntity.rotationId]), wird die
-     * Uhrzeit aus der nächsten anstehenden Schicht abgeleitet statt aus [AlarmEntity.hour]/[minute]
-     * — freie Tage laut Rotation werden dabei automatisch übersprungen.
+     * Plant den Alarm. Ist er mit einer Rotation oder einem Stundenplan verknüpft
+     * ([AlarmEntity.rotationId]/[AlarmEntity.timetableJobId]), wird die Uhrzeit aus dem nächsten
+     * anstehenden Schicht-/Unterrichtstermin abgeleitet statt aus [AlarmEntity.hour]/[minute] —
+     * freie Tage werden dabei automatisch übersprungen, und ein konfigurierter
+     * "frühestes Wecken"-Vorlauf wird vom Termin-Start abgezogen.
      */
     suspend fun schedule(alarm: AlarmEntity) {
         if (!alarm.enabled) {
@@ -43,30 +40,15 @@ class AlarmScheduler @Inject constructor(
     }
 
     private suspend fun nextTriggerMillis(alarm: AlarmEntity): Long? {
-        val rotationId = alarm.rotationId
         val now = LocalDateTime.now(ZoneId.systemDefault())
 
-        if (rotationId == null) {
+        if (alarm.rotationId == null && alarm.timetableJobId == null) {
             val trigger = AlarmRepeat.nextTrigger(alarm.hour, alarm.minute, alarm.repeatDays, now)
             return trigger.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         }
 
-        var fromEpochDay = now.toLocalDate().toEpochDay()
-        repeat(MAX_ROTATION_LOOKAHEAD_DAYS) {
-            val entry = calendarRepository.getNextCalendarEntryWithShift(rotationId, fromEpochDay)
-                ?: return null
-            val shift = entry.shiftId?.let { calendarRepository.getShift(it) }
-            if (shift == null) {
-                fromEpochDay = entry.dateEpochDay + 1
-                return@repeat
-            }
-            val candidate = LocalDate.ofEpochDay(entry.dateEpochDay).atTime(shift.startHour, shift.startMinute)
-            if (candidate.isAfter(now)) {
-                return candidate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            }
-            fromEpochDay = entry.dateEpochDay + 1
-        }
-        return null
+        val occurrence = wakeWindowResolver.nextOccurrence(alarm, now) ?: return null
+        return occurrence.wakeTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
 
     fun scheduleSnooze(alarmId: Long, triggerAtMillis: Long) {

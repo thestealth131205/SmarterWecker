@@ -120,27 +120,67 @@ Verifikation erfolgt über die GitHub Action `build-apk.yml`. Schicht-Farbwahl n
 eine kuratierte Farbpalette (10 Farben) statt eines vollen Farbrads, um keine
 Zusatz-Library einzuführen.
 
-## Nachträglich ergänzte Anforderungen (2026-10-08, noch nicht umgesetzt)
+**Nachtrag (2026-10-08, Build-Verifikation für die fünf Erweiterungen):** Für diese Runde
+wurde lokal doch ein Android-SDK (Kommandozeilen-Tools, Platform 34) installiert und
+`./gradlew :app:compileDebugKotlin` (inkl. KSP-Lauf für Room/Hilt) erfolgreich ausgeführt —
+alle Entity-/DAO-/Hilt-Graph-Änderungen sowie die neue Tesseract4Android-Abhängigkeit
+(über JitPack) kompilieren und lösen sich auf. Ein vollständiger `assembleDebug`-Lauf
+(inkl. Ressourcen-Verarbeitung über `aapt2`) war weiterhin nicht möglich, da Googles
+`aapt2`-Binary für die hier verwendete Linux-ARM64-Plattform nicht existiert (nur
+x86_64/macOS/Windows) — reine Kotlin-Compile-/Annotation-Processing-Verifikation war davon
+aber nicht betroffen. Finale Verifikation weiterhin über die GitHub Action `build-apk.yml`
+auf x86_64-Runnern.
+
+## Nachträglich ergänzte Anforderungen (2026-10-08, umgesetzt)
 
 Nach Abschluss der ursprünglichen Schritte 1–12 kamen folgende Anforderungen hinzu, die
-den Phase-1-Scope erweitern (Details siehe CLAUDE.md Kernfunktionen 5, 10, 11):
+den Phase-1-Scope erweitern (Details siehe CLAUDE.md Kernfunktionen 5, 10, 11). Alle fünf
+Punkte sind jetzt implementiert:
 
-- [ ] Berechtigungs-Onboarding beim ersten Start (alle benötigten Berechtigungen mit
-  Erklärung anfragen, nicht nur ad-hoc wie aktuell beim Exact-Alarm-Banner).
-- [ ] System-Registrierung als Wecker-/Uhr-/Kalender-App (Manifest-Intent-Filter
-  `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/`SNOOZE_ALARM`, Kategorien
-  `APP_CALENDAR`/`APP_CLOCK`).
-- [ ] Umschaltbarer Schüler/Student-Modus: Wochenstundenplan statt Tages-Rotation, mit
-  bis zu 12 Unterrichtsstunden/Tag (eigene Start-/Endzeit, Farbe) statt einer
-  Schicht/Tag.
-- [ ] Foto-Import: Stundenplan/Schichtplan abfotografieren, per OCR automatisch
-  Schichten/Unterrichtsstunden (Start-/Endzeit, Farbe) erkennen und daraus automatisch
-  eine Rotation bzw. einen Wochenstundenplan erzeugen.
-- [ ] Konfigurierbarer Weckzeit-Abstand pro Schicht bzw. vor der ersten
-  Unterrichtsstunde: "frühestes Wecken" und "spätestens aufstehen" in Minuten vor
-  Schicht-/Unterrichtsbeginn, statt Wecken exakt zur Schicht-Startzeit
-  (`AlarmScheduler`/Alarm↔Schicht-Verknüpfung aus Schritt 12 muss dafür angepasst
-  werden).
+- [x] **Berechtigungs-Onboarding**: neuer `onboarding`-Screen (`PermissionsScreen` +
+  `AppPreferences`), der beim allerersten Start (vor der Alarmliste) alle benötigten
+  Berechtigungen mit kurzer Erklärung anfragt (exakte Alarme, Benachrichtigungen, Kamera,
+  Körpersensoren/Aktivitätserkennung, Health Connect falls verfügbar, Akku-Optimierung
+  ignorieren). Über ein neues Schild-Icon in der Alarmliste jederzeit erneut erreichbar,
+  da fehlende Berechtigungen dauerhaft (nicht nur beim ersten Start) relevant bleiben.
+  Der bisherige stille Permission-Request in `AlarmListScreen` wurde dadurch ersetzt; der
+  bestehende Exact-Alarm-Banner bleibt zusätzlich als Vereinfachung erhalten.
+- [x] **System-Registrierung**: `MainActivity` bekommt zusätzliche Intent-Filter für
+  `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/`SNOOZE_ALARM` sowie eigene Intent-Filter mit
+  den Kategorien `APP_CALENDAR`/`APP_CLOCK`, damit die App in den Android-Einstellungen
+  unter "Standard-Apps" auswählbar ist. Die zusätzlichen Alarm-Aktionen öffnen aktuell
+  schlicht die Alarmliste (kein eigener Deep-Link auf einen bestimmten Alarm), das reicht
+  für die System-Erkennung als Wecker-/Uhr-/Kalender-App.
+- [x] **Schüler/Student-Modus**: `JobEntity.mode` (`SHIFT`/`STUDENT`, Enum `JobMode`) ist
+  pro Job umschaltbar (Segmented Button in `JobDetailScreen`). Im Student-Modus ersetzt ein
+  neuer Wochenstundenplan-Tab (`LessonEntity`, bis zu 12 Unterrichtsstunden/Tag, 7
+  Wochentags-Tabs) die Schichten/Rotationen-Tabs. Ein Alarm kann statt an eine Rotation an
+  einen Student-Modus-Job gekoppelt werden (`AlarmEntity.timetableJobId`); die Wecker-Zeit
+  wird aus der zeitlich ersten Stunde des jeweils nächsten Wochentags abgeleitet.
+- [x] **Foto-Import**: neues Package `ocr` — `TesseractOcrEngine` (Tesseract4Android via
+  JitPack, lädt die deutschen Trainingsdaten beim ersten Gebrauch einmalig von der
+  offiziellen tessdata-Quelle nach, kein Binär-Blob im Repo), `TimetableTextParser`
+  (Zeilen mit Zeitangabe wie "06:00-14:00" per Regex extrahieren), `PhotoImportScreen`
+  (Foto via Kamera-App + `FileProvider` aufnehmen, erkannte Zeilen als Karten mit
+  Korrektur-Dialog). Übernahme erzeugt je nach Job-Modus entweder Schichten + eine neue
+  Rotation (Schichtarbeit, erkannte Zeilenreihenfolge = Tag-für-Tag-Muster) oder
+  Unterrichtsstunden (Student-Modus). **Bewusste Vereinfachung**: die
+  Tabellen-Spaltenstruktur eines Fotos (z. B. welche Spalte = welcher Wochentag) kann
+  reiner Fließtext-OCR nicht zuverlässig entnehmen; im Student-Modus weist der Nutzer jeder
+  erkannten Zeile daher im Korrektur-Dialog selbst einen Wochentag zu, statt dass das
+  automatisch aus dem Foto erkannt wird.
+- [x] **Konfigurierbarer Weckzeit-Abstand**: `ShiftEntity`/`LessonEntity` haben je zwei neue
+  Felder `earliestWakeOffsetMinutes`/`latestWakeupOffsetMinutes` (Minuten vor Schicht-/
+  Stundenbeginn, 0 = altes Verhalten). Neue Klasse `WakeWindowResolver` kapselt die
+  Ableitung von Weckzeitpunkt und Aufsteh-Deadline aus Rotation oder Stundenplan und wird
+  von `AlarmScheduler` (nächster Klingel-Zeitpunkt) und `PostAlarmMonitoringService`
+  (Aufsteh-Deadline nach "Stop" statt des bisherigen festen 10-Minuten-Fensters) gemeinsam
+  genutzt. Ist kein Offset konfiguriert oder keine Verknüpfung vorhanden, gilt weiterhin
+  das feste 10-Minuten-Fenster als Fallback.
+
+**Bekannte Vereinfachung dieser Erweiterung:** Die Kalender-Monatsansicht
+(`CalendarMonthScreen`) zeigt bislang nur Rotations-Einträge (Schichtarbeit); der
+wöchentliche Stundenplan im Student-Modus wird dort noch nicht separat eingeblendet.
 
 ## Grobe Umsetzungsreihenfolge
 

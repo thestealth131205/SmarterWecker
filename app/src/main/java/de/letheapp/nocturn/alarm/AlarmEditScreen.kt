@@ -87,9 +87,9 @@ fun AlarmEditScreen(
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
             Text(text = "%02d:%02d".format(current.hour, current.minute))
-            if (current.rotationId != null) {
+            if (current.rotationId != null || current.timetableJobId != null) {
                 Text(
-                    text = "Uhrzeit folgt der Schicht",
+                    text = "Uhrzeit folgt der Schicht/dem Stundenplan",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -112,14 +112,14 @@ fun AlarmEditScreen(
                         selected = AlarmRepeat.isSet(current.repeatDays, day),
                         onClick = { alarm = current.copy(repeatDays = AlarmRepeat.toggle(current.repeatDays, day)) },
                         label = { Text(AlarmRepeat.shortLabel(day)) },
-                        enabled = current.rotationId == null,
+                        enabled = current.rotationId == null && current.timetableJobId == null,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                 }
             }
-            if (current.rotationId != null) {
+            if (current.rotationId != null || current.timetableJobId != null) {
                 Text(
-                    text = "Wird ignoriert, solange eine Schicht verknüpft ist",
+                    text = "Wird ignoriert, solange eine Schicht/ein Stundenplan verknüpft ist",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -148,8 +148,10 @@ fun AlarmEditScreen(
             ) {
                 Icon(Icons.Filled.CalendarViewMonth, contentDescription = null)
                 Text(
-                    text = rotationOptions.find { it.id == current.rotationId }?.label
-                        ?: "Nicht mit Schicht verknüpft",
+                    text = rotationOptions.find {
+                        it.rotationId == current.rotationId && current.rotationId != null ||
+                            it.timetableJobId == current.timetableJobId && current.timetableJobId != null
+                    }?.label ?: "Nicht mit Schicht/Stundenplan verknüpft",
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
@@ -159,9 +161,10 @@ fun AlarmEditScreen(
     if (showRotationDialog) {
         RotationLinkDialog(
             options = rotationOptions,
-            selectedId = current.rotationId,
-            onSelect = { rotationId ->
-                alarm = current.copy(rotationId = rotationId)
+            selectedRotationId = current.rotationId,
+            selectedTimetableJobId = current.timetableJobId,
+            onSelect = { option ->
+                alarm = current.copy(rotationId = option?.rotationId, timetableJobId = option?.timetableJobId)
                 showRotationDialog = false
             },
             onDismiss = { showRotationDialog = false }
@@ -172,21 +175,25 @@ fun AlarmEditScreen(
 @Composable
 private fun RotationLinkDialog(
     options: List<RotationOption>,
-    selectedId: Long?,
-    onSelect: (Long?) -> Unit,
+    selectedRotationId: Long?,
+    selectedTimetableJobId: Long?,
+    onSelect: (RotationOption?) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Mit Schicht verknüpfen") },
+        title = { Text("Mit Schicht/Stundenplan verknüpfen") },
         text = {
             Column {
                 TextButton(onClick = { onSelect(null) }) {
-                    Text(if (selectedId == null) "✓ Keine Verknüpfung" else "Keine Verknüpfung")
+                    val noneSelected = selectedRotationId == null && selectedTimetableJobId == null
+                    Text(if (noneSelected) "✓ Keine Verknüpfung" else "Keine Verknüpfung")
                 }
                 options.forEach { option ->
-                    TextButton(onClick = { onSelect(option.id) }) {
-                        Text(if (option.id == selectedId) "✓ ${option.label}" else option.label)
+                    val selected = (option.rotationId != null && option.rotationId == selectedRotationId) ||
+                        (option.timetableJobId != null && option.timetableJobId == selectedTimetableJobId)
+                    TextButton(onClick = { onSelect(option) }) {
+                        Text(if (selected) "✓ ${option.label}" else option.label)
                     }
                 }
             }

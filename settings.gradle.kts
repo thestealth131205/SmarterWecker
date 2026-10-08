@@ -11,6 +11,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Für Tesseract4Android (FOSS-OCR-Lib für den Foto-Import, Kernfunktion 5),
+        // wird nicht auf Maven Central veröffentlicht, nur über JitPack.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

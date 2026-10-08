@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
@@ -27,6 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -43,22 +47,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.data.db.LessonEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftEntity
 
+private val WEEKDAY_TAB_LABELS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
+private const val MAX_LESSONS_PER_DAY = 12
+
 /**
- * Vorlagen-Detailansicht eines Jobs mit zwei Tabs: "Schichten" (Schritt 9) und
- * "Rotationen" (Schritt 10, verweist auf den Rotations-Editor).
+ * Vorlagen-Detailansicht eines Jobs. Je nach [JobEntity.mode][de.letheapp.nocturn.data.db.JobEntity]
+ * entweder die Schichtarbeit-Tabs "Schichten"/"Rotationen" (Schritte 9+10) oder der
+ * Wochenstundenplan für den Schüler/Student-Modus (bis zu 12 Unterrichtsstunden pro Tag).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobDetailScreen(
     jobName: String,
     onOpenRotationEditor: (rotationId: Long?) -> Unit,
+    onOpenPhotoImport: () -> Unit,
     onBack: () -> Unit,
     viewModel: JobDetailViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val job by viewModel.job.collectAsState()
+    val isStudentMode = job?.mode == JobMode.STUDENT.name
 
     Scaffold(
         topBar = {
@@ -68,19 +81,128 @@ fun JobDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
                     }
+                },
+                actions = {
+                    IconButton(onClick = onOpenPhotoImport) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = "Foto-Import")
+                    }
                 }
             )
         }
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Schichten") })
-                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Rotationen") })
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                SegmentedButton(
+                    selected = !isStudentMode,
+                    onClick = { viewModel.setMode(JobMode.SHIFT) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                ) { Text("Schichtarbeit") }
+                SegmentedButton(
+                    selected = isStudentMode,
+                    onClick = { viewModel.setMode(JobMode.STUDENT) },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                ) { Text("Schüler/Student") }
             }
 
-            when (selectedTab) {
-                0 -> ShiftsTab(viewModel)
-                else -> RotationsTab(viewModel, onOpenRotationEditor)
+            if (isStudentMode) {
+                TimetableTab(viewModel)
+            } else {
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Schichten") })
+                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Rotationen") })
+                }
+
+                when (selectedTab) {
+                    0 -> ShiftsTab(viewModel)
+                    else -> RotationsTab(viewModel, onOpenRotationEditor)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimetableTab(viewModel: JobDetailViewModel) {
+    val lessons by viewModel.lessons.collectAsState()
+    var selectedWeekday by remember { mutableIntStateOf(0) }
+    var editingLesson by remember { mutableStateOf<LessonEntity?>(null) }
+    var showDialog by remember { mutableStateOf(false) }
+
+    val lessonsForDay = lessons.filter { it.weekday == selectedWeekday }
+        .sortedBy { it.startHour * 60 + it.startMinute }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selectedWeekday) {
+            WEEKDAY_TAB_LABELS.forEachIndexed { index, label ->
+                Tab(selected = selectedWeekday == index, onClick = { selectedWeekday = index }, text = { Text(label) })
+            }
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (lessonsForDay.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Noch keine Unterrichtsstunden an diesem Tag")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(lessonsForDay, key = { it.id }) { lesson ->
+                        LessonCard(
+                            lesson = lesson,
+                            onClick = { editingLesson = lesson; showDialog = true },
+                            onDelete = { viewModel.deleteLesson(lesson) }
+                        )
+                    }
+                }
+            }
+
+            if (lessonsForDay.size < MAX_LESSONS_PER_DAY) {
+                FloatingActionButton(
+                    onClick = { editingLesson = null; showDialog = true },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Unterrichtsstunde hinzufügen")
+                }
+            }
+        }
+    }
+
+    if (showDialog) {
+        LessonEditDialog(
+            jobId = viewModel.jobId,
+            weekday = selectedWeekday,
+            existing = editingLesson,
+            onConfirm = { lesson -> viewModel.saveLesson(lesson); showDialog = false },
+            onDismiss = { showDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun LessonCard(lesson: LessonEntity, onClick: () -> Unit, onDelete: () -> Unit) {
+    val endTotal = lesson.startHour * 60 + lesson.startMinute + lesson.durationMinutes
+    val endHour = (endTotal / 60) % 24
+    val endMinute = endTotal % 60
+
+    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(Color(lesson.colorArgb), CircleShape)
+            )
+            Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
+                Text(lesson.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "%02d:%02d–%02d:%02d".format(lesson.startHour, lesson.startMinute, endHour, endMinute),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Unterrichtsstunde löschen")
             }
         }
     }

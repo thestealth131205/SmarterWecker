@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import de.letheapp.nocturn.data.db.AlarmDao
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.JobDao
+import de.letheapp.nocturn.data.db.LessonDao
 import de.letheapp.nocturn.data.db.NocturnDatabase
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.ShiftDao
@@ -42,4 +43,7 @@ object DatabaseModule {
 
     @Provides
     fun provideCalendarEntryDao(db: NocturnDatabase): CalendarEntryDao = db.calendarEntryDao()
+
+    @Provides
+    fun provideLessonDao(db: NocturnDatabase): LessonDao = db.lessonDao()
 }

@@ -10,8 +10,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -25,6 +31,12 @@
         android:theme="@style/Theme.NocTurn"
         android:supportsRtl="true">
 
+        <!--
+            System-Registrierung (CLAUDE.md Kernfunktion 11): die App meldet sich bei Android als
+            Wecker-, Uhr- und Kalender-App an, damit sie z. B. von Sprachassistenten ("stelle einen
+            Wecker") angesprochen und in den Einstellungen unter "Standard-Apps" als Uhr-/
+            Kalender-App auswählbar wird.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,6 +44,21 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SET_ALARM" />
+                <action android:name="android.intent.action.SHOW_ALARMS" />
+                <action android:name="android.intent.action.DISMISS_ALARM" />
+                <action android:name="android.intent.action.SNOOZE_ALARM" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.APP_CALENDAR" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.APP_CLOCK" />
             </intent-filter>
         </activity>
 
@@ -75,6 +102,17 @@
             android:name=".emergency.EmergencyAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Für die Fotos des Foto-Imports (Kernfunktion 5): liefert eine content://-Uri an die Kamera-App. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 

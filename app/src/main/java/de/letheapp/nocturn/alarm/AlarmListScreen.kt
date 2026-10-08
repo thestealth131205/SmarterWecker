@@ -1,11 +1,8 @@
 package de.letheapp.nocturn.alarm
 
-import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -35,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,18 +51,20 @@ fun AlarmListScreen(
     onEditAlarm: (Long) -> Unit,
     onOpenCalendarTemplates: () -> Unit,
     onOpenCalendarMonth: () -> Unit,
+    onOpenPermissions: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
-
-    RequestStartupPermissions()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("NocTurn") },
                 actions = {
+                    IconButton(onClick = onOpenPermissions) {
+                        Icon(Icons.Filled.Shield, contentDescription = "Berechtigungen")
+                    }
                     IconButton(onClick = onOpenCalendarMonth) {
                         Icon(Icons.Filled.CalendarViewMonth, contentDescription = "Kalender")
                     }
@@ -151,20 +150,6 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
             }
             Switch(checked = alarm.enabled, onCheckedChange = onToggle)
         }
-    }
-}
-
-@Composable
-private fun RequestStartupPermissions() {
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* Ergebnis wird nicht separat behandelt: ohne Berechtigung bleibt die jeweilige
-           Zusatzfunktion (Benachrichtigung bzw. Schrittzähler-Fallback) schlicht inaktiv. */ }
-
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(
-            arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.ACTIVITY_RECOGNITION)
-        )
     }
 }
 

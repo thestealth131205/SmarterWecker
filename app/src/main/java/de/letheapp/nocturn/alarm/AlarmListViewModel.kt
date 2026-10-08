@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,8 +14,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Eine wählbare Rotation (job-übergreifend) zur Verknüpfung mit einem Alarm, siehe [AlarmEntity.rotationId]. */
-data class RotationOption(val id: Long, val label: String)
+/**
+ * Eine wählbare Verknüpfung für einen Alarm (job-übergreifend): entweder eine Rotation
+ * (Schichtarbeit, [AlarmEntity.rotationId]) oder ein Job im Schüler/Student-Modus
+ * (Wochenstundenplan, [AlarmEntity.timetableJobId]). Beide Felder sind nie gleichzeitig gesetzt.
+ */
+data class RotationOption(
+    val label: String,
+    val rotationId: Long? = null,
+    val timetableJobId: Long? = null
+)
 
 @HiltViewModel
 class AlarmListViewModel @Inject constructor(
@@ -31,9 +40,16 @@ class AlarmListViewModel @Inject constructor(
         calendarRepository.observeJobs()
     ) { rotations, jobs ->
         val jobNameById = jobs.associateBy({ it.id }, { it.name })
-        rotations.map { rotation ->
-            RotationOption(rotation.id, "${rotation.name} · ${jobNameById[rotation.jobId].orEmpty()}")
+        val rotationOptions = rotations.map { rotation ->
+            RotationOption(
+                label = "${rotation.name} · ${jobNameById[rotation.jobId].orEmpty()}",
+                rotationId = rotation.id
+            )
         }
+        val timetableOptions = jobs.filter { it.mode == JobMode.STUDENT.name }.map { job ->
+            RotationOption(label = "Stundenplan · ${job.name}", timetableJobId = job.id)
+        }
+        rotationOptions + timetableOptions
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun createAlarm(hour: Int, minute: Int) {

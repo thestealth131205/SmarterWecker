@@ -4,6 +4,9 @@ import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.CalendarEntryEntity
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.JobEntity
+import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.data.db.LessonDao
+import de.letheapp.nocturn.data.db.LessonEntity
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.RotationDayEntity
 import de.letheapp.nocturn.data.db.RotationEntity
@@ -22,7 +25,8 @@ class CalendarRepository @Inject constructor(
     private val jobDao: JobDao,
     private val shiftDao: ShiftDao,
     private val rotationDao: RotationDao,
-    private val calendarEntryDao: CalendarEntryDao
+    private val calendarEntryDao: CalendarEntryDao,
+    private val lessonDao: LessonDao
 ) {
     companion object {
         const val FORECAST_YEARS = 5
@@ -32,11 +36,31 @@ class CalendarRepository @Inject constructor(
 
     fun observeJobs(): Flow<List<JobEntity>> = jobDao.observeAll()
 
+    fun observeJob(jobId: Long): Flow<JobEntity?> = jobDao.observeById(jobId)
+
     suspend fun getJob(jobId: Long): JobEntity? = jobDao.getById(jobId)
 
     suspend fun addJob(name: String): Long = jobDao.insert(JobEntity(name = name))
 
+    suspend fun setJobMode(jobId: Long, mode: JobMode) {
+        val job = jobDao.getById(jobId) ?: return
+        jobDao.update(job.copy(mode = mode.name))
+    }
+
     suspend fun deleteJob(job: JobEntity) = jobDao.delete(job)
+
+    // Stundenplan (Schüler/Student-Modus)
+
+    fun observeLessonsForJob(jobId: Long): Flow<List<LessonEntity>> = lessonDao.observeForJob(jobId)
+
+    suspend fun saveLesson(lesson: LessonEntity): Long =
+        if (lesson.id == 0L) lessonDao.insert(lesson) else lessonDao.update(lesson).let { lesson.id }
+
+    suspend fun deleteLesson(lesson: LessonEntity) = lessonDao.delete(lesson)
+
+    /** Zeitlich erste Unterrichtsstunde an [weekday] (0=Mo..6=So) — einzig relevant für die Wecker-Ableitung. */
+    suspend fun getFirstLessonForWeekday(jobId: Long, weekday: Int): LessonEntity? =
+        lessonDao.getFirstForJobAndWeekday(jobId, weekday)
 
     // Schichten
 

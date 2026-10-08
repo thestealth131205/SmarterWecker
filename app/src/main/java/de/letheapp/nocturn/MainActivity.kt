@@ -17,10 +17,14 @@ import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
+import de.letheapp.nocturn.ocr.PhotoImportScreen
+import de.letheapp.nocturn.onboarding.AppPreferences
+import de.letheapp.nocturn.onboarding.PermissionsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import java.net.URLDecoder
 import java.net.URLEncoder
+import javax.inject.Inject
 
 private const val ROUTE_ALARM_LIST = "alarmList"
 private const val ROUTE_ALARM_EDIT = "alarmEdit/{alarmId}"
@@ -29,32 +33,65 @@ private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
+private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
+private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var appPreferences: AppPreferences
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val startDestination = if (appPreferences.isOnboardingCompleted()) {
+            ROUTE_ALARM_LIST
+        } else {
+            "permissions/true"
+        }
         setContent {
             NocTurnTheme {
-                NocturnNavHost()
+                NocturnNavHost(startDestination = startDestination, appPreferences = appPreferences)
             }
         }
     }
 }
 
 @Composable
-private fun NocturnNavHost() {
+private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferences) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = ROUTE_ALARM_LIST) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable(ROUTE_ALARM_LIST) {
             AlarmListScreen(
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
-                onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) }
+                onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
+                onOpenPermissions = { navController.navigate("permissions/false") }
             )
+        }
+
+        composable(ROUTE_PERMISSIONS) { backStackEntry ->
+            val isFirstRun = backStackEntry.arguments?.getString("firstRun") == "true"
+            PermissionsScreen(
+                isFirstRun = isFirstRun,
+                onBack = { navController.popBackStack() },
+                onFinished = {
+                    if (isFirstRun) {
+                        appPreferences.setOnboardingCompleted()
+                        navController.navigate(ROUTE_ALARM_LIST) {
+                            popUpTo(ROUTE_PERMISSIONS) { inclusive = true }
+                        }
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+
+        composable(ROUTE_PHOTO_IMPORT) {
+            PhotoImportScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_CALENDAR_MONTH) {
@@ -81,6 +118,7 @@ private fun NocturnNavHost() {
                 onOpenRotationEditor = { rotationId ->
                     navController.navigate("rotationEditor/$jobId/${rotationId ?: -1L}")
                 },
+                onOpenPhotoImport = { navController.navigate("photoImport/$jobId") },
                 onBack = { navController.popBackStack() }
             )
         }

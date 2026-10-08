@@ -11,6 +11,8 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
+import de.letheapp.nocturn.alarm.WakeWindowResolver
+import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.emergency.EmergencyAlarmActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,6 +20,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 const val CHANNEL_MONITORING = "post_alarm_monitoring"
@@ -33,6 +37,8 @@ const val POST_ALARM_TIMEOUT_MILLIS = 10 * 60_000L
 class PostAlarmMonitoringService : Service() {
 
     @Inject lateinit var movementMonitor: CombinedMovementMonitor
+    @Inject lateinit var alarmRepository: AlarmRepository
+    @Inject lateinit var wakeWindowResolver: WakeWindowResolver
 
     private val scope = CoroutineScope(SupervisorJob())
     private var timeoutJob: Job? = null
@@ -46,10 +52,23 @@ class PostAlarmMonitoringService : Service() {
 
         movementMonitor.start { onMovementConfirmed() }
         timeoutJob = scope.launch {
-            delay(POST_ALARM_TIMEOUT_MILLIS)
+            delay(computeTimeoutMillis())
             onTimeout()
         }
         return START_STICKY
+    }
+
+    /**
+     * Ermittelt die Aufsteh-Deadline: ist der Alarm mit einer Schicht/Unterrichtsstunde
+     * verknüpft, die ein "spätestens aufstehen"-Offset konfiguriert hat, gilt diese Deadline
+     * statt des festen 10-Minuten-Fensters (siehe CLAUDE.md Kernfunktion 5).
+     */
+    private suspend fun computeTimeoutMillis(): Long {
+        val alarm = alarmRepository.getById(alarmId) ?: return POST_ALARM_TIMEOUT_MILLIS
+        val now = LocalDateTime.now()
+        val deadline = wakeWindowResolver.currentDeadline(alarm, now) ?: return POST_ALARM_TIMEOUT_MILLIS
+        val millis = Duration.between(now, deadline).toMillis()
+        return if (millis > 0) millis else POST_ALARM_TIMEOUT_MILLIS
     }
 
     private fun onMovementConfirmed() {

@@ -61,4 +61,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.androidx.health.connect.client)
+
+    implementation(libs.tesseract4android)
 }

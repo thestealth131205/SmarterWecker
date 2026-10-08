@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -49,6 +50,8 @@ fun ShiftEditDialog(
     var endMinute by remember { mutableStateOf(initialEnd.second) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var earliestWakeOffsetText by remember { mutableStateOf((existing?.earliestWakeOffsetMinutes ?: 0).toString()) }
+    var latestWakeupOffsetText by remember { mutableStateOf((existing?.latestWakeupOffsetMinutes ?: 0).toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -80,6 +83,28 @@ fun ShiftEditDialog(
                         Text("Ende %02d:%02d".format(endHour, endMinute))
                     }
                 }
+
+                Text(
+                    text = "Weckzeit-Abstand vor Schichtbeginn (0 = genau zum Schichtbeginn)",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = earliestWakeOffsetText,
+                        onValueChange = { earliestWakeOffsetText = it.filter(Char::isDigit) },
+                        label = { Text("Frühestes Wecken (Min.)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = latestWakeupOffsetText,
+                        onValueChange = { latestWakeupOffsetText = it.filter(Char::isDigit) },
+                        label = { Text("Spätestens aufstehen (Min.)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         },
         confirmButton = {
@@ -87,6 +112,9 @@ fun ShiftEditDialog(
                 onClick = {
                     val durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
                     val normalizedDuration = if (durationMinutes <= 0) durationMinutes + 24 * 60 else durationMinutes
+                    val earliestWakeOffset = earliestWakeOffsetText.toIntOrNull() ?: 0
+                    // "Spätestens aufstehen" darf nicht nach dem Wecker-Klingeln selbst liegen.
+                    val latestWakeupOffset = (latestWakeupOffsetText.toIntOrNull() ?: 0).coerceAtMost(earliestWakeOffset)
                     onConfirm(
                         ShiftEntity(
                             id = existing?.id ?: 0,
@@ -95,7 +123,9 @@ fun ShiftEditDialog(
                             colorArgb = colorArgb,
                             startHour = startHour,
                             startMinute = startMinute,
-                            durationMinutes = normalizedDuration
+                            durationMinutes = normalizedDuration,
+                            earliestWakeOffsetMinutes = earliestWakeOffset,
+                            latestWakeupOffsetMinutes = latestWakeupOffset
                         )
                     )
                 },

@@ -14,13 +14,22 @@ data class AlarmEntity(
     val label: String = "",
     val repeatDays: Int = 0,
     val soundUri: String? = null,
-    val rotationId: Long? = null
+    val rotationId: Long? = null,
+    /** Verknüpfung mit einem Job im Schüler/Student-Modus statt mit einer Rotation (siehe [JobEntity.mode]). */
+    val timetableJobId: Long? = null
 )
+
+/** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */
+enum class JobMode {
+    SHIFT,
+    STUDENT
+}
 
 @Entity(tableName = "jobs")
 data class JobEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String
+    val name: String,
+    val mode: String = JobMode.SHIFT.name
 )
 
 @Entity(
@@ -42,7 +51,43 @@ data class ShiftEntity(
     val colorArgb: Int,
     val startHour: Int,
     val startMinute: Int,
-    val durationMinutes: Int
+    val durationMinutes: Int,
+    /** Minuten vor Schichtbeginn, zu denen der (erste) Alarm klingelt. 0 = genau zum Schichtbeginn. */
+    val earliestWakeOffsetMinutes: Int = 0,
+    /** Minuten vor Schichtbeginn, bis zu denen laut Aufsteh-Erkennung aufgestanden sein muss. 0 = genau zum Schichtbeginn. */
+    val latestWakeupOffsetMinutes: Int = 0
+)
+
+/**
+ * Eine Unterrichtsstunde im Wochenstundenplan eines Jobs im Schüler/Student-Modus
+ * ([JobEntity.mode] == [JobMode.STUDENT]). Der Stundenplan wiederholt sich wöchentlich,
+ * es gibt keinen mehrtägigen Rotationszyklus wie bei Schichtarbeit. Nur die zeitlich erste
+ * Stunde eines Wochentags ist für die Wecker-Ableitung relevant (siehe WakeWindowResolver).
+ */
+@Entity(
+    tableName = "lessons",
+    foreignKeys = [
+        ForeignKey(
+            entity = JobEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["jobId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("jobId")]
+)
+data class LessonEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val jobId: Long,
+    /** 0 = Montag .. 6 = Sonntag. */
+    val weekday: Int,
+    val name: String,
+    val colorArgb: Int,
+    val startHour: Int,
+    val startMinute: Int,
+    val durationMinutes: Int,
+    val earliestWakeOffsetMinutes: Int = 0,
+    val latestWakeupOffsetMinutes: Int = 0
 )
 
 @Entity(

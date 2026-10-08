@@ -37,7 +37,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
                     // Für wiederholende bzw. rotationsgebundene Alarme direkt den nächsten
                     // Termin vorplanen, damit ein Snooze-Durchlauf den regulären Zyklus nicht kappt.
-                    if (!isSnooze && (alarm.repeatDays != 0 || alarm.rotationId != null)) {
+                    if (!isSnooze && (alarm.repeatDays != 0 || alarm.rotationId != null || alarm.timetableJobId != null)) {
                         alarmScheduler.schedule(alarm)
                     }
                 }
