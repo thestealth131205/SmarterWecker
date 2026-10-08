@@ -124,8 +124,14 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        als Vermittlungsstelle (z. B. Signaling für den P2P-Verbindungsaufbau oder
        verschlüsseltes Store-and-Forward für Einladung/Deltas, falls Empfänger offline
        ist), nicht als zentrale Datenhaltung für den gesamten Kalender.
-   - Synchronisierbar mit **Google Calendar** und **Nextcloud** (CalDAV), bidirektional
-     geplant (TBD ob Lesen reicht oder auch Schreiben nötig ist).
+   - Synchronisierbar mit **Google Calendar** (geplant, noch nicht umgesetzt) und
+     **Nextcloud** (CalDAV, umgesetzt): freie Termine bidirektional (Push lokaler
+     Änderungen, Pull von Neuanlagen/Änderungen/Löschungen aus Nextcloud), Schichten aus
+     Rotationen einseitig NocTurn → Nextcloud (rollendes Zeitfenster, da von der Rotation
+     abgeleitet und nicht sinnvoll zurücklesbar). Eigener Screen "Nextcloud-Sync"
+     (Server-URL/Benutzername/App-Passwort, Kalender-Auswahl per CalDAV-Discovery,
+     Umschalter je Richtung, manueller "Jetzt synchronisieren"-Button), zusätzlich
+     periodischer Hintergrund-Sync alle 4 Stunden über WorkManager.
 
 7. **Home-Screen-Widgets:**
    - Uhr-Widget und Wetter-Widget für den Android-Homescreen.
@@ -204,7 +210,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `TYPE_GYROSCOPE`, ggf. Schrittzähler-Sensor `TYPE_STEP_COUNTER`/`TYPE_STEP_DETECTOR`.
 - Alarm-Zuverlässigkeit: `AlarmManager` (exact alarms) + Foreground Service während der
   Überwachungsphase (Sensorik darf nicht durch Doze/Battery-Optimizations gekillt werden).
-- Kalendersync: Google Calendar API (OAuth) + CalDAV-Client für Nextcloud.
+- Kalendersync: Google Calendar API (OAuth, geplant) + eigener, schlanker CalDAV-Client für
+  Nextcloud (umgesetzt, Package `sync`) — bewusst ohne dav4jvm/biweekly o. Ä., sondern mit
+  OkHttp (WebDAV PROPFIND/REPORT/PUT/DELETE) und handgerolltem ICS-Reader/Writer (RFC-5545-
+  Subset), passend zur FOSS-Minimalismus-Leitlinie bei einer klar begrenzten Teilmenge des
+  Formats. Nextcloud-App-Passwort AES/GCM-verschlüsselt mit einem Android-Keystore-Schlüssel
+  abgelegt (keine zusätzliche Security-Crypto-Abhängigkeit nötig). Periodischer
+  Hintergrund-Sync über `androidx.work` (Hilt-WorkManager-Integration).
 - Kalender-Teilen (P2P): primär direkte App-zu-App-Synchronisation ohne eigenen
   Smarter-Wecker-Server (z. B. lokal/WLAN oder über vorhandene P2P-Mechanismen).
   Fallback/Hilfsfunktion bei Bedarf als schlanker Endpoint im Lethe-Backend

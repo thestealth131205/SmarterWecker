@@ -182,6 +182,57 @@ Punkte sind jetzt implementiert:
 (`CalendarMonthScreen`) zeigt bislang nur Rotations-Einträge (Schichtarbeit); der
 wöchentliche Stundenplan im Student-Modus wird dort noch nicht separat eingeblendet.
 
+## Nachträglich ergänzte Anforderungen (2026-10-08, Nextcloud-Synchronisierung, umgesetzt)
+
+Phase 1 schloss Google-Calendar-/Nextcloud-Sync explizit aus (siehe oben); auf Nutzerwunsch
+("Baue die Nextcloud Synchronisierung hinzu") jetzt nachträglich umgesetzt, Google Calendar
+bleibt weiterhin offen/zukünftig:
+
+- [x] **Neues Package `sync`**: `CalDavClient` (eigener, minimaler WebDAV/CalDAV-Client über
+  OkHttp — PROPFIND-Discovery von current-user-principal/calendar-home-set/Kalenderliste,
+  REPORT calendar-query für Events inkl. ETag, PUT/DELETE für einzelne Events; XML-Antworten
+  werden über einen generischen, namespace-unabhängigen Baum aus Androids eingebautem
+  `XmlPullParser` ausgewertet, da verschiedene Server unterschiedliche Namespace-Präfixe
+  nutzen). `IcsFormat` ist ein selbst gebauter ICS-Reader/-Writer für das benötigte
+  VEVENT-Subset (UID/DTSTART/DTEND/SUMMARY/LOCATION/DESCRIPTION, inkl. Line-Folding/-Unfolding
+  und Escaping nach RFC 5545) — bewusst ohne Zusatz-Library (biweekly/ical4j), da nur eigene,
+  einfach strukturierte Events gelesen/geschrieben werden müssen (FOSS-Minimalismus: keine
+  weitere Abhängigkeit für eine klar begrenzte Teilmenge des Formats).
+- [x] **Sync-Richtung aufgelöst** (vorher TBD in CLAUDE.md): freie Termine
+  (`AppointmentEntity`, neues `dirty`-Flag für "seit letztem Sync lokal geändert") werden
+  bidirektional abgeglichen (Push eigener Änderungen, Pull von Neuanlagen/Änderungen/
+  Löschungen aus Nextcloud). Schicht-Kalendereinträge aus Rotationen werden nur einseitig
+  NocTurn → Nextcloud exportiert (rollendes 180-Tage-Fenster, Abgleich per Inhalts-Hash statt
+  bei jedem Lauf alles neu zu schreiben), da sie aus der Rotation abgeleitet sind und nicht
+  sinnvoll zurückgelesen werden können. **Bekannte Vereinfachung**: lokal gelöschte Termine
+  werden aktuell nicht automatisch auf Nextcloud entfernt (kein Tombstone-Tracking) — Löschen
+  auf Nextcloud-Seite entfernt den Termin dagegen auch lokal korrekt wieder.
+- [x] **Neue Room-Entities** `CalDavAccountEntity` (Server-URL, Benutzername,
+  Ziel-Kalender-Href, Sync-Umschalter je Richtung, letzter Sync-Zeitpunkt/-Fehler) und
+  `SyncedEventEntity` (pro Konto: lokaler Datensatz ↔ Remote-Href/ETag, bei Schichten
+  zusätzlich ein Inhalts-Hash) für den Änderungsabgleich. DB-Version 4 → 5 (weiterhin
+  `fallbackToDestructiveMigration()`, da noch keine veröffentlichte Version mit
+  Bestandsdaten existiert). Aktuell ist nur ein Nextcloud-Konto gleichzeitig vorgesehen.
+- [x] **`NextcloudCredentialsStore`**: App-Passwort AES/GCM-verschlüsselt mit einem
+  Android-Keystore-Schlüssel in SharedPreferences, bewusst ohne
+  `androidx.security-crypto`-Abhängigkeit (nur ein Geheimwert pro Konto, rohe Keystore-API
+  reicht dafür aus).
+- [x] **Hintergrund-Sync**: `NextcloudSyncWorker` (`@HiltWorker`, `androidx.work` +
+  `androidx.hilt:hilt-work`), alle 4 Stunden über `WorkManager.enqueueUniquePeriodicWork` in
+  `NocturnApplication` eingeplant (nur wirksam, wenn ein Konto verbunden ist).
+- [x] **UI**: neuer Screen `NextcloudSyncScreen` (Server-URL/Benutzername/App-Passwort →
+  "Kalender suchen" → Auswahl per CalDAV-Discovery → Verbinden; danach Status, Umschalter je
+  Sync-Richtung, "Jetzt synchronisieren", "Verbindung trennen"), erreichbar über einen neuen
+  Eintrag "Nextcloud-Sync" im bestehenden 3-Punkte-Menü der Alarmliste.
+- **Bekannte Einschränkung**: Verifikation weiterhin nicht per lokalem `./gradlew
+  assembleDebug`/`compileDebugKotlin` möglich — auf diesem Raspberry Pi (aarch64) scheitert
+  inzwischen auch `compileDebugKotlin`, da es `processDebugResources` voraussetzt und das
+  dafür nötige `aapt2` (nur als x86_64-Binary verfügbar) trotz registriertem
+  `qemu-x86_64`-Binfmt mit "Exec format error" abbricht (Magic/Mask des Kernel-Eintrags passt
+  nicht auf dieses dynamisch gelinkte PIE-Binary; eine vorhandene `qemu-x86_64-static`-Instanz
+  hat zudem keinen x86_64-Sysroot). Verifikation erfolgt daher ausschließlich über die GitHub
+  Action `build-apk.yml` auf x86_64-Runnern.
+
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,

@@ -21,6 +21,7 @@ import de.letheapp.nocturn.ocr.PhotoImportScreen
 import de.letheapp.nocturn.onboarding.AppPreferences
 import de.letheapp.nocturn.onboarding.PermissionsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
+import de.letheapp.nocturn.sync.NextcloudSyncScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -35,6 +36,7 @@ private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
 private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
 private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
+private const val ROUTE_NEXTCLOUD_SYNC = "nextcloudSync"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 @AndroidEntryPoint
@@ -68,8 +70,13 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
-                onOpenPermissions = { navController.navigate("permissions/false") }
+                onOpenPermissions = { navController.navigate("permissions/false") },
+                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) }
             )
+        }
+
+        composable(ROUTE_NEXTCLOUD_SYNC) {
+            NextcloudSyncScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_PERMISSIONS) { backStackEntry ->

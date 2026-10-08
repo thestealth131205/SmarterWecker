@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
@@ -59,6 +60,7 @@ fun AlarmListScreen(
     onOpenCalendarTemplates: () -> Unit,
     onOpenCalendarMonth: () -> Unit,
     onOpenPermissions: () -> Unit,
+    onOpenNextcloudSync: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -95,6 +97,14 @@ fun AlarmListScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenCalendarMonth()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Nextcloud-Sync") },
+                            leadingIcon = { Icon(Icons.Filled.CloudSync, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenNextcloudSync()
                             }
                         )
                     }

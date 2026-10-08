@@ -142,6 +142,13 @@ interface CalendarEntryDao {
             "AND shiftId IS NOT NULL ORDER BY dateEpochDay LIMIT 1"
     )
     suspend fun getNextWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity?
+
+    /** Alle tatsächlich besetzten Schicht-Tage (keine freien Tage) im Sync-Fenster, für den Nextcloud-Export. */
+    @Query(
+        "SELECT * FROM calendar_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay " +
+            "AND shiftId IS NOT NULL"
+    )
+    suspend fun getRangeWithShiftOnce(fromEpochDay: Long, toEpochDay: Long): List<CalendarEntryEntity>
 }
 
 @Dao
@@ -152,6 +159,12 @@ interface AppointmentDao {
     )
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<AppointmentEntity>>
 
+    @Query("SELECT * FROM appointments WHERE id = :id")
+    suspend fun getById(id: Long): AppointmentEntity?
+
+    @Query("SELECT * FROM appointments WHERE dirty = 1")
+    suspend fun getDirty(): List<AppointmentEntity>
+
     @Insert
     suspend fun insert(appointment: AppointmentEntity): Long
 
@@ -160,4 +173,46 @@ interface AppointmentDao {
 
     @Delete
     suspend fun delete(appointment: AppointmentEntity)
+}
+
+@Dao
+interface CalDavAccountDao {
+    @Query("SELECT * FROM caldav_accounts LIMIT 1")
+    fun observeAccount(): Flow<CalDavAccountEntity?>
+
+    @Query("SELECT * FROM caldav_accounts LIMIT 1")
+    suspend fun getAccountOnce(): CalDavAccountEntity?
+
+    @Query("SELECT * FROM caldav_accounts WHERE id = :id")
+    suspend fun getById(id: Long): CalDavAccountEntity?
+
+    @Insert
+    suspend fun insert(account: CalDavAccountEntity): Long
+
+    @Update
+    suspend fun update(account: CalDavAccountEntity)
+
+    @Delete
+    suspend fun delete(account: CalDavAccountEntity)
+}
+
+@Dao
+interface SyncedEventDao {
+    @Query("SELECT * FROM synced_events WHERE accountId = :accountId AND localType = :localType")
+    suspend fun getForAccountAndType(accountId: Long, localType: String): List<SyncedEventEntity>
+
+    @Query("SELECT * FROM synced_events WHERE accountId = :accountId AND localType = :localType AND localKey = :localKey LIMIT 1")
+    suspend fun getByLocalKey(accountId: Long, localType: String, localKey: String): SyncedEventEntity?
+
+    @Insert
+    suspend fun insert(entry: SyncedEventEntity): Long
+
+    @Update
+    suspend fun update(entry: SyncedEventEntity)
+
+    @Delete
+    suspend fun delete(entry: SyncedEventEntity)
+
+    @Query("DELETE FROM synced_events WHERE accountId = :accountId")
+    suspend fun deleteAllForAccount(accountId: Long)
 }

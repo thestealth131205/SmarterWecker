@@ -291,3 +291,36 @@ genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
   Wochentag zuweisen, das wird nicht automatisch aus dem Foto-Layout erkannt.
 - **Bekannte Lücke**: `CalendarMonthScreen` zeigt bislang nur Rotations-Einträge, noch
   keine Student-Modus-Wochenstundenpläne.
+
+## Ergänzung (2026-10-08, Nextcloud-CalDAV-Synchronisierung umgesetzt)
+
+- Nutzer: "Baue die nextcloud synchronisierung hinzu" → CLAUDE.md hatte das bereits als
+  Architektur-Punkt vermerkt ("Synchronisierbar mit ... Nextcloud (CalDAV), ... TBD ob Lesen
+  reicht"), jetzt implementiert. Richtung dabei selbst festgelegt (nicht vom Nutzer
+  spezifiziert): freie Termine bidirektional, Schichten aus Rotationen nur einseitig
+  NocTurn → Nextcloud (Begründung siehe PLAN.md). Google-Calendar-Sync bleibt weiterhin
+  offen/zukünftig, war nicht Teil dieser Anfrage.
+- Bewusst **keine neuen Zusatz-Libraries für CalDAV/ICS** eingeführt (FOSS-Minimalismus):
+  eigener `CalDavClient` auf Basis von OkHttp (WebDAV PROPFIND/REPORT/PUT/DELETE,
+  generischer XML-Baum über Androids `XmlPullParser`) statt dav4jvm, eigener `IcsFormat`
+  (RFC-5545-Subset) statt biweekly/ical4j, eigener AES/Keystore-`NextcloudCredentialsStore`
+  statt `androidx.security-crypto`. Einzige neue Abhängigkeiten: OkHttp, `androidx.work` +
+  `androidx.hilt:hilt-work` (für periodischen Hintergrund-Sync) — alle Apache-2.0.
+  `NocturnApplication` implementiert jetzt `Configuration.Provider` (Hilt-WorkManager).
+- Neuer Screen "Nextcloud-Sync", erreichbar über das bestehende 3-Punkte-Menü in der
+  Alarmliste (`AlarmListScreen`) statt über ein weiteres Icon in der ohnehin schon vollen
+  TopAppBar.
+- **Lokale Build-Verifikation ist diesmal noch weiter eingeschränkt als zuvor
+  dokumentiert**: Anders als in einer früheren Session (wo `compileDebugKotlin` trotz
+  kaputtem `aapt2` erfolgreich lief) schlägt dieses Mal bereits `compileDebugKotlin` fehl,
+  weil es `processDebugResources` voraussetzt. Ursache geprüft: `aapt2` (sowohl der
+  Gradle-Transform-Cache als auch die SDK-Build-Tools-Kopien) ist ein dynamisch gelinktes
+  x86_64-PIE-Binary; obwohl ein `qemu-x86_64`-Binfmt-Handler registriert ist, scheitert die
+  automatische Ausführung mit "Exec format error" (Magic/Mask des Kernel-Eintrags passt
+  nicht exakt auf dieses Binary-Layout), und die separat vorhandene
+  `qemu-x86_64-static`-Binary hat keinen x86_64-Sysroot (`/lib64/ld-linux-x86-64.so.2`
+  fehlt), kann also auch nicht händisch als Wrapper verwendet werden. Das Flicken dieser
+  Pi-seitigen QEMU/Binfmt-Konfiguration wurde bewusst nicht versucht (System-Eingriff
+  außerhalb des eigentlichen Auftrags) — stattdessen sorgfältige manuelle Code-Durchsicht
+  (inkl. Verifikation von `Icons.Filled.CloudSync` direkt im `material-icons-extended`-Jar
+  im Gradle-Cache) und Verifikation wie gewohnt über die GitHub Action `build-apk.yml`.

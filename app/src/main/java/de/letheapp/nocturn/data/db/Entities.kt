@@ -189,5 +189,62 @@ data class AppointmentEntity(
     val startEpochDay: Long,
     val endEpochDay: Long,
     val allDay: Boolean = false,
-    val colorArgb: Int
+    val colorArgb: Int,
+    /** True = seit dem letzten Nextcloud-Sync lokal verändert/neu angelegt, muss noch hochgeladen werden. */
+    val dirty: Boolean = true
+)
+
+/**
+ * Ein per CalDAV verbundenes Nextcloud-Konto (siehe CLAUDE.md "Synchronisierbar mit ... Nextcloud
+ * (CalDAV)"). Es wird genau ein Zielkalender gewählt, in den NocTurn synchronisiert. Das
+ * App-Passwort liegt NICHT hier, sondern AES/Android-Keystore-verschlüsselt in
+ * [de.letheapp.nocturn.sync.NextcloudCredentialsStore].
+ */
+@Entity(tableName = "caldav_accounts")
+data class CalDavAccountEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val serverUrl: String,
+    val username: String,
+    val calendarHref: String,
+    val calendarDisplayName: String,
+    val syncAppointments: Boolean = true,
+    val syncShifts: Boolean = true,
+    val lastSyncEpochMillis: Long = 0,
+    val lastSyncError: String? = null
+)
+
+/** Welcher lokale Datentyp über CalDAV synchronisiert wird (siehe [SyncedEventEntity]). */
+enum class SyncedLocalType {
+    APPOINTMENT,
+    SHIFT
+}
+
+/**
+ * Merkt sich pro Nextcloud-Konto, welchem lokalen Datensatz welches Remote-Event (Href + ETag)
+ * entspricht — Grundlage, um beim nächsten Sync-Lauf zu erkennen, ob sich lokal oder remote etwas
+ * geändert hat, ohne jedes Mal alles neu hochzuladen.
+ * [localKey] ist bei Terminen die Appointment-Id als String, bei Schichten
+ * "<rotationId>:<dateEpochDay>" (siehe [de.letheapp.nocturn.sync.NextcloudSyncRepository]).
+ */
+@Entity(
+    tableName = "synced_events",
+    foreignKeys = [
+        ForeignKey(
+            entity = CalDavAccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("accountId"), Index(value = ["accountId", "localType", "localKey"], unique = true)]
+)
+data class SyncedEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val accountId: Long,
+    val localType: String,
+    val localKey: String,
+    val href: String,
+    val etag: String,
+    /** Einfacher Inhalts-Hash (nur bei Schichten genutzt), um unveränderte Events nicht erneut hochzuladen. */
+    val contentHash: Int = 0
 )

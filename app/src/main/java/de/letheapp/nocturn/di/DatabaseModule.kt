@@ -9,12 +9,14 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import de.letheapp.nocturn.data.db.AlarmDao
 import de.letheapp.nocturn.data.db.AppointmentDao
+import de.letheapp.nocturn.data.db.CalDavAccountDao
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.LessonDao
 import de.letheapp.nocturn.data.db.NocturnDatabase
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.ShiftDao
+import de.letheapp.nocturn.data.db.SyncedEventDao
 import javax.inject.Singleton
 
 @Module
@@ -50,4 +52,10 @@ object DatabaseModule {
 
     @Provides
     fun provideAppointmentDao(db: NocturnDatabase): AppointmentDao = db.appointmentDao()
+
+    @Provides
+    fun provideCalDavAccountDao(db: NocturnDatabase): CalDavAccountDao = db.calDavAccountDao()
+
+    @Provides
+    fun provideSyncedEventDao(db: NocturnDatabase): SyncedEventDao = db.syncedEventDao()
 }
