@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +50,7 @@ import de.letheapp.nocturn.data.db.ShiftEntity
  * Vorlagen-Detailansicht eines Jobs mit zwei Tabs: "Schichten" (Schritt 9) und
  * "Rotationen" (Schritt 10, verweist auf den Rotations-Editor).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobDetailScreen(
     jobName: String,

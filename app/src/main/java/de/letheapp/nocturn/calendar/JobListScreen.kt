@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +43,7 @@ import de.letheapp.nocturn.data.db.JobEntity
  * Einstiegspunkt der Kalender-Vorlagenverwaltung: Liste der Jobs. Jeder Job trägt sein
  * eigenes Set an Schichten und Rotationen (siehe [JobDetailScreen]).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobListScreen(
     onOpenJob: (Long, String) -> Unit,
