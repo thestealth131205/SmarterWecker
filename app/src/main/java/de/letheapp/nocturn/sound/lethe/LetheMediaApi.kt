@@ -41,7 +41,7 @@ data class LetheMediaTrack(
  * Client für den schlanken `media:read`-Scope im Lethe-Backend (siehe CLAUDE.md "Ton-Auswahl ...
  * Lethe-Bibliothek"). Gibt NocTurn bewusst NIE Zugriff auf einen vollen Login-JWT oder den
  * UMK (Ende-zu-Ende-Verschlüsselungs-Schlüssel) des Lethe Messengers — nur einen widerrufbaren
- * `nm_<token>`, der ausschließlich für /nocturn/media/* gültig ist. Freigabe erfolgt durch den
+ * `nm_<token>`, der ausschließlich für die /nocturn/media-Endpunkte gültig ist. Freigabe erfolgt durch den
  * Nutzer auf seinem Lethe-Messenger-Host-Gerät (Push-Bestätigung), nicht durch NocTurn selbst.
  *
  * Bewusst mit OkHttp + org.json statt Retrofit umgesetzt (gleiches Muster wie HolidaysApi),
