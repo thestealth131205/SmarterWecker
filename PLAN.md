@@ -53,6 +53,48 @@ Ein Wecker, der:
 Diese Punkte bleiben als Kernfunktionen in CLAUDE.md dokumentiert und folgen in
 späteren Phasen.
 
+## Umsetzungsstand
+
+- [x] **Schritt 1 – Projekt-Setup**: Gradle-Grundgerüst (Version Catalog,
+  Gradle-Wrapper 8.9), Kotlin 2.0.21 + Jetpack Compose + Hilt 2.52, Package
+  `de.letheapp.nocturn`, minSdk = targetSdk = API 33 (compileSdk 34). App startet
+  mit Platzhalter-Alarmliste (leere Liste + FAB).
+- [x] **Schritt 2 – Datenmodell & Room (Grundgerüst)**: Entities `AlarmEntity`,
+  `JobEntity`, `ShiftEntity`, `RotationEntity`, `RotationDayEntity` + DAOs +
+  `NocturnDatabase`, per Hilt-Modul bereitgestellt.
+- [x] **Schritt 3 – Alarmliste-UI + Zeit-Eingabe-Dialog, `AlarmManager`-Anbindung**:
+  Alarmliste im Google-Uhr-Stil (Karten, Toggle, FAB), 24h-Zifferblatt-Dialog mit
+  Tastatur-Umschalter, Edit-Screen (Label, Wiederholung, Löschen), `AlarmScheduler`
+  (exakte Alarme via `AlarmManager.setAlarmClock`/`setAndAllowWhileIdle`),
+  `AlarmReceiver` + `BootReceiver` zum Neuplanen nach Neustart.
+- [x] **Schritt 4 – Weckton-Auswahl, Tab "Töne"**: `SoundRepository`
+  (Systemtöne + persistente URI-Berechtigung für eigene Audiodateien),
+  `SoundPickerScreen` mit Tabs (Spotify/Deezer/Lethe sichtbar, aber deaktiviert).
+- [x] **Schritt 5 – Foreground Service & Snooze**: `AlarmRingingService` spielt den
+  Weckton, eskaliert Lautstärke/Ton während des Klingelns, `AlarmRingingActivity`
+  als Vollbild-UI über dem Sperrbildschirm; Snooze plant per Zufallsintervall
+  (3–5 Min) über `AlarmScheduler.scheduleSnooze` neu.
+- [x] **Schritt 6 – Aufsteh-Erkennung**: `SensorMovementMonitor`
+  (Schrittzähler-Sensor, Beschleunigungssensor-Fallback), `HealthConnectMovementMonitor`
+  (Schritte via Health Connect, nur falls verfügbar/Berechtigung erteilt),
+  `CombinedMovementMonitor` kombiniert beide Quellen.
+- [x] **Schritt 7 – Stop-Weiterüberwachung + Notfall-Trigger**:
+  `PostAlarmMonitoringService` überwacht bis zu 10 Minuten nach "Stop" weiter und
+  löst bei Timeout den Notfall-Alarm aus (Direktstart + Fullscreen-Notification-Fallback).
+  `EmergencyAlarmService` lässt sich nicht über "Stop" beenden, Ton eskaliert
+  fortlaufend (Lautstärke + Pitch).
+- [x] **Schritt 8 – Notfall-Puzzle**: `PuzzleGenerator` erzeugt zufällig variierende
+  Zuordnungsaufgaben (Geometrien/Emojis, Farbe/Form, Sequenzlänge 4–6, Pool inkl.
+  Ablenker), `PuzzleScreen` mit echtem Drag & Drop (Pointer-Tracking + Treffer-Test
+  gegen die Zielfelder), `EmergencyAlarmActivity` mit gesperrter Zurück-Taste.
+- [ ] Schritt 9–12: Kalender-Grundfunktion (Vorlagen, Rotationen, Monatsansicht,
+  Alarm↔Schicht-Verknüpfung) – noch offen.
+
+**Bekannte Vereinfachungen (Phase 1, bewusst zurückgestellt):** Health-Connect-
+Berechtigungsanfrage läuft nur best-effort (keine eigene Onboarding-/Rationale-UI);
+ohne lokales Android-SDK konnte kein `./gradlew assembleDebug` ausgeführt werden,
+Verifikation erfolgt über die GitHub Action `build-apk.yml`.
+
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,

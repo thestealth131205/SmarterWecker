@@ -4,8 +4,8 @@ Android-App, die es praktisch unmöglich macht, den Wecker zu verschlafen. Statt
 simplem Wegdrücken wird nach dem Klingeln aktiv per Sensorik/Health Connect
 überprüft, ob man tatsächlich aufgestanden ist und sich bewegt hat.
 
-> **Status:** Konzeptphase – es existiert noch kein Code, siehe `CLAUDE.md` und
-> `memory.md` für Details und offene Architekturentscheidungen.
+> **Status:** Phase 1 (MVP) in Arbeit – Gradle-Projekt-Grundgerüst (Kotlin + Compose +
+> Hilt + Room) steht, siehe [`PLAN.md`](PLAN.md) für den Umsetzungsstand.
 
 ## Kernfunktionen
 

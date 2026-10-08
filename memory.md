@@ -112,3 +112,53 @@ Projekt wurde am 2026-10-08 angelegt (Konzeptphase, noch kein Code).
 
 Damit sind alle drei offenen Entscheidungen (Package-Name, Min-/Target-SDK, Hilt)
 geklärt. Nächster Schritt wäre das Gradle-Projekt-Grundgerüst aufzusetzen.
+
+## Ergänzung (2026-10-08, Phase 1 – Projekt-Grundgerüst umgesetzt)
+
+- Nutzer: "beginne den Plan mit Phase 1" → Gradle-Projekt-Grundgerüst (PLAN.md
+  Schritt 1) sowie Room-Datenmodell-Grundgerüst (Schritt 2) implementiert.
+- Stack konkretisiert: Gradle 8.9 (Wrapper), AGP 8.5.2, Kotlin 2.0.21 (neuer
+  Compose-Compiler-Plugin-Ansatz, keine separate `composeCompilerExtensionVersion`
+  mehr nötig), KSP für Room- und Hilt-Compiler (statt kapt), Hilt 2.52, Room 2.6.1,
+  Compose BOM 2024.09.03. compileSdk bewusst auf 34 gesetzt (reine Toolchain-Version
+  für AndroidX-Kompatibilität), minSdk/targetSdk bleiben wie entschieden bei 33.
+- App startet mit Platzhalter-Alarmliste-Screen (Scaffold, FAB, leere Liste) als
+  Basis für PLAN.md Schritt 3.
+- Room-Entities `AlarmEntity`/`JobEntity`/`ShiftEntity`/`RotationEntity`/
+  `RotationDayEntity` + DAOs + `NocturnDatabase`, per Hilt-`DatabaseModule`
+  bereitgestellt (`de.letheapp.nocturn.data.db`, `de.letheapp.nocturn.di`).
+- Lokal steht kein Android SDK zur Verfügung — Build wurde nicht lokal mit
+  `./gradlew assembleDebug` verifiziert, sondern nur die Gradle-Konfiguration
+  (Wrapper-Generierung) geprüft. Verifikation erfolgt über die bereits vorhandene
+  GitHub Action `build-apk.yml` (GitHub-gehostete Ubuntu-Runner bringen Android SDK
+  bereits mit).
+
+## Ergänzung (2026-10-08, Phase 1 – Schritte 3 bis 8 umgesetzt)
+
+- Nutzer: "Da mache bis 8 weiter" → PLAN.md-Schritte 3–8 implementiert (Alarmliste/
+  Zeit-Eingabe/AlarmManager, Weckton-Auswahl "Töne", Ringing-Service inkl. Snooze,
+  Sensor-/Health-Connect-Bewegungserkennung, Stop-Weiterüberwachung mit
+  Notfall-Trigger, Notfall-Puzzle mit Drag & Drop). Details stehen in PLAN.md unter
+  "Umsetzungsstand". Weiterhin kein Android SDK lokal verfügbar — nicht mit
+  `./gradlew assembleDebug` verifiziert, nur sorgfältig manuell durchgegangen
+  (Importe, Signaturen, Manifest-Komponenten). Echte Verifikation läuft über die
+  GitHub Action `build-apk.yml` beim nächsten Push.
+- Architektur-Entscheidungen dabei getroffen (nicht vorher vom Nutzer vorgegeben,
+  aber im Rahmen von "Grundfunktionen umsetzen" naheliegend und dokumentiert):
+  - Exakte Alarme über `AlarmManager.setAlarmClock`, Fallback `setAndAllowWhileIdle`
+    falls `SCHEDULE_EXACT_ALARM` nicht erteilt; eigenes Banner in der Alarmliste
+    verlinkt zu den Systemeinstellungen, falls die Berechtigung fehlt.
+  - Health-Connect-Integration bewusst minimal/best-effort (keine eigene
+    Rationale-/Onboarding-UI für die Berechtigungsanfrage) — reine
+    Sensor-Fallback-Erkennung (Schrittzähler/Beschleunigungssensor) ist in Phase 1
+    die verlässliche Hauptquelle, Health Connect ergänzt nur, wenn bereits
+    verfügbar und erlaubt.
+  - Notfall-Alarm-Start aus dem Hintergrund doppelt abgesichert: direkter
+    `startActivity`-Aufruf plus Fullscreen-Intent-Notification als Fallback, falls
+    Android den direkten Start blockiert (Hintergrund-Start-Einschränkungen ab
+    Android 10).
+  - Kein eigenständiger Package-Name-/Minisdk-Wechsel nötig gewesen, alles auf
+    Basis der bereits getroffenen Entscheidungen (`de.letheapp.nocturn`, API 33,
+    Hilt) aufgebaut.
+- Noch offen aus Phase 1: Schritte 9–12 (Kalender-Vorlagen/Rotationen/
+  Monatsansicht/Alarm↔Schicht-Verknüpfung).
