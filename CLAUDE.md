@@ -52,11 +52,31 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        exakte Aufgabengröße wiederholen, damit die Lösung jedes Mal echtes Hinschauen
        statt Mustererkennung/Auswendiglernen erfordert.
 
-5. **Schichtplan-Rotation:**
+5. **Schichtplan-Rotation / Stundenplan:**
    - Nutzer kann eigene Schichten definieren: Name der Schicht (z. B. "Frühschicht",
      "Spätschicht", "Nachtschicht") + frei wählbare Farbe pro Schicht.
    - Rotation der Schichten wird hinterlegt, damit die App weiß, an welchem Tag welche
-     Schicht (und damit welche Weckzeit) gilt.
+     Schicht (und damit welche Weckzeit) gilt. Pro Tag ist bei der Schicht-Rotation
+     **genau eine Schicht** vorgesehen.
+   - **Umschaltbarer Schüler/Student-Modus**: alternativ zur Tages-Schicht-Rotation kann
+     ein **Wochenstundenplan** hinterlegt werden (klassischer Schul-/Uni-Stundenplan).
+     Hier gilt statt "eine Schicht pro Tag" ein Raster von **bis zu 12
+     Unterrichtsstunden pro Tag**, jede mit eigener Start-/Endzeit und Farbe (z. B. nach
+     Fach). Der Stundenplan wiederholt sich wöchentlich, es gibt also keinen
+     mehrtägigen Rotationszyklus wie bei Schichtarbeit.
+   - **Foto-Import**: Stundenplan bzw. Schichtplan kann mit der Kamera abfotografiert
+     werden; per Texterkennung (OCR) werden Schichten/Unterrichtsstunden inkl.
+     Start-/Endzeit automatisch erkannt, daraus wird automatisch eine Rotation bzw. ein
+     Wochenstundenplan inkl. Farbzuweisung erzeugt. Der Nutzer kann das
+     Erkennungsergebnis vor der Übernahme noch korrigieren.
+   - **Konfigurierbarer Weckzeit-Abstand statt fixer Schicht-Startzeit**: Der Wecker
+     klingelt nicht zwingend exakt zur Schicht-/Unterrichtsbeginn-Zeit, sondern mit
+     einem einstellbaren Vorlauf. Pro Schicht bzw. vor der **ersten** Unterrichtsstunde
+     des Tages werden zwei Werte in Minuten vor Schicht-/Unterrichtsbeginn hinterlegt:
+     - **"frühestes Wecken"**: wann der (erste) Alarm klingelt.
+     - **"spätestens aufstehen"**: späteste Zeit, zu der laut Aufsteh-Erkennung
+       (Kernfunktion 1) tatsächlich aufgestanden sein muss — sonst greift dieselbe
+       Stop-Weiterüberwachung/Notfall-Alarm-Logik wie in Kernfunktion 3 beschrieben.
 
 6. **Kalender:**
    - Eingebauter Kalender, der die Schichtrotation visualisiert. Funktionsumfang
@@ -124,6 +144,33 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Schichtrotation-Verknüpfung je Alarm usw.) werden in dieses vertraute Grundgerüst
      integriert, nicht als komplett eigenes UI-Paradigma entworfen.
 
+10. **Berechtigungen-Onboarding beim App-Start:**
+    - Beim ersten Start fragt die App alle benötigten Laufzeit-Berechtigungen aktiv an
+      (nicht erst beim ersten Bedarf), jeweils mit einer kurzen Erklärung, wofür sie
+      gebraucht wird, z. B.:
+      - Exakte Alarme (`SCHEDULE_EXACT_ALARM`) — damit der Wecker zuverlässig zur
+        richtigen Zeit klingelt.
+      - Benachrichtigungen (`POST_NOTIFICATIONS`) — für Alarm-/Notfall-Anzeige.
+      - Kamera — für den Foto-Import von Stundenplan/Schichtplan (Kernfunktion 5).
+      - Körpersensoren/Aktivitätserkennung (`BODY_SENSORS`/`ACTIVITY_RECOGNITION`)
+        sowie Health-Connect-Zugriff — für die Aufsteh-Erkennung (Kernfunktion 1).
+      - Ignorieren von Akku-Optimierungen — damit die Überwachung nach dem Klingeln
+        nicht durch Doze/Battery-Optimizations unterbrochen wird.
+    - (Noch) nicht erteilte Berechtigungen werden weiterhin mit Hinweis auf die
+      eingeschränkte Funktion angezeigt (ähnlich dem bereits bestehenden Banner für
+      fehlende Exact-Alarm-Berechtigung), nicht nur einmalig beim Start abgefragt.
+
+11. **System-Registrierung als Wecker-/Uhr-/Kalender-App:**
+    - Die App meldet sich über passende Intent-Filter/Kategorien im Manifest bei
+      Android als Wecker-, Uhr- und Kalender-App an, damit das System sie entsprechend
+      erkennt und einbindet, u. a.:
+      - `android.intent.action.SET_ALARM` / `SHOW_ALARMS` / `DISMISS_ALARM` /
+        `SNOOZE_ALARM` (Wecker-Intents, z. B. für Sprachassistenten wie
+        "stelle einen Wecker").
+      - `android.intent.category.APP_CALENDAR` und `android.intent.category.APP_CLOCK`,
+        damit die App in den Android-Einstellungen unter "Standard-Apps" als Kalender-
+        bzw. Uhr-App auswählbar ist.
+
 ## Architektur
 
 - Zielplattform: Android (nativ), Kotlin + Jetpack Compose + Hilt (Dependency
@@ -152,10 +199,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Wetterdaten: OpenWeatherMap API (One Call / Current Weather), API-Key-Handling analog
   Iosync-Projekt (`/opt/Iosync`): Key aus `local.properties` lokal, aus GitHub-Secret
   `OPENWEATHER_API_KEY` im CI, Einbindung als `BuildConfig`-Feld — niemals im Repo.
+- Foto-Import/OCR (Kernfunktion 5): Texterkennung on-device. FOSS-Kandidat
+  **Tesseract4Android** (Apache-2.0) wird gemäß FOSS-Leitlinie gegenüber Google ML Kit
+  (closed-source, aber kostenlos) bevorzugt; finale Bibliothekswahl noch offen (TBD).
+- Berechtigungs-Onboarding (Kernfunktion 10): eigener Onboarding-Screen beim ersten
+  Start, der alle benötigten Berechtigungen inkl. Begründung anfragt.
+- System-Registrierung (Kernfunktion 11): Manifest-Intent-Filter für
+  `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/`SNOOZE_ALARM` sowie die Kategorien
+  `APP_CALENDAR`/`APP_CLOCK`.
 
 ## Wichtig
 
 - Projekt-Memory liegt in `/opt/SmarterWecker/memory.md` — vor Arbeit an diesem Projekt
   immer zuerst dorthin wechseln und diese Datei lesen.
 - Ausgewählt im Chat-Dropdown unter `/var/www` als "Smarter Wecker".
-- Noch in der Konzeptionsphase — noch kein Code vorhanden.
+- Phase 1 (siehe PLAN.md) ist umgesetzt (Code vorhanden); neue Konzept-Erweiterungen
+  werden weiterhin zuerst hier dokumentiert, bevor sie implementiert werden.

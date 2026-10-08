@@ -120,6 +120,28 @@ Verifikation erfolgt über die GitHub Action `build-apk.yml`. Schicht-Farbwahl n
 eine kuratierte Farbpalette (10 Farben) statt eines vollen Farbrads, um keine
 Zusatz-Library einzuführen.
 
+## Nachträglich ergänzte Anforderungen (2026-10-08, noch nicht umgesetzt)
+
+Nach Abschluss der ursprünglichen Schritte 1–12 kamen folgende Anforderungen hinzu, die
+den Phase-1-Scope erweitern (Details siehe CLAUDE.md Kernfunktionen 5, 10, 11):
+
+- [ ] Berechtigungs-Onboarding beim ersten Start (alle benötigten Berechtigungen mit
+  Erklärung anfragen, nicht nur ad-hoc wie aktuell beim Exact-Alarm-Banner).
+- [ ] System-Registrierung als Wecker-/Uhr-/Kalender-App (Manifest-Intent-Filter
+  `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/`SNOOZE_ALARM`, Kategorien
+  `APP_CALENDAR`/`APP_CLOCK`).
+- [ ] Umschaltbarer Schüler/Student-Modus: Wochenstundenplan statt Tages-Rotation, mit
+  bis zu 12 Unterrichtsstunden/Tag (eigene Start-/Endzeit, Farbe) statt einer
+  Schicht/Tag.
+- [ ] Foto-Import: Stundenplan/Schichtplan abfotografieren, per OCR automatisch
+  Schichten/Unterrichtsstunden (Start-/Endzeit, Farbe) erkennen und daraus automatisch
+  eine Rotation bzw. einen Wochenstundenplan erzeugen.
+- [ ] Konfigurierbarer Weckzeit-Abstand pro Schicht bzw. vor der ersten
+  Unterrichtsstunde: "frühestes Wecken" und "spätestens aufstehen" in Minuten vor
+  Schicht-/Unterrichtsbeginn, statt Wecken exakt zur Schicht-Startzeit
+  (`AlarmScheduler`/Alarm↔Schicht-Verknüpfung aus Schritt 12 muss dafür angepasst
+  werden).
+
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,

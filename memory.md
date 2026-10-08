@@ -201,3 +201,48 @@ geklärt. Nächster Schritt wäre das Gradle-Projekt-Grundgerüst aufzusetzen.
   beim nächsten Push.
 - Noch offen aus Phase 1: Schritte 11–12 (Kalender-Monatsansicht,
   Alarm↔Schicht-Verknüpfung).
+
+## Ergänzung (2026-10-08, Phase 1 – Schritte 11 und 12 umgesetzt)
+
+- Nutzer: "11 und 12 jetzt" → PLAN.md-Schritte 11 (Kalender-Monatsansicht) und 12
+  (Alarm↔Schicht-Verknüpfung) implementiert. Damit war laut PLAN.md der komplette
+  ursprüngliche Phase-1-Scope (Schritte 1–12) umgesetzt.
+
+## Ergänzung (2026-10-08, neue Anforderungen nach Phase-1-Abschluss)
+
+Nutzer hat nach Abschluss der ursprünglichen 12 Schritte weitere Anforderungen
+genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
+10/11 bzw. Erweiterung von Kernfunktion 5 in CLAUDE.md dokumentiert wurden:
+
+- **Berechtigungen beim Start**: alle benötigten Laufzeit-Berechtigungen sollen beim
+  ersten App-Start aktiv angefragt werden, jeweils mit Erklärung wofür sie gebraucht
+  werden (bisher nur ad-hoc, z. B. das bestehende Exact-Alarm-Banner).
+- **System-Registrierung**: App soll sich bei Android explizit als Wecker-, Uhr- und
+  Kalender-App anmelden (Intent-Filter `SET_ALARM`/`SHOW_ALARMS`/`DISMISS_ALARM`/
+  `SNOOZE_ALARM`, Kategorien `APP_CALENDAR`/`APP_CLOCK` für die "Standard-Apps"-Auswahl
+  in den Android-Einstellungen), damit das System sie entsprechend erkennt.
+- **Schüler/Student-Modus**: Schicht-Rotation soll umschaltbar sein auf einen
+  Wochenstundenplan (Schule/Uni) mit bis zu **12 Unterrichtsstunden pro Tag** (statt
+  einer Schicht pro Tag bei normaler Schichtarbeit), jede Stunde mit eigener
+  Start-/Endzeit und Farbe. Stundenplan wiederholt sich wöchentlich (kein
+  mehrtägiger Zyklus wie bei Schichtrotation).
+- **Foto-Import**: Stundenplan/Schichtplan soll abfotografiert werden können; per OCR
+  sollen automatisch Schichten/Unterrichtsstunden (Zeiten, Farbe) erkannt und daraus
+  automatisch eine Rotation/ein Wochenstundenplan erzeugt werden. Als FOSS-Kandidat für
+  die Texterkennung wurde **Tesseract4Android** (Apache-2.0) vermerkt (Alternative zu
+  Googles closed-source ML Kit), finale Wahl noch offen.
+- **Konfigurierbarer Weckzeit-Abstand**: statt exakt zur Schicht-/Unterrichtsbeginn-Zeit
+  zu wecken, sollen pro Schicht bzw. vor der ersten Unterrichtsstunde zwei
+  Minuten-Werte hinterlegt werden können — "frühestes Wecken" (Normal-Alarmzeit) und
+  "spätestens aufstehen" (späteste Zeit, bis zu der laut Aufsteh-Erkennung tatsächlich
+  aufgestanden sein muss, sonst greift die bestehende Stop-Weiterüberwachungs-/
+  Notfall-Logik). Das bedeutet eine Anpassung der in Schritt 12 gebauten
+  Alarm↔Schicht-Verknüpfung (`AlarmScheduler` leitet aktuell die Weckzeit noch 1:1 aus
+  dem Schicht-Start ab, nicht aus einem Vorlauf-Offset).
+- Diese fünf Punkte sind bewusst nur in CLAUDE.md/PLAN.md **dokumentiert**, aber noch
+  **nicht implementiert** (analog zum bisherigen Muster: Feature-Beschreibung zuerst
+  festhalten, Umsetzung erst auf expliziten Folgeauftrag wie "jetzt implementieren"
+  o. Ä.).
+- Nebenbei korrigiert: Der "Wichtig"-Abschnitt in CLAUDE.md behauptete noch "noch kein
+  Code vorhanden" — das war seit dem Phase-1-Grundgerüst (Schritt 1) nicht mehr aktuell
+  und wurde auf den tatsächlichen Stand (Phase 1 umgesetzt) korrigiert.
