@@ -21,9 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -47,6 +49,7 @@ import de.letheapp.nocturn.data.db.AlarmEntity
 @Composable
 fun AlarmListScreen(
     onEditAlarm: (Long) -> Unit,
+    onOpenCalendarTemplates: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -55,7 +58,16 @@ fun AlarmListScreen(
     RequestStartupPermissions()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("NocTurn") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("NocTurn") },
+                actions = {
+                    IconButton(onClick = onOpenCalendarTemplates) {
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Kalender-Vorlagen")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showTimePicker = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Alarm hinzufügen")

@@ -9,9 +9,10 @@ import androidx.room.RoomDatabase
         JobEntity::class,
         ShiftEntity::class,
         RotationEntity::class,
-        RotationDayEntity::class
+        RotationDayEntity::class,
+        CalendarEntryEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class NocturnDatabase : RoomDatabase() {
@@ -19,4 +20,5 @@ abstract class NocturnDatabase : RoomDatabase() {
     abstract fun jobDao(): JobDao
     abstract fun shiftDao(): ShiftDao
     abstract fun rotationDao(): RotationDao
+    abstract fun calendarEntryDao(): CalendarEntryDao
 }

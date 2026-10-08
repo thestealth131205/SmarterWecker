@@ -13,6 +13,9 @@ import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.AlarmEditScreen
 import de.letheapp.nocturn.alarm.AlarmListScreen
+import de.letheapp.nocturn.calendar.JobDetailScreen
+import de.letheapp.nocturn.calendar.JobListScreen
+import de.letheapp.nocturn.calendar.RotationEditorScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import java.net.URLDecoder
@@ -21,6 +24,9 @@ import java.net.URLEncoder
 private const val ROUTE_ALARM_LIST = "alarmList"
 private const val ROUTE_ALARM_EDIT = "alarmEdit/{alarmId}"
 private const val ROUTE_SOUND_PICKER = "soundPicker/{currentUri}"
+private const val ROUTE_JOB_LIST = "jobList"
+private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
+private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 @AndroidEntryPoint
@@ -42,7 +48,38 @@ private fun NocturnNavHost() {
 
     NavHost(navController = navController, startDestination = ROUTE_ALARM_LIST) {
         composable(ROUTE_ALARM_LIST) {
-            AlarmListScreen(onEditAlarm = { id -> navController.navigate("alarmEdit/$id") })
+            AlarmListScreen(
+                onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
+                onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) }
+            )
+        }
+
+        composable(ROUTE_JOB_LIST) {
+            JobListScreen(
+                onOpenJob = { jobId, jobName ->
+                    val encodedName = URLEncoder.encode(jobName, "UTF-8")
+                    navController.navigate("jobDetail/$jobId/$encodedName")
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_JOB_DETAIL) { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getString("jobId")?.toLongOrNull() ?: return@composable
+            val encodedName = backStackEntry.arguments?.getString("jobName").orEmpty()
+            val jobName = URLDecoder.decode(encodedName, "UTF-8")
+
+            JobDetailScreen(
+                jobName = jobName,
+                onOpenRotationEditor = { rotationId ->
+                    navController.navigate("rotationEditor/$jobId/${rotationId ?: -1L}")
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_ROTATION_EDITOR) {
+            RotationEditorScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_ALARM_EDIT) { backStackEntry ->

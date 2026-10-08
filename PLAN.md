@@ -87,13 +87,25 @@ späteren Phasen.
   Zuordnungsaufgaben (Geometrien/Emojis, Farbe/Form, Sequenzlänge 4–6, Pool inkl.
   Ablenker), `PuzzleScreen` mit echtem Drag & Drop (Pointer-Tracking + Treffer-Test
   gegen die Zielfelder), `EmergencyAlarmActivity` mit gesperrter Zurück-Taste.
-- [ ] Schritt 9–12: Kalender-Grundfunktion (Vorlagen, Rotationen, Monatsansicht,
-  Alarm↔Schicht-Verknüpfung) – noch offen.
+- [x] **Schritt 9 – Kalender-Vorlagenverwaltung**: `CalendarRepository` (Jobs/
+  Schichten/Rotationen/Kalendereinträge), `JobListScreen` (Jobs-CRUD, Einstieg über
+  neues Kalender-Icon in der Alarmliste), `JobDetailScreen` mit Tabs "Schichten"/
+  "Rotationen", `ShiftEditDialog` (Name, Farbpalette, Start-/Endzeit → Dauer).
+- [x] **Schritt 10 – Rotationen**: `RotationEditorScreen` mit Tag-für-Tag-Raster
+  (7-Wochentags-Spalten via `LazyVerticalGrid`, Zykluslänge = Anzahl eingetragener
+  Tage), Start-Datum per `DatePicker`, Schicht-Zuweisung per Tap-Dialog je Tag.
+  `CalendarRepository.saveRotation` schreibt daraus sofort `CalendarEntryEntity`s
+  für `FORECAST_YEARS` (5) Jahre im Voraus fort (Modulo über die Zykluslänge).
+  Neue Room-Entity `CalendarEntryEntity`, DB-Version auf 2 angehoben mit
+  `fallbackToDestructiveMigration()` (keine Bestandsdaten vorhanden).
+- [ ] Schritt 11–12: Kalender-Monatsansicht, Alarm↔Schicht-Verknüpfung – noch offen.
 
 **Bekannte Vereinfachungen (Phase 1, bewusst zurückgestellt):** Health-Connect-
 Berechtigungsanfrage läuft nur best-effort (keine eigene Onboarding-/Rationale-UI);
 ohne lokales Android-SDK konnte kein `./gradlew assembleDebug` ausgeführt werden,
-Verifikation erfolgt über die GitHub Action `build-apk.yml`.
+Verifikation erfolgt über die GitHub Action `build-apk.yml`. Schicht-Farbwahl nutzt
+eine kuratierte Farbpalette (10 Farben) statt eines vollen Farbrads, um keine
+Zusatz-Library einzuführen.
 
 ## Grobe Umsetzungsreihenfolge
 

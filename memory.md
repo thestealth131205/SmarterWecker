@@ -162,3 +162,42 @@ geklärt. Nächster Schritt wäre das Gradle-Projekt-Grundgerüst aufzusetzen.
     Hilt) aufgebaut.
 - Noch offen aus Phase 1: Schritte 9–12 (Kalender-Vorlagen/Rotationen/
   Monatsansicht/Alarm↔Schicht-Verknüpfung).
+
+## Ergänzung (2026-10-08, Phase 1 – Schritte 9 und 10 umgesetzt)
+
+- Nutzer: "Erledige 9+10" → PLAN.md-Schritte 9 (Kalender-Vorlagenverwaltung) und 10
+  (Rotationen + automatisches Fortschreiben) implementiert.
+- Neues Package `de.letheapp.nocturn.calendar`: `JobListScreen`/`JobListViewModel`
+  (Jobs-CRUD, Einstieg über neues Kalender-Icon oben rechts in der Alarmliste),
+  `JobDetailScreen`/`JobDetailViewModel` mit Tabs "Schichten"/"Rotationen",
+  `ShiftEditDialog` (Name, Farbpalette, Start-/Endzeit → Dauer inkl.
+  Nachtschicht-Unterstützung über Mitternacht), `RotationEditorScreen`/
+  `RotationEditorViewModel` (Tag-für-Tag-Raster über `LazyVerticalGrid` mit 7
+  Wochentags-Spalten, Start-Datum per Material3-`DatePicker`).
+- Kernidee der Rotation wie vom Nutzer beschrieben umgesetzt: Zykluslänge ist
+  schlicht die Anzahl der vom Nutzer eingetragenen Tage (kein automatisches
+  Zyklus-Erkennen nötig) — `CalendarRepository.saveRotation` schreibt daraus beim
+  Speichern sofort `CalendarEntryEntity`-Zeilen für 5 Jahre im Voraus fort (Modulo
+  über die Zykluslänge), damit der Wecker jederzeit die geltende Schicht
+  nachschlagen kann.
+- Neue Room-Entity `CalendarEntryEntity` (Datum/Job/Rotation/Schicht), DB-Version
+  von 1 auf 2 angehoben. Da es noch keine veröffentlichte Version mit
+  Bestandsdaten gibt, wurde `Room.databaseBuilder(...).fallbackToDestructiveMigration()`
+  ergänzt statt einer echten Migration — spart Aufwand, ist aber nur solange
+  vertretbar, wie es keine Nutzerdaten gibt, die beim nächsten Schema-Wechsel
+  verloren gehen dürften.
+- Fremdschlüssel-Kaskaden bewusst gesetzt: `jobId`-FKs (Shifts/Rotationen) und
+  `rotationId`-FKs (RotationDays/CalendarEntries) lösen `CASCADE` aus (Löschen
+  eines Jobs/einer Rotation räumt automatisch auf), `shiftId`-FKs lösen `SET_NULL`
+  aus (Löschen einer Schicht setzt betroffene Tage auf "frei", statt die Rotation
+  zu zerstören).
+- Schicht-Farbwahl: kuratierte 10-Farben-Palette statt echtem Farbrad, um keine
+  zusätzliche Color-Picker-Library einzuführen (als bewusste Vereinfachung in
+  PLAN.md vermerkt).
+- Weiterhin kein Android-SDK lokal verfügbar — nicht mit `./gradlew assembleDebug`
+  verifiziert, nur sorgfältig manuell durchgegangen (Imports, Navigation-Routen,
+  Compose-API-Signaturen inkl. `@OptIn(ExperimentalMaterial3Api::class)` für
+  `DatePicker`). Echte Verifikation läuft über die GitHub Action `build-apk.yml`
+  beim nächsten Push.
+- Noch offen aus Phase 1: Schritte 11–12 (Kalender-Monatsansicht,
+  Alarm↔Schicht-Verknüpfung).

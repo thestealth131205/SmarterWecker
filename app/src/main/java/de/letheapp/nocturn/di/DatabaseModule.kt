@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import de.letheapp.nocturn.data.db.AlarmDao
+import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.NocturnDatabase
 import de.letheapp.nocturn.data.db.RotationDao
@@ -21,7 +22,11 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
-        Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db").build()
+        Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
+            // Noch keine veröffentlichte Version mit Bestandsdaten, daher reicht ein
+            // destruktiver Neuaufbau bei Schema-Änderungen statt echter Migrationen.
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     fun provideAlarmDao(db: NocturnDatabase): AlarmDao = db.alarmDao()
@@ -34,4 +39,7 @@ object DatabaseModule {
 
     @Provides
     fun provideRotationDao(db: NocturnDatabase): RotationDao = db.rotationDao()
+
+    @Provides
+    fun provideCalendarEntryDao(db: NocturnDatabase): CalendarEntryDao = db.calendarEntryDao()
 }
