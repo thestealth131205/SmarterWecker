@@ -43,7 +43,7 @@ data class DetailedWeather(
     val sunsetEpochMillis: Long
 )
 
-/** Ein Tag der 8-Tage-Vorhersage (OpenWeatherMap One Call 3.0, siehe [WeatherRepository.dailyForecast]). */
+/** Ein Tag der 8-Tage-Vorhersage (OpenWeatherMap One Call 4.0, siehe [WeatherRepository.dailyForecast]). */
 data class DailyForecast(
     val dateEpochMillis: Long,
     val minCelsius: Int,
@@ -74,13 +74,17 @@ private const val FORECAST_CACHE_VALIDITY_MS = 60 * 60 * 1000L
  * [AppPreferences.isWeatherEnabled] ein bewusstes Opt-in (Einstellungen-Screen) — ist sie aus,
  * liefert [currentWeather] immer `null`, ohne überhaupt einen Request abzusetzen.
  *
- * Die 8-Tage-Vorhersage ([dailyForecast]) braucht den OpenWeatherMap-"One Call API 3.0"-
- * Endpoint (`/data/3.0/onecall`) — der aktuelle "Current Weather Data"-Endpoint liefert nur
- * Momentanwerte, keine echte Tagesvorhersage. One Call 3.0 ist zwar im kostenlosen Kontingent
- * enthalten (1.000 Abrufe/Tag), verlangt aber auf openweathermap.org unter "My API keys" /
- * "Billing plans" einmalig eine Abo-Aktivierung mit Zahlungsmethode (wird nicht belastet,
- * solange das Kontingent nicht überschritten wird) — ohne diese Aktivierung liefert der
- * Endpoint `401`. Das ist eine einmalige Aktion im OpenWeatherMap-Konto, kein App-Code.
+ * Die 8-Tage-Vorhersage ([dailyForecast]) braucht den OpenWeatherMap-"One Call API 4.0"-
+ * Endpoint (`/data/4.0/onecall/timeline/1day`) — der aktuelle "Current Weather Data"-Endpoint
+ * liefert nur Momentanwerte, keine echte Tagesvorhersage. OpenWeatherMap hat die alte "One
+ * Call API 3.0" (`/data/3.0/onecall`) im Herbst 2026 durch 4.0 mit separaten, fokussierten
+ * Endpoints pro Zeitauflösung ersetzt (hier genutzt: "1-day timeline" statt des kombinierten
+ * `/onecall`-Response mit `exclude`-Parameter) — 3.0-Zugriffsschlüssel liefern seitdem bei 4.0
+ * `401`, und umgekehrt liefert 3.0 `401`, sobald im OpenWeatherMap-Konto nur noch das neue "One
+ * Call by Call"-Abo (= 4.0) aktiviert ist, nicht das alte 3.0-Abo. Das 4.0-Abo ist weiterhin im
+ * kostenlosen Kontingent enthalten (1.000 Abrufe/Tag), verlangt aber ebenso einmalig eine
+ * Abo-Aktivierung mit Zahlungsmethode im OpenWeatherMap-Konto (wird nicht belastet, solange das
+ * Kontingent nicht überschritten wird) — ohne diese Aktivierung liefert der Endpoint `401`.
  */
 @Singleton
 class WeatherRepository @Inject constructor(
@@ -120,6 +124,16 @@ class WeatherRepository @Inject constructor(
         }
         fetchForecastFromApi() ?: cached
     }
+
+    /**
+     * Grund, warum [dailyForecast] zuletzt `null`/leer geliefert hat (z. B. HTTP-Statuscode) —
+     * wird nach jedem Abruf aktualisiert, damit der Wetter-Screen statt einer generischen
+     * Meldung den tatsächlichen Fehler anzeigen kann (z. B. "401" bei fehlender/noch nicht
+     * aktiver One-Call-3.0-Abo-Aktivierung).
+     */
+    @Volatile
+    var lastForecastError: String? = null
+        private set
 
     /** Löscht den Wetter-Cache, z. B. nachdem der Nutzer einen anderen Ort gewählt hat. */
     fun clearCache() {
@@ -177,23 +191,37 @@ class WeatherRepository @Inject constructor(
 
     private fun fetchForecastFromApi(): List<DailyForecast>? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
-        if (apiKey.isBlank()) return null
-        val location = resolvedLocation() ?: return null
+        if (apiKey.isBlank()) {
+            lastForecastError = "Kein OpenWeatherMap-API-Key hinterlegt."
+            return null
+        }
+        val location = resolvedLocation() ?: run {
+            lastForecastError = "Kein Standort verfügbar (Berechtigung/Ortswahl prüfen)."
+            return null
+        }
 
-        return runCatching {
-            val url = "https://api.openweathermap.org/data/3.0/onecall?" +
-                "lat=${location.latitude}&lon=${location.longitude}&appid=$apiKey&units=metric&lang=de" +
-                "&exclude=current,minutely,hourly,alerts"
+        val result = runCatching {
+            val url = "https://api.openweathermap.org/data/4.0/onecall/timeline/1day?" +
+                "lat=${location.latitude}&lon=${location.longitude}&appid=$apiKey&units=metric&lang=de"
             val request = Request.Builder().url(url).build()
             httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use null
+                if (!response.isSuccessful) {
+                    val bodySnippet = response.body?.string().orEmpty().take(200)
+                    error("HTTP ${response.code} ${response.message}".trim() + if (bodySnippet.isNotBlank()) " – $bodySnippet" else "")
+                }
                 val body = response.body?.string().orEmpty()
-                val daily = JSONObject(body).optJSONArray("daily") ?: return@use null
+                val daily = JSONObject(body).optJSONArray("data")
+                    ?: error("Antwort enthält kein \"data\"-Feld: ${body.take(200)}")
                 (0 until daily.length()).take(8)
                     .map { index -> parseDailyForecast(daily.getJSONObject(index)) }
                     .also(::writeForecastCache)
             }
-        }.getOrNull()
+        }
+        result.fold(
+            onSuccess = { lastForecastError = null },
+            onFailure = { throwable -> lastForecastError = throwable.message ?: throwable.toString() }
+        )
+        return result.getOrNull()
     }
 
     private fun parseDailyForecast(obj: JSONObject): DailyForecast {

@@ -52,6 +52,7 @@ fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = hiltViewMode
     val weather by viewModel.weather.collectAsState()
     val forecast by viewModel.forecast.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    val forecastError by viewModel.forecastError.collectAsState()
 
     Scaffold(
         topBar = {
@@ -86,11 +87,21 @@ fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = hiltViewMode
                 }
                 if (forecast.isEmpty()) {
                     item {
-                        Text(
-                            "8-Tage-Vorhersage aktuell nicht verfügbar.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column {
+                            Text(
+                                "8-Tage-Vorhersage aktuell nicht verfügbar.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (forecastError != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Fehlergrund: $forecastError",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
                 } else {
                     item {

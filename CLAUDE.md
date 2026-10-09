@@ -193,11 +193,16 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Weather Data"-Endpoint hergibt (Temperatur, gefühlte Temperatur, Tageshöchst-/-tiefstwert,
      Beschreibung, Luftfeuchtigkeit, Wind, Luftdruck, Sonnenauf-/-untergang), darunter eine
      **8-Tage-Vorhersage** (heute + 7 Tage: Min/Max-Temperatur, Symbol, Beschreibung,
-     Niederschlagswahrscheinlichkeit) über den OpenWeatherMap-"One Call API 3.0"-Endpoint.
-     One Call 3.0 ist im kostenlosen Kontingent enthalten (1.000 Abrufe/Tag), verlangt aber auf
-     openweathermap.org einmalig eine Abo-Aktivierung mit Zahlungsmethode (keine Belastung
-     innerhalb des Kontingents) — ohne diese Aktivierung bleibt die 8-Tage-Vorhersage leer,
-     während aktuelles Wetter/Uhr-Widget (reiner "Current Weather Data"-Endpoint) unberührt
+     Niederschlagswahrscheinlichkeit) über den OpenWeatherMap-"One Call API 4.0"-Endpoint
+     (`/data/4.0/onecall/timeline/1day`, "1-day timeline" statt des alten kombinierten
+     `/onecall`-Response). OpenWeatherMap hat die vormalige "One Call API 3.0" im Herbst 2026
+     durch 4.0 ersetzt — 3.0-Zugriffsschlüssel liefern seitdem `401`, ebenso 4.0, solange im
+     OpenWeatherMap-Konto nicht das "One Call by Call"-Abo (= 4.0) aktiviert ist; altes 3.0-Abo
+     und neues 4.0-Abo sind getrennte, sich gegenseitig ausschließende Freischaltungen. One Call
+     4.0 ist weiterhin im kostenlosen Kontingent enthalten (1.000 Abrufe/Tag), verlangt aber wie
+     zuvor 3.0 auf openweathermap.org einmalig eine Abo-Aktivierung mit Zahlungsmethode (keine
+     Belastung innerhalb des Kontingents) — ohne diese Aktivierung bleibt die 8-Tage-Vorhersage
+     leer, während aktuelles Wetter/Uhr-Widget (reiner "Current Weather Data"-Endpoint) unberührt
      weiterlaufen. Bewusst weiterhin ohne Wetterkarte, Luftqualität oder Pollenwerte (eigene,
      hier nicht benötigte Endpoints). Ist Wetter deaktiviert, bleibt das Symbol ausgeblendet und
      es wird kein Netzwerk-Request ausgelöst; derselbe Schalter steuert auch, ob das Uhr-Widget
@@ -335,8 +340,11 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Wecker-UI: Alarmliste, Zifferblatt-Zeitpicker und Weckton-Auswahl-Screen (Tabs)
   orientieren sich an der Google-Uhr-App, siehe Kernfunktion 9.
 - Wetterdaten: OpenWeatherMap "Current Weather Data" (aktuelles Wetter, Topbar-Symbol +
-  Uhr-Widget) sowie "One Call API 3.0" (8-Tage-Vorhersage im Wetter-Screen, `/data/3.0/onecall`,
-  braucht einmalige Abo-Aktivierung mit Zahlungsmethode im OpenWeatherMap-Konto, siehe
+  Uhr-Widget) sowie "One Call API 4.0" (8-Tage-Vorhersage im Wetter-Screen,
+  `/data/4.0/onecall/timeline/1day` — abgelöste Vorgängerversion 3.0 lief über
+  `/data/3.0/onecall`, seit Herbst 2026 eigenes, zu 4.0 inkompatibles Abo im
+  OpenWeatherMap-Konto), braucht einmalige Abo-Aktivierung mit Zahlungsmethode im
+  OpenWeatherMap-Konto, siehe
   `WeatherRepository`-Doc-Kommentar), API-Key-Handling analog Iosync-Projekt (`/opt/Iosync`):
   Key aus `local.properties` lokal, aus GitHub-Secret `OPENWEATHER_API_KEY` im CI, Einbindung
   als `BuildConfig`-Feld — niemals im Repo.
