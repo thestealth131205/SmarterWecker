@@ -106,7 +106,8 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 git commit -m "$COMMIT_MSG"
 HEAD_SHA="$(git rev-parse HEAD)"
 log "Commit $HEAD_SHA erstellt, pushe nach main..."
-git push origin main
+GH_AUTH_B64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+git -c http.extraheader="Authorization: Basic ${GH_AUTH_B64}" push origin main
 
 # ---------- 4. Auf den passenden Workflow-Run warten ----------
 log "Warte auf den Start des GitHub-Actions-Runs für $HEAD_SHA..."

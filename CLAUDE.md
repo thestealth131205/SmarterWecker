@@ -404,12 +404,11 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   GitHub-Releases-API, sondern direkt aus dem lokal deployten Ordner
   `/var/www/Lethe/downloads/nocturn/NocTurn-*.apk` (neuestes `filemtime`). Zugang zum
   Hauptserver per `sshpass`/root-Passwort (siehe `/opt/letheapp/failover.sh` für das gleiche
-  Muster), kein SSH-Key hinterlegt.
-  **Offener Punkt:** `scripts/release-deploy.sh` im SmarterWecker-Repo lädt die signierte APK
-  nach dem GitHub-Actions-Build bisher nur nach `/var/www/html/downloads/nocturn/` auf diesem
-  Pi — das ist nicht der echte Download-Pfad. Damit ein Deploy-Lauf auch tatsächlich eine APK
-  auf `/var/www/Lethe/downloads/nocturn/` des Hauptservers legt, muss das Skript noch auf einen
-  `scp`/`sshpass`-Upload zum Hauptserver umgestellt werden.
+  Muster), kein SSH-Key hinterlegt. `scripts/release-deploy.sh` erhöht die Versionsnummer,
+  committet/pusht, wartet auf den GitHub-Actions-Build/-Release und lädt die signierte APK
+  per `scp`/`sshpass` direkt nach `/var/www/Lethe/downloads/nocturn/` auf den Hauptserver hoch
+  — der `git push` nutzt dafür einen expliziten `Authorization: Basic`-Header aus `GH_TOKEN`
+  statt der Standard-Credential-Erkennung, da Letztere auf diesem Pi nicht zuverlässig griff.
 
 ## Wichtig
 
