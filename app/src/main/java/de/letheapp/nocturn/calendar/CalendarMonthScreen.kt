@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,7 +50,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -73,6 +78,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import de.letheapp.nocturn.data.db.JobEntity
+import de.letheapp.nocturn.data.db.JobMode
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -103,14 +110,18 @@ fun CalendarMonthScreen(
     onOpenCalendarTemplates: () -> Unit,
     onOpenHolidaySettings: () -> Unit,
     onOpenNextcloudSync: () -> Unit,
+    onOpenRotationEditor: (jobId: Long) -> Unit,
+    onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
     viewModel: CalendarMonthViewModel = hiltViewModel()
 ) {
     val month by viewModel.month.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     val rotations by viewModel.rotations.collectAsState()
+    val jobs by viewModel.jobs.collectAsState()
     val shareFileUri by viewModel.shareFileUri.collectAsState()
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showRotationPicker by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
     var durationDialogFor by remember { mutableStateOf<Pair<RotationOption, LocalDate>?>(null) }
@@ -380,7 +391,36 @@ fun CalendarMonthScreen(
                     showAddDialog = false
                     onAddShift(selectedDay ?: LocalDate.now())
                 },
+                onPickRotation = {
+                    showAddDialog = false
+                    showRotationPicker = true
+                },
                 onDismiss = { showAddDialog = false }
+            )
+        }
+
+        if (showRotationPicker) {
+            RotationEntryPickerDialog(
+                jobs = jobs,
+                onPickExistingJob = { job ->
+                    showRotationPicker = false
+                    if (job.mode == JobMode.STUDENT.name) {
+                        onOpenJobTimetable(job.id, job.name)
+                    } else {
+                        onOpenRotationEditor(job.id)
+                    }
+                },
+                onCreateJob = { name, mode ->
+                    viewModel.createJob(name, mode) { jobId ->
+                        showRotationPicker = false
+                        if (mode == JobMode.STUDENT) {
+                            onOpenJobTimetable(jobId, name)
+                        } else {
+                            onOpenRotationEditor(jobId)
+                        }
+                    }
+                },
+                onDismiss = { showRotationPicker = false }
             )
         }
 
@@ -453,16 +493,118 @@ private fun HolidayLegendRow(color: Color, label: String) {
 }
 
 @Composable
-internal fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -> Unit, onDismiss: () -> Unit) {
+internal fun AddEntryTypeDialog(
+    onPickAppointment: () -> Unit,
+    onPickShift: () -> Unit,
+    onPickRotation: () -> Unit,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Eintrag hinzufügen") },
-        text = { Text("Was möchtest du anlegen?") },
+        text = {
+            Column {
+                Text(
+                    "Was möchtest du anlegen?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                TextButton(onClick = onPickAppointment, modifier = Modifier.fillMaxWidth()) {
+                    Text("Termin", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                }
+                TextButton(onClick = onPickShift, modifier = Modifier.fillMaxWidth()) {
+                    Text("Schicht", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                }
+                TextButton(onClick = onPickRotation, modifier = Modifier.fillMaxWidth()) {
+                    Text("Rotation / Stundenplan", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
+}
+
+/**
+ * Zwischenschritt des "+"-Dialogs für "Rotation / Stundenplan": Rotationen und Wochenstundenpläne
+ * gehören zu einem Job (siehe [JobDetailScreen]), daher wird hier zuerst ein bestehender Job
+ * gewählt oder direkt ein neuer angelegt, bevor zum passenden Editor weiternavigiert wird
+ * (Schichtarbeit-Job → neue Rotation in [RotationEditorScreen], Schüler/Student-Job →
+ * Stundenplan-Tab in [JobDetailScreen]).
+ */
+@Composable
+internal fun RotationEntryPickerDialog(
+    jobs: List<JobEntity>,
+    onPickExistingJob: (JobEntity) -> Unit,
+    onCreateJob: (name: String, mode: JobMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var showCreateForm by remember { mutableStateOf(jobs.isEmpty()) }
+    var newJobName by remember { mutableStateOf("") }
+    var newJobMode by remember { mutableStateOf(JobMode.SHIFT) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (showCreateForm) "Neuer Job" else "Rotation / Stundenplan anlegen") },
+        text = {
+            if (showCreateForm) {
+                Column {
+                    Text(
+                        "Rotationen und Stundenpläne gehören zu einem Job. Lege dafür zuerst einen an:",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = newJobName,
+                        onValueChange = { newJobName = it },
+                        label = { Text("Name (z. B. Hauptjob, Schule)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = newJobMode == JobMode.SHIFT,
+                            onClick = { newJobMode = JobMode.SHIFT },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        ) { Text("Schichtarbeit") }
+                        SegmentedButton(
+                            selected = newJobMode == JobMode.STUDENT,
+                            onClick = { newJobMode = JobMode.STUDENT },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        ) { Text("Schüler/Student") }
+                    }
+                }
+            } else {
+                Column {
+                    Text(
+                        "Für welchen Job soll eine Rotation oder ein Stundenplan angelegt werden?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    jobs.forEach { job ->
+                        TextButton(onClick = { onPickExistingJob(job) }, modifier = Modifier.fillMaxWidth()) {
+                            val modeLabel = if (job.mode == JobMode.STUDENT.name) "Schüler/Student" else "Schichtarbeit"
+                            Text("${job.name} ($modeLabel)", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                        }
+                    }
+                    TextButton(onClick = { showCreateForm = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("+ Neuen Job anlegen", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                    }
+                }
+            }
+        },
         confirmButton = {
-            TextButton(onClick = onPickAppointment) { Text("Termin") }
+            if (showCreateForm) {
+                TextButton(onClick = { onCreateJob(newJobName.trim(), newJobMode) }, enabled = newJobName.isNotBlank()) {
+                    Text("Anlegen")
+                }
+            }
         },
         dismissButton = {
-            TextButton(onClick = onPickShift) { Text("Schicht") }
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
         }
     )
 }

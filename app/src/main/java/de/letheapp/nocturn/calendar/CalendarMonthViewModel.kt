@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.HolidayType
+import de.letheapp.nocturn.data.db.JobEntity
+import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
 import kotlinx.coroutines.Dispatchers
@@ -212,6 +214,23 @@ class CalendarMonthViewModel @Inject constructor(
 
     fun goToCurrentMonth() {
         _month.value = YearMonth.now()
+    }
+
+    /** Für den "+"-Dialog: bestehende Jobs zur Auswahl, wenn eine Rotation/ein Stundenplan
+     *  direkt aus dem Kalender heraus angelegt werden soll, ohne über die Kalender-Vorlagen
+     *  navigieren zu müssen. */
+    val jobs: StateFlow<List<JobEntity>> = calendarRepository.observeJobs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Legt einen neuen Job direkt aus dem "+"-Dialog an und liefert dessen ID an [onCreated],
+     *  damit der Screen anschließend direkt zum passenden Editor (Rotation oder Stundenplan)
+     *  weiternavigieren kann. */
+    fun createJob(name: String, mode: JobMode, onCreated: (Long) -> Unit) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val id = calendarRepository.addJob(name.trim(), mode)
+            onCreated(id)
+        }
     }
 
     /** Für die ausklappbare Seitenleiste: alle vorhandenen Rotationen jobübergreifend zur Auswahl. */

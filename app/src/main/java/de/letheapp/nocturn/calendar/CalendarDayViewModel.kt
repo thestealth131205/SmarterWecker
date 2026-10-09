@@ -9,11 +9,14 @@ import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.HolidayEntity
 import de.letheapp.nocturn.data.db.HolidayType
+import de.letheapp.nocturn.data.db.JobEntity
+import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -73,6 +76,19 @@ class CalendarDayViewModel @Inject constructor(
 
     val epochDay: Long = checkNotNull(savedStateHandle.get<String>("epochDay")).toLong()
     val date: LocalDate = LocalDate.ofEpochDay(epochDay)
+
+    /** Für den "+"-Dialog: bestehende Jobs zur Auswahl, wenn eine Rotation/ein Stundenplan
+     *  direkt aus der Tagesansicht heraus angelegt werden soll. */
+    val jobs: StateFlow<List<JobEntity>> = calendarRepository.observeJobs()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun createJob(name: String, mode: JobMode, onCreated: (Long) -> Unit) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val id = calendarRepository.addJob(name.trim(), mode)
+            onCreated(id)
+        }
+    }
 
     private val holidaySettings = holidayRepository.observeSettings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)

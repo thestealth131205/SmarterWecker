@@ -2,6 +2,7 @@ package de.letheapp.nocturn.ocr
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Color
 import com.googlecode.tesseract.android.TessBaseAPI
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -41,10 +42,43 @@ class TesseractOcrEngine @Inject constructor(
         val tess = TessBaseAPI()
         try {
             if (!tess.init(dataDir.absolutePath, LANGUAGE)) return@withContext ""
-            tess.setImage(bitmap)
+            tess.setImage(normalizeForOcr(bitmap))
             tess.utF8Text ?: ""
         } finally {
             tess.recycle()
         }
+    }
+
+    /**
+     * Tesseract ist auf dunkle Schrift auf hellem Grund trainiert. Fotografiert man z. B. einen
+     * Stundenplan in einer Dark-Mode-App (heller Text auf dunklem Hintergrund), findet es ohne
+     * Vorverarbeitung oft gar keinen Text. Hier wird daher in Graustufen gewandelt und bei
+     * überwiegend dunklem Bild invertiert, bevor Tesseract das Bild sieht.
+     */
+    private fun normalizeForOcr(bitmap: Bitmap): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        var luminanceSum = 0L
+        for (i in pixels.indices) {
+            val p = pixels[i]
+            val gray = (Color.red(p) * 299 + Color.green(p) * 587 + Color.blue(p) * 114) / 1000
+            pixels[i] = Color.rgb(gray, gray, gray)
+            luminanceSum += gray
+        }
+
+        val averageLuminance = luminanceSum / pixels.size.toDouble()
+        if (averageLuminance < 128) {
+            for (i in pixels.indices) {
+                val inverted = 255 - Color.red(pixels[i])
+                pixels[i] = Color.rgb(inverted, inverted, inverted)
+            }
+        }
+
+        val normalized = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        normalized.setPixels(pixels, 0, width, 0, 0, width, height)
+        return normalized
     }
 }

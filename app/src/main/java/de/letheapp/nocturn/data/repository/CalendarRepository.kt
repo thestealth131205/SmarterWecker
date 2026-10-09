@@ -60,7 +60,8 @@ class CalendarRepository @Inject constructor(
 
     suspend fun getJob(jobId: Long): JobEntity? = jobDao.getById(jobId)
 
-    suspend fun addJob(name: String): Long = jobDao.insert(JobEntity(name = name))
+    suspend fun addJob(name: String, mode: JobMode = JobMode.SHIFT): Long =
+        jobDao.insert(JobEntity(name = name, mode = mode.name))
 
     suspend fun setJobMode(jobId: Long, mode: JobMode) {
         val job = jobDao.getById(jobId) ?: return

@@ -142,7 +142,12 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
                 onOpenExport = { navController.navigate(ROUTE_CALENDAR_EXPORT) },
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
-                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) }
+                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
+                onOpenRotationEditor = { jobId -> navController.navigate("rotationEditor/$jobId/-1") },
+                onOpenJobTimetable = { jobId, jobName ->
+                    val encodedName = URLEncoder.encode(jobName, "UTF-8")
+                    navController.navigate("jobDetail/$jobId/$encodedName")
+                }
             )
         }
 
@@ -154,7 +159,12 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
             CalendarDayScreen(
                 onBack = { navController.popBackStack() },
                 onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
-                onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") }
+                onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
+                onOpenRotationEditor = { jobId -> navController.navigate("rotationEditor/$jobId/-1") },
+                onOpenJobTimetable = { jobId, jobName ->
+                    val encodedName = URLEncoder.encode(jobName, "UTF-8")
+                    navController.navigate("jobDetail/$jobId/$encodedName")
+                }
             )
         }
 

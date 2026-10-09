@@ -49,6 +49,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import de.letheapp.nocturn.data.db.JobMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -66,10 +67,14 @@ fun CalendarDayScreen(
     onBack: () -> Unit,
     onAddAppointment: (LocalDate) -> Unit,
     onAddShift: (LocalDate) -> Unit,
+    onOpenRotationEditor: (jobId: Long) -> Unit,
+    onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
     viewModel: CalendarDayViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsState()
+    val jobs by viewModel.jobs.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showRotationPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -122,7 +127,36 @@ fun CalendarDayScreen(
                 showAddDialog = false
                 onAddShift(viewModel.date)
             },
+            onPickRotation = {
+                showAddDialog = false
+                showRotationPicker = true
+            },
             onDismiss = { showAddDialog = false }
+        )
+    }
+
+    if (showRotationPicker) {
+        RotationEntryPickerDialog(
+            jobs = jobs,
+            onPickExistingJob = { job ->
+                showRotationPicker = false
+                if (job.mode == JobMode.STUDENT.name) {
+                    onOpenJobTimetable(job.id, job.name)
+                } else {
+                    onOpenRotationEditor(job.id)
+                }
+            },
+            onCreateJob = { name, mode ->
+                viewModel.createJob(name, mode) { jobId ->
+                    showRotationPicker = false
+                    if (mode == JobMode.STUDENT) {
+                        onOpenJobTimetable(jobId, name)
+                    } else {
+                        onOpenRotationEditor(jobId)
+                    }
+                }
+            },
+            onDismiss = { showRotationPicker = false }
         )
     }
 }
