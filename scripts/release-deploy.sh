@@ -9,15 +9,15 @@
 #   scripts/release-deploy.sh 1.2.3           # explizite Versionsnummer
 #
 # Voraussetzungen: GitHub-Token mit Repo-Zugriff unter /opt/githubtok3n.txt,
-# Schreibrechte auf /var/www/html/downloads/nocturn/.
+# Zugangsdaten zum Lethe-Hauptserver in .server-credentials (gitignored, siehe dort).
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GRADLE_FILE="$REPO_DIR/app/build.gradle.kts"
 TOKEN_FILE="/opt/githubtok3n.txt"
+CREDENTIALS_FILE="$REPO_DIR/.server-credentials"
 GH_REPO="thestealth131205/SmarterWecker"
-DEPLOY_DIR="/var/www/html/downloads/nocturn"
 WORKFLOW_FILE="build-apk.yml"
 POLL_INTERVAL=15
 POLL_TIMEOUT=1800   # 30 Minuten
@@ -28,6 +28,13 @@ die() { echo "[release-deploy] FEHLER: $*" >&2; exit 1; }
 [[ -f "$TOKEN_FILE" ]] || die "GitHub-Token nicht gefunden unter $TOKEN_FILE"
 GH_TOKEN="$(tr -d '[:space:]' < "$TOKEN_FILE")"
 [[ -n "$GH_TOKEN" ]] || die "GitHub-Token-Datei ist leer"
+
+[[ -f "$CREDENTIALS_FILE" ]] || die "Server-Zugangsdaten nicht gefunden unter $CREDENTIALS_FILE"
+# shellcheck source=/dev/null
+source "$CREDENTIALS_FILE"
+[[ -n "${MAIN_SERVER_IP:-}" && -n "${MAIN_SERVER_USER:-}" && -n "${MAIN_SERVER_PASSWORD:-}" && -n "${MAIN_SERVER_DEPLOY_DIR:-}" ]] \
+    || die "Server-Zugangsdaten in $CREDENTIALS_FILE unvollständig"
+command -v sshpass >/dev/null || die "sshpass ist nicht installiert"
 
 cd "$REPO_DIR"
 [[ -d .git ]] || die "$REPO_DIR ist kein Git-Repository"
@@ -173,17 +180,29 @@ HTTP_CODE="$(curl -sS -L -w '%{http_code}' -o "$TMP_APK" \
 [[ "$HTTP_CODE" == "200" ]] || die "APK-Download fehlgeschlagen (HTTP $HTTP_CODE)"
 [[ -s "$TMP_APK" ]] || die "Heruntergeladene APK ist leer"
 
-# ---------- 8. Auf dem Webserver deployen ----------
-mkdir -p "$DEPLOY_DIR"
-DEPLOY_PATH="$DEPLOY_DIR/NocTurn-${NEW_NAME}.apk"
-mv "$TMP_APK" "$DEPLOY_PATH"
-chmod 644 "$DEPLOY_PATH"
+# ---------- 8. Auf den Hauptserver hochladen ----------
+REMOTE_APK_NAME="NocTurn-${NEW_NAME}.apk"
+REMOTE_TMP_PATH="/tmp/${REMOTE_APK_NAME}"
+REMOTE_DEPLOY_PATH="${MAIN_SERVER_DEPLOY_DIR}/${REMOTE_APK_NAME}"
+COMMON_SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10)
+SSH_PORT_OPT=(-p "${MAIN_SERVER_PORT:-22}")
+SCP_PORT_OPT=(-P "${MAIN_SERVER_PORT:-22}")
 
+log "Lade APK zum Hauptserver hoch ($MAIN_SERVER_IP:$REMOTE_DEPLOY_PATH)..."
+sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" \
+    "$TMP_APK" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${REMOTE_TMP_PATH}" \
+    || die "scp-Upload zum Hauptserver fehlgeschlagen"
+rm -f "$TMP_APK"
+
+sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" bash -s <<REMOTE_SCRIPT || die "Deploy-Befehl auf dem Hauptserver fehlgeschlagen"
+set -euo pipefail
+mkdir -p "$MAIN_SERVER_DEPLOY_DIR"
+mv "$REMOTE_TMP_PATH" "$REMOTE_DEPLOY_PATH"
+chmod 644 "$REMOTE_DEPLOY_PATH"
 # Alte APKs aufräumen, die letzten 3 Versionen als Backup behalten
-mapfile -t OLD_APKS < <(ls -t "$DEPLOY_DIR"/*.apk 2>/dev/null | tail -n +4)
-for f in "${OLD_APKS[@]:-}"; do
-    [[ -n "$f" ]] && rm -f "$f"
-done
+cd "$MAIN_SERVER_DEPLOY_DIR"
+ls -t ./*.apk 2>/dev/null | tail -n +4 | xargs -r rm -f
+REMOTE_SCRIPT
 
-log "Fertig. APK deployed: $DEPLOY_PATH"
+log "Fertig. APK deployed: ${MAIN_SERVER_IP}:${REMOTE_DEPLOY_PATH}"
 log "Download-Seite: https://letheapp.de/nocturn.php"

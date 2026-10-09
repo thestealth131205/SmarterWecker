@@ -392,17 +392,24 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   (`build-apk.yml`) veröffentlicht bei Push auf `main`/`workflow_dispatch` zusätzlich ein
   echtes GitHub Release (Tag `v<versionName>-<run_number>`) mit der signierten APK als
   Anhang.
-- **Eigener Download-Bereich auf letheapp.de** (`/var/www/html/nocturn.php`, analog zur
-  bestehenden Lethe-Downloads-Seite): Vorstellung der Kernfunktionen + Download-Button für die
-  neueste APK, eigener Nav-Eintrag "NocTurn" in Header/Footer. Da `SmarterWecker` ein privates
-  Repo ist (anders als `Letheapp`), liest `getLatestNocturnApk()` in `includes/config.php` die
-  neueste Version nicht über die GitHub-Releases-API, sondern direkt aus dem lokal deployten
-  Ordner `downloads/nocturn/*.apk` (neuestes `filemtime`). Deploy-Automatisierung über
-  `scripts/release-deploy.sh` im SmarterWecker-Repo: erhöht versionCode/versionName, committet,
-  pusht, pollt den `build-apk.yml`-Run und das zugehörige GitHub Release über die REST-API
-  (Token aus `/opt/githubtok3n.txt`), lädt das APK-Asset herunter und legt es unter
-  `/var/www/html/downloads/nocturn/NocTurn-<version>.apk` ab (ältere Versionen werden bis auf die
-  letzten 3 aufgeräumt).
+- **Eigener Download-Bereich auf letheapp.de** (`nocturn.php` im DocumentRoot der echten
+  Lethe-Produktivseite auf dem Hauptserver `212.227.21.113`, **`/var/www/Lethe`** — nicht das
+  gleichnamige, aber ungenutzte `/var/www/letheapp.de`/`/var/www/html`, siehe
+  `/etc/apache2/sites-enabled/letheapp.de-le-ssl.conf`): Vorstellung der Kernfunktionen +
+  Download-Button für die neueste APK, eigener Nav-Eintrag "NocTurn" in `includes/header.php`
+  und `includes/footer.php` (inkl. `nav.nocturn`/`footer.nocturn` in `includes/lang/de.php` +
+  `en.php`), Download-Zähler über `download-track.php?type=nocturn_apk` (gleiches Muster wie
+  `messenger_apk`). Da `SmarterWecker` ein privates Repo ist (anders als `Letheapp`), liest
+  `getLatestNocturnApk()` in `includes/config.php` die neueste Version nicht über die
+  GitHub-Releases-API, sondern direkt aus dem lokal deployten Ordner
+  `/var/www/Lethe/downloads/nocturn/NocTurn-*.apk` (neuestes `filemtime`). Zugang zum
+  Hauptserver per `sshpass`/root-Passwort (siehe `/opt/letheapp/failover.sh` für das gleiche
+  Muster), kein SSH-Key hinterlegt.
+  **Offener Punkt:** `scripts/release-deploy.sh` im SmarterWecker-Repo lädt die signierte APK
+  nach dem GitHub-Actions-Build bisher nur nach `/var/www/html/downloads/nocturn/` auf diesem
+  Pi — das ist nicht der echte Download-Pfad. Damit ein Deploy-Lauf auch tatsächlich eine APK
+  auf `/var/www/Lethe/downloads/nocturn/` des Hauptservers legt, muss das Skript noch auf einen
+  `scp`/`sshpass`-Upload zum Hauptserver umgestellt werden.
 
 ## Wichtig
 

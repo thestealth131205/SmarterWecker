@@ -18,3 +18,6 @@ keystore/
 
 # macOS/Linux
 .DS_Store
+
+# Server-Zugangsdaten für das Deploy-Skript (siehe scripts/release-deploy.sh) — niemals ins Repo.
+.server-credentials
