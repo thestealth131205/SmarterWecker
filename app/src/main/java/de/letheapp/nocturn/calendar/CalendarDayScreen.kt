@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.JobMode
@@ -66,6 +68,7 @@ import java.util.Locale
 fun CalendarDayScreen(
     onBack: () -> Unit,
     onAddAppointment: (LocalDate) -> Unit,
+    onAddTask: (LocalDate) -> Unit,
     onAddShift: (LocalDate) -> Unit,
     onOpenRotationEditor: (jobId: Long) -> Unit,
     onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
@@ -102,6 +105,7 @@ fun CalendarDayScreen(
             }
         } else {
             val birthdayItems = items.filterIsInstance<BirthdayAgendaItem>()
+            val taskItems = items.filterIsInstance<TaskAgendaItem>()
             val allDayItems = items.filterIsInstance<AllDayAgendaItem>()
             val timedItems = items.filterIsInstance<TimedAgendaItem>().sortedBy { it.startMinuteOfDay }
 
@@ -111,6 +115,9 @@ fun CalendarDayScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(birthdayItems) { BirthdayCard(it) }
+                items(taskItems) { item ->
+                    TaskCard(item, onToggle = { completed -> viewModel.toggleTaskCompleted(item.taskId, completed) })
+                }
                 items(allDayItems) { AllDayCard(it) }
                 items(timedItems) { TimedCard(it) }
             }
@@ -122,6 +129,10 @@ fun CalendarDayScreen(
             onPickAppointment = {
                 showAddDialog = false
                 onAddAppointment(viewModel.date)
+            },
+            onPickTask = {
+                showAddDialog = false
+                onAddTask(viewModel.date)
             },
             onPickShift = {
                 showAddDialog = false
@@ -223,6 +234,32 @@ private fun ContactPhoto(photoUri: String?, fallbackColor: Color, modifier: Modi
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Filled.Cake, contentDescription = null, tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun TaskCard(item: TaskAgendaItem, onToggle: (Boolean) -> Unit) {
+    val accentColor = Color(item.colorArgb)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = accentColor.copy(alpha = 0.18f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(checked = item.completed, onCheckedChange = onToggle)
+            Column {
+                Text(
+                    item.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textDecoration = if (item.completed) TextDecoration.LineThrough else null
+                )
+                item.subtitle?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }

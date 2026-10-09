@@ -71,14 +71,15 @@ private fun ConnectForm(
     onConnect: (host: String, port: Int, useHttps: Boolean, username: String, password: String) -> Unit
 ) {
     var host by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("8087") }
-    var useHttps by remember { mutableStateOf(false) }
+    var port by remember { mutableStateOf("7443") }
+    var useHttps by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Text(
-        "Verbinde NocTurn mit dem ioBroker-Simple-API-Adapter (Standardport 8087) deines Smart-Homes. " +
-            "Beim Auslösen des Notfall-Alarms kann dann pro Wecker eine Lampe oder Steckdose automatisch eingeschaltet werden."
+        "Verbinde NocTurn mit dem \"iosync\"-ioBroker-Adapter (Standardport 7443, HTTPS mit " +
+            "selbstsigniertem Zertifikat) deines Smart-Homes. Beim Auslösen des Notfall-Alarms kann dann " +
+            "pro Wecker eine Lampe oder Steckdose automatisch eingeschaltet werden."
     )
     Spacer(modifier = Modifier.padding(top = 12.dp))
 
@@ -134,14 +135,14 @@ private fun ConnectForm(
                 modifier = Modifier.padding(top = 12.dp)
             )
             Button(
-                onClick = { onConnect(host, port.toIntOrNull() ?: 8087, useHttps, username, password) },
+                onClick = { onConnect(host, port.toIntOrNull() ?: 7443, useHttps, username, password) },
                 enabled = host.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) { Text("Erneut versuchen") }
         }
         is IoBrokerConnectState.Idle -> {
             Button(
-                onClick = { onConnect(host, port.toIntOrNull() ?: 8087, useHttps, username, password) },
+                onClick = { onConnect(host, port.toIntOrNull() ?: 7443, useHttps, username, password) },
                 enabled = host.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) { Text("Verbinden") }

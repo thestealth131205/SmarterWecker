@@ -571,3 +571,30 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   2 angezeigten Zeilen passen, und hängt sie als "(+N)" an statt sie separat aufzulisten.
 - Noch **nicht committet/gepusht** (Standing-Regel) — das GitHub-Secret selbst ist davon
   unabhängig bereits live im Repo-Einstellungen angelegt.
+
+## Ergänzung (2026-10-09, Lethe-Download-Bereich für NocTurn + Uhr-Widget-Tap-Zonen)
+
+- Vorherige Session wurde durch Session-Limit unterbrochen, nachdem `scripts/release-deploy.sh`
+  und der leere `/var/www/html/downloads/nocturn/`-Ordner bereits angelegt waren, aber die
+  eigentliche `nocturn.php`-Seite und die Verlinkung dorthin noch fehlten. In dieser Session
+  fertiggestellt:
+  - `includes/config.php`: neue `getLatestNocturnApk()` — anders als `getLatestApk()` (Lethe,
+    öffentliches Repo, GitHub-Releases-API) liest diese direkt aus dem lokalen
+    `downloads/nocturn/*.apk`-Ordner (neuestes `filemtime`), weil `SmarterWecker` ein **privates**
+    Repo ist und die GitHub-API dafür ohne Auth nichts liefern würde.
+  - `nocturn.php` neu angelegt (Hero + Feature-Grid + Installationsanleitung, gleiches
+    Seiten-Grundgerüst/CSS wie `downloads.php`), Nav-Eintrag "NocTurn" in `header.php`/
+    `footer.php` ergänzt.
+  - `/var/www/html` ist **kein Git-Repository** — Änderungen dort liegen nur lokal auf dem
+    Server, es gibt kein Push/Commit dafür (anders als bei den beiden App-Repos).
+- Uhr-Widget (`ClockWidgetProvider`/`widget_clock.xml`) bekam **drei statt einer** Tap-Zone:
+  Wetter-`TextView` aus der Zeile mit dem nächsten Alarm herausgelöst und als eigene, zentrierte
+  Zeile direkt unter der Uhrzeit platziert (visuell "zwischen Stunde und Minute" darunter).
+  Datum/Uhrzeit/Alarm-Zeile → öffnet Alarmliste; Wetter-Zeile → öffnet direkt den
+  Wetter-Detail-Dialog (neues `EXTRA_OPEN_WEATHER`, `AlarmListScreen` bekam dafür einen
+  `autoOpenWeather`-Parameter, der per `LaunchedEffect` den bestehenden Dialog-State setzt);
+  Agenda-Zeilen → öffnen die Kalender-Monatsansicht (`EXTRA_OPEN_CALENDAR`, bereits vorhanden).
+  Wichtiges Detail: `PendingIntent`-Gleichheit in Android ignoriert Extras und prüft nur
+  Action/Component/Daten — alle drei Klick-Ziele brauchen daher unterschiedliche
+  `requestCode`-Werte, sonst würde `FLAG_UPDATE_CURRENT` sie gegenseitig überschreiben.
+- Noch **nicht committet/gepusht** (Standing-Regel, gilt nur für die beiden App-Repos).

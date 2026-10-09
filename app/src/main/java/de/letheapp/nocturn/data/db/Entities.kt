@@ -260,19 +260,26 @@ data class HolidaySettingsEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val subdivisionCode: String,
     val subdivisionLabel: String,
-    val showPublicHolidays: Boolean = true,
-    val showSchoolHolidays: Boolean = true
+    /** Default aus: Anzeige ist ein bewusst zu aktivierendes Opt-in, nicht automatisch an. */
+    val showPublicHolidays: Boolean = false,
+    val showSchoolHolidays: Boolean = false
 )
 
 /**
  * Lokal gecachter Feiertag/Ferienzeitraum, von der kostenlosen, schlüssellosen
  * Schulferien-/Feiertage-API von schulferiendaten.de pro Bundesland und Jahr nachgeladen (siehe
  * [de.letheapp.nocturn.holidays.HolidayRepository]), damit der Kalender auch offline
- * funktioniert und nicht bei jedem Öffnen neu abgefragt werden muss.
+ * funktioniert und nicht bei jedem Öffnen neu abgefragt werden muss. Unique Index verhindert
+ * doppelte Einträge, falls [de.letheapp.nocturn.holidays.HolidayRepository.ensureYearLoaded]
+ * trotz Mutex-Absicherung einmal für dasselbe Bundesland/Jahr parallel aufgerufen wird.
  */
 @Entity(
     tableName = "holidays",
-    indices = [Index(value = ["subdivisionCode", "type", "startEpochDay"]), Index("endEpochDay")]
+    indices = [
+        Index(value = ["subdivisionCode", "type", "startEpochDay"]),
+        Index("endEpochDay"),
+        Index(value = ["subdivisionCode", "type", "startEpochDay", "endEpochDay", "name"], unique = true)
+    ]
 )
 data class HolidayEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -336,6 +343,24 @@ data class SyncedEventEntity(
     val etag: String,
     /** Einfacher Inhalts-Hash (nur bei Schichten genutzt), um unveränderte Events nicht erneut hochzuladen. */
     val contentHash: Int = 0
+)
+
+/**
+ * Eine Aufgabe (Task) im Kalender — anders als ein [AppointmentEntity] nicht zeitgebunden, sondern
+ * ein abhakbarer To-Do-Eintrag mit Fälligkeitstag, angelehnt an Google Tasks (siehe Nutzer-
+ * Referenzbild: Titel, Ganztägig/Frist-Uhrzeit, Details). [dueEpochMillis] ist nur gesetzt, wenn
+ * [allDay] false ist (konkrete Fälligkeits-Uhrzeit statt nur -tag).
+ */
+@Entity(tableName = "tasks")
+data class TaskEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val notes: String = "",
+    val dueEpochDay: Long,
+    val dueEpochMillis: Long? = null,
+    val allDay: Boolean = true,
+    val completed: Boolean = false,
+    val colorArgb: Int
 )
 
 /**

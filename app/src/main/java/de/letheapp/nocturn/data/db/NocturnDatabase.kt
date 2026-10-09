@@ -18,9 +18,10 @@ import androidx.room.RoomDatabase
         ManualShiftEntryEntity::class,
         HolidaySettingsEntity::class,
         HolidayEntity::class,
-        IoBrokerAccountEntity::class
+        IoBrokerAccountEntity::class,
+        TaskEntity::class
     ],
-    version = 8,
+    version = 10,
     exportSchema = false
 )
 abstract class NocturnDatabase : RoomDatabase() {
@@ -37,4 +38,5 @@ abstract class NocturnDatabase : RoomDatabase() {
     abstract fun holidaySettingsDao(): HolidaySettingsDao
     abstract fun holidayDao(): HolidayDao
     abstract fun ioBrokerAccountDao(): IoBrokerAccountDao
+    abstract fun taskDao(): TaskDao
 }

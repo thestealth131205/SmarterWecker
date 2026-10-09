@@ -1,13 +1,14 @@
 package de.letheapp.nocturn.sync
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -60,7 +61,13 @@ fun NextcloudSyncScreen(onBack: () -> Unit, viewModel: NextcloudSyncViewModel = 
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxWidth().padding(padding).padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
             val currentAccount = account
             if (currentAccount == null) {
                 ConnectForm(
@@ -97,9 +104,13 @@ private fun ConnectForm(
     var selectedCalendar by remember { mutableStateOf<CalDavCalendarInfo?>(null) }
 
     Text(
-        "Verbinde NocTurn mit deinem Nextcloud-Kalender. Freie Termine werden in beide " +
-            "Richtungen abgeglichen, deine Schichten werden zusätzlich einseitig (NocTurn -> " +
-            "Nextcloud) als Termine exportiert."
+        "Verbinde NocTurn mit deinem Nextcloud-Kalender. Beim ersten Verbinden werden alle " +
+            "bereits in Nextcloud vorhandenen Termine einmalig nach NocTurn übernommen. Danach " +
+            "läuft der Abgleich automatisch alle 4 Stunden im Hintergrund weiter in beide " +
+            "Richtungen: neue/geänderte Termine aus Nextcloud werden übernommen, neue/geänderte " +
+            "Termine aus NocTurn hochgeladen — bereits abgeglichene Einträge werden dabei erkannt " +
+            "und nicht doppelt angelegt. Deine Schichten werden zusätzlich einseitig " +
+            "(NocTurn -> Nextcloud) als Termine exportiert."
     )
     Spacer(modifier = Modifier.padding(top = 12.dp))
 
@@ -154,8 +165,8 @@ private fun ConnectForm(
 
         is DiscoveryState.Success -> {
             Text("Kalender wählen:", modifier = Modifier.padding(bottom = 8.dp))
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(state.calendars) { calendar ->
+            Column(modifier = Modifier.fillMaxWidth()) {
+                state.calendars.forEach { calendar ->
                     ListItem(
                         headlineContent = { Text(calendar.displayName) },
                         leadingContent = {
@@ -164,7 +175,7 @@ private fun ConnectForm(
                                 onClick = { selectedCalendar = calendar }
                             )
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().clickable { selectedCalendar = calendar }
                     )
                 }
             }
@@ -212,6 +223,13 @@ private fun ConnectedStatus(
             account.lastSyncError?.let { error ->
                 Text("Letzter Fehler: $error", color = MaterialTheme.colorScheme.error)
             }
+            Text(
+                "Läuft automatisch alle 4 Stunden im Hintergrund weiter (beide Richtungen, " +
+                    "bereits bekannte Einträge werden erkannt und nicht doppelt angelegt).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 

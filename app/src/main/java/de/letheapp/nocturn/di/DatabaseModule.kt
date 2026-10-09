@@ -21,6 +21,7 @@ import de.letheapp.nocturn.data.db.NocturnDatabase
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.SyncedEventDao
+import de.letheapp.nocturn.data.db.TaskDao
 import javax.inject.Singleton
 
 @Module
@@ -74,4 +75,7 @@ object DatabaseModule {
 
     @Provides
     fun provideIoBrokerAccountDao(db: NocturnDatabase): IoBrokerAccountDao = db.ioBrokerAccountDao()
+
+    @Provides
+    fun provideTaskDao(db: NocturnDatabase): TaskDao = db.taskDao()
 }

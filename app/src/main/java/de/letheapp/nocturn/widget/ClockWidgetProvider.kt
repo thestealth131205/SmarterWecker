@@ -10,6 +10,8 @@ import android.content.Intent
 import android.view.View
 import android.widget.RemoteViews
 import dagger.hilt.android.AndroidEntryPoint
+import de.letheapp.nocturn.EXTRA_OPEN_CALENDAR
+import de.letheapp.nocturn.EXTRA_OPEN_WEATHER
 import de.letheapp.nocturn.MainActivity
 import de.letheapp.nocturn.R
 import de.letheapp.nocturn.data.repository.AgendaEntry
@@ -130,13 +132,38 @@ class ClockWidgetProvider : AppWidgetProvider() {
 
         applyAgenda(views, agenda)
 
-        val openAppIntent = Intent(context, MainActivity::class.java)
-        val openAppPendingIntent = PendingIntent.getActivity(
-            context, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_clock_root, openAppPendingIntent)
+        // Drei getrennte Tap-Zonen: Uhrzeit/Datum/nächster Alarm -> Wecker, Wetter -> Wetter-Screen,
+        // Termin-Agenda -> Kalender. Jede braucht eine eigene Request-Code-Nummer, da PendingIntent-
+        // Gleichheit nur über Action/Component/Daten geprüft wird, nicht über die Extras - mit
+        // identischem Request-Code würden sich die drei Intents gegenseitig überschreiben.
+        val openWeckerPendingIntent = activityPendingIntent(context, requestCode = 1) {}
+        val openWeatherPendingIntent = activityPendingIntent(context, requestCode = 2) {
+            putExtra(EXTRA_OPEN_WEATHER, true)
+        }
+        val openCalendarPendingIntent = activityPendingIntent(context, requestCode = 3) {
+            putExtra(EXTRA_OPEN_CALENDAR, true)
+        }
+
+        views.setOnClickPendingIntent(R.id.widget_clock_date, openWeckerPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_time, openWeckerPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_next_alarm_row, openWeckerPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_root, openWeckerPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_weather, openWeatherPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_agenda_row1, openCalendarPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_agenda_row2, openCalendarPendingIntent)
 
         appWidgetManager.updateAppWidget(widgetId, views)
+    }
+
+    private fun activityPendingIntent(
+        context: Context,
+        requestCode: Int,
+        putExtras: Intent.() -> Unit
+    ): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply(putExtras)
+        return PendingIntent.getActivity(
+            context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun applyAgenda(views: RemoteViews, agenda: WidgetAgenda) {

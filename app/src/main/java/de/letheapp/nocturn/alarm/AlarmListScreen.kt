@@ -22,7 +22,9 @@ import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.weather.WeatherDetailDialog
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,14 +67,31 @@ fun AlarmListScreen(
     onOpenPermissions: () -> Unit,
     onOpenHealthConnectStatus: () -> Unit,
     onOpenIoBrokerSettings: () -> Unit,
+    onOpenSettings: () -> Unit,
+    autoOpenWeather: Boolean = false,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
+    val weatherEnabled by viewModel.weatherEnabled.collectAsState()
+    val weather by viewModel.weather.collectAsState()
+    val weatherLoading by viewModel.weatherLoading.collectAsState()
     var showTimePicker by remember { mutableStateOf(false) }
     var showWeekdayPicker by remember { mutableStateOf(false) }
     var pendingHour by remember { mutableIntStateOf(0) }
     var pendingMinute by remember { mutableIntStateOf(0) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showWeatherDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(weatherEnabled) {
+        if (weatherEnabled) viewModel.loadWeather()
+    }
+
+    LaunchedEffect(autoOpenWeather, weatherEnabled) {
+        if (autoOpenWeather && weatherEnabled) {
+            showWeatherDialog = true
+            viewModel.loadWeather()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -82,6 +103,19 @@ fun AlarmListScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
+                    if (weatherEnabled) {
+                        IconButton(onClick = {
+                            showWeatherDialog = true
+                            viewModel.loadWeather()
+                        }) {
+                            val currentWeather = weather
+                            if (currentWeather != null) {
+                                Text(currentWeather.emoji, style = MaterialTheme.typography.titleLarge)
+                            } else {
+                                Icon(Icons.Filled.WbSunny, contentDescription = "Wetter")
+                            }
+                        }
+                    }
                     IconButton(onClick = onOpenCalendarMonth) {
                         Icon(Icons.Filled.CalendarViewMonth, contentDescription = "Kalender")
                     }
@@ -111,6 +145,14 @@ fun AlarmListScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenIoBrokerSettings()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Einstellungen") },
+                            leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenSettings()
                             }
                         )
                     }
@@ -173,6 +215,14 @@ fun AlarmListScreen(
                 showWeekdayPicker = false
             },
             onDismiss = { showWeekdayPicker = false }
+        )
+    }
+
+    if (showWeatherDialog) {
+        WeatherDetailDialog(
+            weather = weather,
+            isLoading = weatherLoading,
+            onDismiss = { showWeatherDialog = false }
         )
     }
 }

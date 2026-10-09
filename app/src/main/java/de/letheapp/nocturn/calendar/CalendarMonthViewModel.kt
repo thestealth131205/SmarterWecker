@@ -73,6 +73,16 @@ data class BirthdayDayEntry(
     override val label: String get() = "🎂 $contactName"
 }
 
+/** Eine Aufgabe (Task) — abhakbarer To-Do-Eintrag statt eines zeitgebundenen Termins. */
+data class TaskDayEntry(
+    val taskId: Long,
+    val title: String,
+    val completed: Boolean,
+    override val colorArgb: Int
+) : CalendarDayEntry {
+    override val label: String get() = if (completed) "✓ $title" else title
+}
+
 const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
 const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
 const val BIRTHDAY_COLOR_ARGB = 0xFF8E24AA.toInt()
@@ -110,7 +120,7 @@ class CalendarMonthViewModel @Inject constructor(
         combine(_month, holidaySettings) { month, settings -> month to settings }
             .flatMapLatest { (month, settings) ->
                 val fromEpochDay = monthGridStart(month).toEpochDay()
-                val toEpochDay = fromEpochDay + 7 * 6 - 1
+                val toEpochDay = fromEpochDay + 7 * monthGridWeeks(month) - 1
 
                 val shiftAndAppointmentFlow = combine(
                     calendarRepository.observeCalendarEntries(fromEpochDay, toEpochDay),
@@ -198,8 +208,20 @@ class CalendarMonthViewModel @Inject constructor(
                     }
                 }
 
-                combine(shiftAndAppointmentFlow, manualShiftFlow, holidayFlow, birthdayFlow) { a, b, c, d ->
-                    (a + b + c + d).groupBy({ it.first }, { it.second })
+                val taskFlow = calendarRepository.observeTasks(fromEpochDay, toEpochDay).map { tasks ->
+                    tasks.map { task ->
+                        LocalDate.ofEpochDay(task.dueEpochDay) to
+                            (TaskDayEntry(
+                                taskId = task.id,
+                                title = task.title,
+                                completed = task.completed,
+                                colorArgb = task.colorArgb
+                            ) as CalendarDayEntry)
+                    }
+                }
+
+                combine(shiftAndAppointmentFlow, manualShiftFlow, holidayFlow, birthdayFlow, taskFlow) { a, b, c, d, e ->
+                    (a + b + c + d + e).groupBy({ it.first }, { it.second })
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())

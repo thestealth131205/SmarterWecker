@@ -12,6 +12,7 @@ import de.letheapp.nocturn.data.db.HolidayType
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.db.ShiftEntity
+import de.letheapp.nocturn.data.db.TaskEntity
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,15 @@ data class BirthdayAgendaItem(
     override val title: String,
     override val subtitle: String?,
     val photoUri: String?,
+    override val colorArgb: Int
+) : DayAgendaItem
+
+/** Eine Aufgabe (Task) — abhakbar statt zeitlich verortet, siehe [CalendarDayViewModel.toggleTaskCompleted]. */
+data class TaskAgendaItem(
+    val taskId: Long,
+    override val title: String,
+    override val subtitle: String?,
+    val completed: Boolean,
     override val colorArgb: Int
 ) : DayAgendaItem
 
@@ -139,8 +149,17 @@ class CalendarDayViewModel @Inject constructor(
             birthdays.map { (_, birthday) -> birthdayToItem(birthday) }
         }
 
-        combine(shiftFlow, appointmentFlow, holidayFlow, birthdayFlow) { a, b, c, d -> a + b + c + d }
+        val taskFlow = calendarRepository.observeTasks(epochDay, epochDay).map { tasks ->
+            tasks.map(::taskToItem)
+        }
+
+        combine(shiftFlow, appointmentFlow, holidayFlow, birthdayFlow, taskFlow) { a, b, c, d, e -> a + b + c + d + e }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Hakt eine Aufgabe ab oder macht das rückgängig (Checkbox in [CalendarDayScreen]). */
+    fun toggleTaskCompleted(taskId: Long, completed: Boolean) {
+        viewModelScope.launch { calendarRepository.setTaskCompleted(taskId, completed) }
+    }
 
     private fun shiftToItem(shift: ShiftEntity, jobName: String): DayAgendaItem {
         val start = shift.startHour * 60 + shift.startMinute
@@ -182,6 +201,14 @@ class CalendarDayViewModel @Inject constructor(
             colorArgb = BIRTHDAY_COLOR_ARGB
         )
     }
+
+    private fun taskToItem(task: TaskEntity): DayAgendaItem = TaskAgendaItem(
+        taskId = task.id,
+        title = task.title,
+        subtitle = task.notes.ifBlank { null },
+        completed = task.completed,
+        colorArgb = task.colorArgb
+    )
 
     private fun holidayToItem(holiday: HolidayEntity): DayAgendaItem {
         val isSchool = holiday.type == HolidayType.SCHOOL.name

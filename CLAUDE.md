@@ -108,6 +108,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - **Freie Termine**: eigenständige Termine (z. B. Kinoticket, Arzttermin) unabhängig
      von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht, mit Titel,
      Ort, Notiz und wählbarer **Wichtigkeit** (Niedrig/Normal/Hoch).
+   - **Aufgaben (Tasks)**: dritter Eintragstyp neben Termin/Schicht im "+"-Dialog, angelehnt
+     an Google Tasks — anders als ein Termin kein fester Zeitraum, sondern ein abhakbarer
+     To-Do-Eintrag mit Titel, Details, Fälligkeitstag und optionaler Frist-Uhrzeit
+     (Ganztägig-Umschalter wie beim Termin-Formular). Grüner Eintragstyp in der
+     Monatsansicht; in der Tagesansicht eigene Karte mit Checkbox zum Abhaken — ist eine
+     Aufgabe erledigt, erscheint der Titel durchgestrichen, bleibt aber bis zum manuellen
+     Löschen im Kalender sichtbar.
    - **Geburtstage aus Geräte-Kontakten**: Geburtstage der im Gerät gespeicherten Kontakte
      werden automatisch (jährlich wiederkehrend) als eigener Eintragstyp im Kalender
      angezeigt — in der Monatsansicht als farbiger Punkt (lila) plus Name mit Torten-Emoji,
@@ -123,12 +130,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      eingetragene Schicht (Job + Schicht wählen) ergänzt die automatisch aus Rotationen
      fortgeschriebenen Einträge, ohne sie zu ersetzen.
    - **Ferien & gesetzliche Feiertage**: über einen eigenen Einstellungs-Screen (3-Punkte-
-     Menü der Alarmliste) wird ein Bundesland gewählt; Feiertage und Schulferien werden
-     optional (je einzeln togglebar) farbig in der Monatsansicht angezeigt. Datenquelle:
-     kostenlose, schlüssellose **Schulferien-/Feiertage-API von schulferiendaten.de** —
-     liefert sowohl Feiertage als auch Schulferien pro Bundesland für 2025–2030; verlangt
-     laut Nutzungsbedingungen eine sichtbare Quellenangabe mit Link (siehe Button im
-     Einstellungs-Screen). Ergebnisse werden pro Bundesland/Jahr lokal gecacht.
+     Menü der Kalender-Monatsansicht) wird ein Bundesland gewählt; Feiertage und Schulferien
+     werden optional (je einzeln togglebar, **standardmäßig beide deaktiviert**, bewusstes
+     Opt-in) farbig in der Monatsansicht angezeigt (rot = Feiertag, grün = Ferien, gleiche
+     Farbe wie der Punkt in der Seitenleisten-Legende). Datenquelle: kostenlose, schlüssellose
+     **Schulferien-/Feiertage-API von schulferiendaten.de** — liefert sowohl Feiertage als
+     auch Schulferien pro Bundesland für 2025–2030; verlangt laut Nutzungsbedingungen eine
+     sichtbare Quellenangabe mit Link (siehe Button im Einstellungs-Screen). Ergebnisse werden
+     pro Bundesland/Jahr lokal gecacht, Einfügen über `HolidayDao.insertAll` ist
+     `OnConflictStrategy.IGNORE` + ein Unique-Index auf (Bundesland, Typ, Start, Ende, Name)
+     gegen doppelte Zeilen abgesichert, und `HolidayRepository.ensureYearLoaded` läuft hinter
+     einem Mutex — ohne beides konnten zwei fast gleichzeitige Nachlade-Trigger (Speichern im
+     Einstellungs-Screen + reaktive Settings-Änderung in der Monatsansicht) denselben
+     Jahresbestand doppelt einfügen.
    - **System-Registrierung als Kalender-Ziel für "Zum Kalender hinzufügen"**: NocTurn
      bietet sich über einen Manifest-Intent-Filter (`ACTION_INSERT`/`ACTION_EDIT` auf
      `CalendarContract.Events`) im Android-Auswahlmenü an, wenn eine Fremd-App (z. B.
@@ -165,16 +179,38 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Berechtigung `ACCESS_COARSE_LOCATION`) statt der proprietären Google-Play-Services-
      Standort-Lib, passend zur FOSS-Minimalismus-Leitlinie. 30 Minuten lokal gecacht, damit der
      minütliche Uhr-Tick nicht bei jedem Update einen Netzwerk-Request auslöst.
+   - **Manuelle Ortswahl im Einstellungen-Screen**: statt zwingend der automatischen
+     `LocationManager`-Position kann der Nutzer im Einstellungen-Screen über ein Suchfeld
+     einen festen Ort wählen — Live-Vorschläge während der Eingabe über die
+     OpenWeatherMap-Geocoding-API (`/geo/1.0/direct`, derselbe API-Key, kein zusätzliches Abo).
+     Ein gewählter Ort hat Vorrang vor der GPS-Ermittlung; ein eigener Button setzt wieder auf
+     die automatische Positionserkennung zurück. Der Wetter-Cache wird bei jedem Ortswechsel
+     sofort gelöscht, damit die Anzeige nicht noch den alten Ort zeigt.
+   - **Wetter ist ein bewusstes Opt-in über einen eigenen Einstellungen-Screen** (3-Punkte-Menü
+     der Alarmliste → "Einstellungen", standardmäßig **aus**): ist es aktiviert, erscheint oben
+     in der Titelleiste der Alarmliste ein Wettersymbol; Antippen öffnet eine Detailansicht mit
+     allem, was der kostenlose OpenWeatherMap-"Current Weather Data"-Endpoint hergibt (Temperatur,
+     gefühlte Temperatur, Tageshöchst-/-tiefstwert, Beschreibung, Luftfeuchtigkeit, Wind,
+     Luftdruck, Sonnenauf-/-untergang) — bewusst ohne Stundenvorhersage, Wetterkarte, Luftqualität
+     oder Pollenwerte, da die dafür nötigen OpenWeatherMap-Endpoints (One Call, Air Pollution)
+     ein kostenpflichtiges Abo erfordern. Ist Wetter deaktiviert, bleibt das Symbol ausgeblendet
+     und es wird kein Netzwerk-Request ausgelöst; derselbe Schalter steuert auch, ob das
+     Uhr-Widget die Temperatur anzeigt (siehe unten).
    - Uhr-Widget-Layout (siehe Referenzbild): transparent über dem Homescreen-Hintergrund,
      von oben nach unten vertikal zentriert gestapelt:
      1. Datum klein/hell (z. B. "Do., 8. Okt.")
      2. Uhrzeit sehr groß (z. B. "00:29")
-     3. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47") + Wetter daneben
-        (z. B. "☀ 14°")
-     4. darunter schmal die nächsten 2 anstehenden Kalendereinträge (Schichten + freie
+     3. Wetter (z. B. "☀ 14°") direkt darunter zentriert, auf Höhe der Mitte zwischen Stunde
+        und Minute
+     4. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47")
+     5. darunter schmal die nächsten 2 anstehenden Kalendereinträge (Schichten + freie
         Termine), je Zeile ein farbiger Punkt passend zur Schicht-/Termin-Farbe; stehen am Tag
         des zuletzt gezeigten Eintrags noch weitere an, wird das als "(+N)" angehängt statt
         sie einzeln aufzulisten.
+     - **Drei getrennte Tap-Zonen** statt einem einzigen Klick-Ziel fürs ganze Widget: Tippen auf
+       Datum/Uhrzeit/nächsten-Alarm öffnet die Alarmliste (Wecker), Tippen auf das Wetter öffnet
+       direkt den Wetter-Detail-Screen (`EXTRA_OPEN_WEATHER`, analog zu `EXTRA_OPEN_CALENDAR`),
+       Tippen auf die Agenda-Zeilen öffnet direkt die Kalender-Monatsansicht.
    - Kalender-/Termine-Widget: Agenda-Ansicht der nächsten anstehenden Einträge
      (Schichten aus Rotationen + freie Termine), je Zeile farbiger Punkt passend zur
      Schicht-/Termin-Farbe, Tag/Uhrzeit und Bezeichnung. Tippen öffnet die App direkt in
@@ -356,6 +392,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   (`build-apk.yml`) veröffentlicht bei Push auf `main`/`workflow_dispatch` zusätzlich ein
   echtes GitHub Release (Tag `v<versionName>-<run_number>`) mit der signierten APK als
   Anhang.
+- **Eigener Download-Bereich auf letheapp.de** (`/var/www/html/nocturn.php`, analog zur
+  bestehenden Lethe-Downloads-Seite): Vorstellung der Kernfunktionen + Download-Button für die
+  neueste APK, eigener Nav-Eintrag "NocTurn" in Header/Footer. Da `SmarterWecker` ein privates
+  Repo ist (anders als `Letheapp`), liest `getLatestNocturnApk()` in `includes/config.php` die
+  neueste Version nicht über die GitHub-Releases-API, sondern direkt aus dem lokal deployten
+  Ordner `downloads/nocturn/*.apk` (neuestes `filemtime`). Deploy-Automatisierung über
+  `scripts/release-deploy.sh` im SmarterWecker-Repo: erhöht versionCode/versionName, committet,
+  pusht, pollt den `build-apk.yml`-Run und das zugehörige GitHub Release über die REST-API
+  (Token aus `/opt/githubtok3n.txt`), lädt das APK-Asset herunter und legt es unter
+  `/var/www/html/downloads/nocturn/NocTurn-<version>.apk` ab (ältere Versionen werden bis auf die
+  letzten 3 aufgeräumt).
 
 ## Wichtig
 
@@ -368,3 +415,5 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   (inkl. Dokumentation in CLAUDE.md/PLAN.md/memory.md), aber `git commit`/`git push`
   erst ausführen, wenn der Nutzer das explizit in der jeweiligen Anfrage sagt — nicht
   automatisch nach jeder Implementierung wie bisher üblich.
+- **Immer auf Deutsch antworten**: Alle Chat-Antworten in diesem Projekt auf Deutsch
+  verfassen, unabhängig von der Sprache der Anfrage.

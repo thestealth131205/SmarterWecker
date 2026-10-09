@@ -9,6 +9,9 @@ import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import de.letheapp.nocturn.onboarding.AppPreferences
+import de.letheapp.nocturn.weather.DetailedWeather
+import de.letheapp.nocturn.weather.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,11 +37,31 @@ class AlarmListViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
     private val calendarRepository: CalendarRepository,
-    private val ioBrokerRepository: IoBrokerRepository
+    private val ioBrokerRepository: IoBrokerRepository,
+    private val weatherRepository: WeatherRepository,
+    appPreferences: AppPreferences
 ) : ViewModel() {
 
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val weatherEnabled: StateFlow<Boolean> = appPreferences.weatherEnabled
+
+    private val _weather = MutableStateFlow<DetailedWeather?>(null)
+    val weather: StateFlow<DetailedWeather?> = _weather
+
+    private val _weatherLoading = MutableStateFlow(false)
+    val weatherLoading: StateFlow<Boolean> = _weatherLoading
+
+    /** Vom Topbar-Wettersymbol aufgerufen; greift bei gültigem Cache (30 Min.) ohne Netzwerk-Request. */
+    fun loadWeather() {
+        if (!weatherEnabled.value) return
+        viewModelScope.launch {
+            _weatherLoading.value = true
+            _weather.value = weatherRepository.currentWeather()
+            _weatherLoading.value = false
+        }
+    }
 
     val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
         .map { it != null }

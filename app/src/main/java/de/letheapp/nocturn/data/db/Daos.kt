@@ -3,6 +3,7 @@ package de.letheapp.nocturn.data.db
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -185,6 +186,24 @@ interface AppointmentDao {
 }
 
 @Dao
+interface TaskDao {
+    @Query("SELECT * FROM tasks WHERE dueEpochDay BETWEEN :fromEpochDay AND :toEpochDay ORDER BY completed, dueEpochMillis")
+    fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    suspend fun getById(id: Long): TaskEntity?
+
+    @Insert
+    suspend fun insert(task: TaskEntity): Long
+
+    @Update
+    suspend fun update(task: TaskEntity)
+
+    @Delete
+    suspend fun delete(task: TaskEntity)
+}
+
+@Dao
 interface ManualShiftEntryDao {
     @Query("SELECT * FROM manual_shift_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<ManualShiftEntryEntity>>
@@ -213,7 +232,7 @@ interface HolidaySettingsDao {
 
 @Dao
 interface HolidayDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(holidays: List<HolidayEntity>)
 
     @Query(

@@ -7,7 +7,6 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,10 +17,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,7 +40,7 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,8 +85,7 @@ import java.util.Locale
 
 private val WEEKDAY_HEADERS = listOf("M", "D", "M", "D", "F", "S", "S")
 private const val MAX_ENTRIES_PER_DAY = 3
-private const val GRID_WEEKS = 6
-private val DAY_CELL_MIN_HEIGHT = 64.dp
+private val DAY_CELL_MIN_HEIGHT = 48.dp
 private const val SWIPE_THRESHOLD_PX = 120f
 private const val LETHE_PACKAGE_NAME = "com.Lethe.app"
 
@@ -105,6 +101,7 @@ fun CalendarMonthScreen(
     onBack: () -> Unit,
     onAddAppointment: (LocalDate) -> Unit,
     onAddShift: (LocalDate) -> Unit,
+    onAddTask: (LocalDate) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onOpenExport: () -> Unit,
     onOpenCalendarTemplates: () -> Unit,
@@ -289,7 +286,7 @@ fun CalendarMonthScreen(
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = { showAddDialog = true }) {
+                SmallFloatingActionButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
                 }
             }
@@ -339,18 +336,14 @@ fun CalendarMonthScreen(
 
                 val gridStart = monthGridStart(month)
                 val today = LocalDate.now()
-                val gridScrollState = rememberScrollState()
+                val gridWeeks = monthGridWeeks(month)
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(gridScrollState)
-                ) {
-                    for (week in 0 until GRID_WEEKS) {
+                Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    for (week in 0 until gridWeeks) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(IntrinsicSize.Min)
+                                .weight(1f)
                         ) {
                             for (dayOfWeekIndex in 0 until 7) {
                                 val date = gridStart.plusDays((week * 7 + dayOfWeekIndex).toLong())
@@ -386,6 +379,10 @@ fun CalendarMonthScreen(
                 onPickAppointment = {
                     showAddDialog = false
                     onAddAppointment(selectedDay ?: LocalDate.now())
+                },
+                onPickTask = {
+                    showAddDialog = false
+                    onAddTask(selectedDay ?: LocalDate.now())
                 },
                 onPickShift = {
                     showAddDialog = false
@@ -495,6 +492,7 @@ private fun HolidayLegendRow(color: Color, label: String) {
 @Composable
 internal fun AddEntryTypeDialog(
     onPickAppointment: () -> Unit,
+    onPickTask: () -> Unit,
     onPickShift: () -> Unit,
     onPickRotation: () -> Unit,
     onDismiss: () -> Unit
@@ -511,6 +509,9 @@ internal fun AddEntryTypeDialog(
                 )
                 TextButton(onClick = onPickAppointment, modifier = Modifier.fillMaxWidth()) {
                     Text("Termin", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                }
+                TextButton(onClick = onPickTask, modifier = Modifier.fillMaxWidth()) {
+                    Text("Aufgabe", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
                 }
                 TextButton(onClick = onPickShift, modifier = Modifier.fillMaxWidth()) {
                     Text("Schicht", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
@@ -614,6 +615,18 @@ internal fun monthGridStart(month: YearMonth): LocalDate {
     val firstOfMonth = month.atDay(1)
     val leadingBlanks = firstOfMonth.dayOfWeek.value - 1
     return firstOfMonth.minusDays(leadingBlanks.toLong())
+}
+
+/**
+ * Anzahl der darzustellenden Wochenreihen: so viele, bis der Monat komplett sichtbar ist,
+ * plus eine zusätzliche Reihe, die garantiert nur aus Folgemonats-Tagen besteht (Platz für
+ * den "+"-Button ohne wichtige Inhalte zu verdecken).
+ */
+internal fun monthGridWeeks(month: YearMonth): Int {
+    val leadingBlanks = month.atDay(1).dayOfWeek.value - 1
+    val totalCells = leadingBlanks + month.lengthOfMonth()
+    val weeksToShowMonth = (totalCells + 6) / 7
+    return weeksToShowMonth + 1
 }
 
 @Composable

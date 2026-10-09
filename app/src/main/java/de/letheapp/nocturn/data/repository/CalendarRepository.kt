@@ -17,6 +17,8 @@ import de.letheapp.nocturn.data.db.RotationDayEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.ShiftEntity
+import de.letheapp.nocturn.data.db.TaskDao
+import de.letheapp.nocturn.data.db.TaskEntity
 import de.letheapp.nocturn.calendar.AppointmentReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -40,13 +42,17 @@ class CalendarRepository @Inject constructor(
     private val lessonDao: LessonDao,
     private val appointmentDao: AppointmentDao,
     private val manualShiftEntryDao: ManualShiftEntryDao,
-    private val appointmentReminderScheduler: AppointmentReminderScheduler
+    private val appointmentReminderScheduler: AppointmentReminderScheduler,
+    private val taskDao: TaskDao
 ) {
     companion object {
         const val FORECAST_YEARS = 5
 
         /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
         const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFF7043.toInt()
+
+        /** Standardfarbe für Aufgaben (Grün, angelehnt an Google Tasks), unabhängig vom Theme. */
+        const val DEFAULT_TASK_COLOR_ARGB = 0xFF33B679.toInt()
 
         /** Zeitfenster, in dem das Kalender-Widget nach anstehenden Einträgen sucht. */
         private const val AGENDA_LOOKAHEAD_DAYS = 14L
@@ -248,6 +254,35 @@ class CalendarRepository @Inject constructor(
         appointmentReminderScheduler.cancel(appointment.id)
         appointmentDao.delete(appointment)
     }
+
+    // Aufgaben (Tasks)
+
+    fun observeTasks(fromEpochDay: Long, toEpochDay: Long): Flow<List<TaskEntity>> =
+        taskDao.observeRange(fromEpochDay, toEpochDay)
+
+    suspend fun addTask(
+        title: String,
+        notes: String,
+        dueEpochDay: Long,
+        dueEpochMillis: Long?,
+        allDay: Boolean
+    ): Long = taskDao.insert(
+        TaskEntity(
+            title = title,
+            notes = notes,
+            dueEpochDay = dueEpochDay,
+            dueEpochMillis = dueEpochMillis,
+            allDay = allDay,
+            colorArgb = DEFAULT_TASK_COLOR_ARGB
+        )
+    )
+
+    suspend fun setTaskCompleted(taskId: Long, completed: Boolean) {
+        val task = taskDao.getById(taskId) ?: return
+        taskDao.update(task.copy(completed = completed))
+    }
+
+    suspend fun deleteTask(task: TaskEntity) = taskDao.delete(task)
 
     // Manuell eingetragene Einzel-Schichten (siehe CalendarMonthScreen-FAB, Option "Schicht")
 

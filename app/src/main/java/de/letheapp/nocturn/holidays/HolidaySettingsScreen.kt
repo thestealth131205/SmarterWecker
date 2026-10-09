@@ -49,8 +49,8 @@ fun HolidaySettingsScreen(onBack: () -> Unit, viewModel: HolidaySettingsViewMode
     var selectedState by remember(settings) {
         mutableStateOf(settings?.subdivisionCode?.let(GermanState::fromCode) ?: GermanState.NORDRHEIN_WESTFALEN)
     }
-    var showPublic by remember(settings) { mutableStateOf(settings?.showPublicHolidays ?: true) }
-    var showSchool by remember(settings) { mutableStateOf(settings?.showSchoolHolidays ?: true) }
+    var showPublic by remember(settings) { mutableStateOf(settings?.showPublicHolidays ?: false) }
+    var showSchool by remember(settings) { mutableStateOf(settings?.showSchoolHolidays ?: false) }
     var menuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
