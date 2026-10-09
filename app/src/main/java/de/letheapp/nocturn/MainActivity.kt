@@ -32,6 +32,7 @@ import de.letheapp.nocturn.settings.SettingsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
 import de.letheapp.nocturn.sync.NextcloudSyncScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
+import de.letheapp.nocturn.weather.WeatherScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.time.LocalDate
@@ -57,6 +58,7 @@ private const val ROUTE_IOBROKER_SETTINGS = "ioBrokerSettings"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
 private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
+private const val ROUTE_WEATHER = "weather"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 /** Von Widgets (siehe `widget`-Package) genutzt, um nach dem Start direkt die Monatsansicht zu öffnen. */
@@ -78,14 +80,14 @@ class MainActivity : ComponentActivity() {
         val startDestination = when {
             !appPreferences.isOnboardingCompleted() -> "permissions/true"
             openCalendar -> ROUTE_CALENDAR_MONTH
+            openWeather -> ROUTE_WEATHER
             else -> ROUTE_ALARM_LIST
         }
         setContent {
             NocTurnTheme {
                 NocturnNavHost(
                     startDestination = startDestination,
-                    appPreferences = appPreferences,
-                    autoOpenWeather = openWeather
+                    appPreferences = appPreferences
                 )
             }
         }
@@ -95,8 +97,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun NocturnNavHost(
     startDestination: String,
-    appPreferences: AppPreferences,
-    autoOpenWeather: Boolean = false
+    appPreferences: AppPreferences
 ) {
     val navController = rememberNavController()
 
@@ -109,8 +110,12 @@ private fun NocturnNavHost(
                 onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) },
                 onOpenIoBrokerSettings = { navController.navigate(ROUTE_IOBROKER_SETTINGS) },
                 onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                autoOpenWeather = autoOpenWeather
+                onOpenWeather = { navController.navigate(ROUTE_WEATHER) }
             )
+        }
+
+        composable(ROUTE_WEATHER) {
+            WeatherScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_IOBROKER_SETTINGS) {

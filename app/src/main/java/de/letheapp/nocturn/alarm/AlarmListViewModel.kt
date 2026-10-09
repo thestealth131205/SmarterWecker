@@ -50,16 +50,11 @@ class AlarmListViewModel @Inject constructor(
     private val _weather = MutableStateFlow<DetailedWeather?>(null)
     val weather: StateFlow<DetailedWeather?> = _weather
 
-    private val _weatherLoading = MutableStateFlow(false)
-    val weatherLoading: StateFlow<Boolean> = _weatherLoading
-
-    /** Vom Topbar-Wettersymbol aufgerufen; greift bei gültigem Cache (30 Min.) ohne Netzwerk-Request. */
+    /** Lädt das Wetter-Emoji fürs Topbar-Symbol; greift bei gültigem Cache (30 Min.) ohne Netzwerk-Request. */
     fun loadWeather() {
         if (!weatherEnabled.value) return
         viewModelScope.launch {
-            _weatherLoading.value = true
             _weather.value = weatherRepository.currentWeather()
-            _weatherLoading.value = false
         }
     }
 

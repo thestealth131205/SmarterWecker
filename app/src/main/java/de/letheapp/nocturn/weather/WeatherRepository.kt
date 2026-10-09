@@ -22,11 +22,11 @@ import javax.inject.Singleton
 
 /**
  * Aktuelles Wetter, wie es die OpenWeatherMap-"Current Weather Data"-API liefert (kostenloser
- * Tarif, keine separate One-Call-Subscription nötig) — genutzt sowohl fürs Topbar-Wettersymbol
- * (Detailansicht) als auch fürs Uhr-Widget (nur [temperatureCelsius]/[emoji]).
+ * Tarif, keine separate One-Call-Subscription nötig) — genutzt sowohl im Wetter-Screen
+ * (aktuelle Bedingungen) als auch fürs Uhr-Widget (nur [temperatureCelsius]/[emoji]).
  * [tempMinCelsius]/[tempMaxCelsius] sind dabei die von OpenWeatherMap in diesem Endpoint
- * gelieferten aktuellen Schwankungswerte, keine echte Tagesvorhersage (die bräuchte den
- * kostenpflichtigen One-Call-Endpoint).
+ * gelieferten aktuellen Schwankungswerte, keine echte Tagesvorhersage (siehe [DailyForecast]
+ * dafür).
  */
 data class DetailedWeather(
     val cityName: String,
@@ -43,6 +43,16 @@ data class DetailedWeather(
     val sunsetEpochMillis: Long
 )
 
+/** Ein Tag der 8-Tage-Vorhersage (OpenWeatherMap One Call 3.0, siehe [WeatherRepository.dailyForecast]). */
+data class DailyForecast(
+    val dateEpochMillis: Long,
+    val minCelsius: Int,
+    val maxCelsius: Int,
+    val emoji: String,
+    val description: String,
+    val precipitationProbabilityPercent: Int
+)
+
 /** Ein Treffer der OpenWeatherMap-Geocoding-API, zur Auswahl als manueller Wetter-Ort. */
 data class GeoSuggestion(
     val displayName: String,
@@ -51,6 +61,7 @@ data class GeoSuggestion(
 )
 
 private const val CACHE_VALIDITY_MS = 30 * 60 * 1000L
+private const val FORECAST_CACHE_VALIDITY_MS = 60 * 60 * 1000L
 
 /**
  * Minimaler OpenWeatherMap-Client (CLAUDE.md Kernfunktion 7), mit OkHttp + Androids
@@ -62,6 +73,14 @@ private const val CACHE_VALIDITY_MS = 30 * 60 * 1000L
  * jedem Update einen Netzwerk-Request auslöst. Die Wetteranzeige selbst ist über
  * [AppPreferences.isWeatherEnabled] ein bewusstes Opt-in (Einstellungen-Screen) — ist sie aus,
  * liefert [currentWeather] immer `null`, ohne überhaupt einen Request abzusetzen.
+ *
+ * Die 8-Tage-Vorhersage ([dailyForecast]) braucht den OpenWeatherMap-"One Call API 3.0"-
+ * Endpoint (`/data/3.0/onecall`) — der aktuelle "Current Weather Data"-Endpoint liefert nur
+ * Momentanwerte, keine echte Tagesvorhersage. One Call 3.0 ist zwar im kostenlosen Kontingent
+ * enthalten (1.000 Abrufe/Tag), verlangt aber auf openweathermap.org unter "My API keys" /
+ * "Billing plans" einmalig eine Abo-Aktivierung mit Zahlungsmethode (wird nicht belastet,
+ * solange das Kontingent nicht überschritten wird) — ohne diese Aktivierung liefert der
+ * Endpoint `401`. Das ist eine einmalige Aktion im OpenWeatherMap-Konto, kein App-Code.
  */
 @Singleton
 class WeatherRepository @Inject constructor(
@@ -85,6 +104,21 @@ class WeatherRepository @Inject constructor(
             return@withContext cached
         }
         fetchFromApi() ?: cached
+    }
+
+    /**
+     * 8-Tage-Vorhersage (heute + 7 Tage) über OpenWeatherMap One Call 3.0, siehe Klassen-
+     * Dokumentation zur nötigen einmaligen Abo-Aktivierung im OpenWeatherMap-Konto.
+     */
+    suspend fun dailyForecast(): List<DailyForecast>? = withContext(Dispatchers.IO) {
+        if (!appPreferences.isWeatherEnabled()) return@withContext null
+
+        val cachedAt = cachePrefs.getLong(KEY_FORECAST_CACHED_AT, 0L)
+        val cached = readForecastCache()
+        if (cached != null && System.currentTimeMillis() - cachedAt < FORECAST_CACHE_VALIDITY_MS) {
+            return@withContext cached
+        }
+        fetchForecastFromApi() ?: cached
     }
 
     /** Löscht den Wetter-Cache, z. B. nachdem der Nutzer einen anderen Ort gewählt hat. */
@@ -139,6 +173,40 @@ class WeatherRepository @Inject constructor(
                 parseWeather(JSONObject(body))?.also(::writeCache)
             }
         }.getOrNull()
+    }
+
+    private fun fetchForecastFromApi(): List<DailyForecast>? {
+        val apiKey = BuildConfig.OPENWEATHER_API_KEY
+        if (apiKey.isBlank()) return null
+        val location = resolvedLocation() ?: return null
+
+        return runCatching {
+            val url = "https://api.openweathermap.org/data/3.0/onecall?" +
+                "lat=${location.latitude}&lon=${location.longitude}&appid=$apiKey&units=metric&lang=de" +
+                "&exclude=current,minutely,hourly,alerts"
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                val daily = JSONObject(body).optJSONArray("daily") ?: return@use null
+                (0 until daily.length()).take(8)
+                    .map { index -> parseDailyForecast(daily.getJSONObject(index)) }
+                    .also(::writeForecastCache)
+            }
+        }.getOrNull()
+    }
+
+    private fun parseDailyForecast(obj: JSONObject): DailyForecast {
+        val temp = obj.getJSONObject("temp")
+        val weather = obj.getJSONArray("weather").getJSONObject(0)
+        return DailyForecast(
+            dateEpochMillis = obj.getLong("dt") * 1000L,
+            minCelsius = temp.getDouble("min").toInt(),
+            maxCelsius = temp.getDouble("max").toInt(),
+            emoji = emojiForConditionId(weather.getInt("id")),
+            description = weather.optString("description", "").replaceFirstChar { it.uppercase() },
+            precipitationProbabilityPercent = (obj.optDouble("pop", 0.0) * 100).toInt()
+        )
     }
 
     private fun parseWeather(obj: JSONObject): DetailedWeather {
@@ -226,6 +294,43 @@ class WeatherRepository @Inject constructor(
             .apply()
     }
 
+    private fun readForecastCache(): List<DailyForecast>? {
+        val json = cachePrefs.getString(KEY_FORECAST_DATA, null) ?: return null
+        return runCatching {
+            val array = JSONArray(json)
+            (0 until array.length()).map { index ->
+                val obj = array.getJSONObject(index)
+                DailyForecast(
+                    dateEpochMillis = obj.getLong("date"),
+                    minCelsius = obj.getInt("min"),
+                    maxCelsius = obj.getInt("max"),
+                    emoji = obj.getString("emoji"),
+                    description = obj.getString("description"),
+                    precipitationProbabilityPercent = obj.getInt("pop")
+                )
+            }
+        }.getOrNull()
+    }
+
+    private fun writeForecastCache(forecast: List<DailyForecast>) {
+        val array = JSONArray()
+        forecast.forEach { day ->
+            array.put(
+                JSONObject()
+                    .put("date", day.dateEpochMillis)
+                    .put("min", day.minCelsius)
+                    .put("max", day.maxCelsius)
+                    .put("emoji", day.emoji)
+                    .put("description", day.description)
+                    .put("pop", day.precipitationProbabilityPercent)
+            )
+        }
+        cachePrefs.edit()
+            .putString(KEY_FORECAST_DATA, array.toString())
+            .putLong(KEY_FORECAST_CACHED_AT, System.currentTimeMillis())
+            .apply()
+    }
+
     /** https://openweathermap.org/weather-conditions */
     private fun emojiForConditionId(id: Int): String = when {
         id in 200..232 -> "⛈"
@@ -253,5 +358,7 @@ class WeatherRepository @Inject constructor(
         const val KEY_SUNRISE = "sunrise"
         const val KEY_SUNSET = "sunset"
         const val KEY_CACHED_AT = "cached_at"
+        const val KEY_FORECAST_DATA = "forecast_data"
+        const val KEY_FORECAST_CACHED_AT = "forecast_cached_at"
     }
 }

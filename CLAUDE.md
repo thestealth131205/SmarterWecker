@@ -188,14 +188,21 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      sofort gelöscht, damit die Anzeige nicht noch den alten Ort zeigt.
    - **Wetter ist ein bewusstes Opt-in über einen eigenen Einstellungen-Screen** (3-Punkte-Menü
      der Alarmliste → "Einstellungen", standardmäßig **aus**): ist es aktiviert, erscheint oben
-     in der Titelleiste der Alarmliste ein Wettersymbol; Antippen öffnet eine Detailansicht mit
-     allem, was der kostenlose OpenWeatherMap-"Current Weather Data"-Endpoint hergibt (Temperatur,
-     gefühlte Temperatur, Tageshöchst-/-tiefstwert, Beschreibung, Luftfeuchtigkeit, Wind,
-     Luftdruck, Sonnenauf-/-untergang) — bewusst ohne Stundenvorhersage, Wetterkarte, Luftqualität
-     oder Pollenwerte, da die dafür nötigen OpenWeatherMap-Endpoints (One Call, Air Pollution)
-     ein kostenpflichtiges Abo erfordern. Ist Wetter deaktiviert, bleibt das Symbol ausgeblendet
-     und es wird kein Netzwerk-Request ausgelöst; derselbe Schalter steuert auch, ob das
-     Uhr-Widget die Temperatur anzeigt (siehe unten).
+     in der Titelleiste der Alarmliste ein Wettersymbol; Antippen öffnet einen eigenen, vollen
+     **Wetter-Screen** (kein Dialog) mit allem, was der kostenlose OpenWeatherMap-"Current
+     Weather Data"-Endpoint hergibt (Temperatur, gefühlte Temperatur, Tageshöchst-/-tiefstwert,
+     Beschreibung, Luftfeuchtigkeit, Wind, Luftdruck, Sonnenauf-/-untergang), darunter eine
+     **8-Tage-Vorhersage** (heute + 7 Tage: Min/Max-Temperatur, Symbol, Beschreibung,
+     Niederschlagswahrscheinlichkeit) über den OpenWeatherMap-"One Call API 3.0"-Endpoint.
+     One Call 3.0 ist im kostenlosen Kontingent enthalten (1.000 Abrufe/Tag), verlangt aber auf
+     openweathermap.org einmalig eine Abo-Aktivierung mit Zahlungsmethode (keine Belastung
+     innerhalb des Kontingents) — ohne diese Aktivierung bleibt die 8-Tage-Vorhersage leer,
+     während aktuelles Wetter/Uhr-Widget (reiner "Current Weather Data"-Endpoint) unberührt
+     weiterlaufen. Bewusst weiterhin ohne Wetterkarte, Luftqualität oder Pollenwerte (eigene,
+     hier nicht benötigte Endpoints). Ist Wetter deaktiviert, bleibt das Symbol ausgeblendet und
+     es wird kein Netzwerk-Request ausgelöst; derselbe Schalter steuert auch, ob das Uhr-Widget
+     die Temperatur anzeigt (siehe unten). Tippen auf die Wetter-Tap-Zone des Uhr-Widgets öffnet
+     den Wetter-Screen direkt als Startziel der App (`EXTRA_OPEN_WEATHER`).
    - Uhr-Widget-Layout (siehe Referenzbild): transparent über dem Homescreen-Hintergrund,
      von oben nach unten vertikal zentriert gestapelt:
      1. Datum klein/hell (z. B. "Do., 8. Okt.")
@@ -327,9 +334,12 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   (`/opt/lethe/backend`) — nur als Vermittlung/Relay, keine zentrale Kalenderdatenhaltung.
 - Wecker-UI: Alarmliste, Zifferblatt-Zeitpicker und Weckton-Auswahl-Screen (Tabs)
   orientieren sich an der Google-Uhr-App, siehe Kernfunktion 9.
-- Wetterdaten: OpenWeatherMap API (One Call / Current Weather), API-Key-Handling analog
-  Iosync-Projekt (`/opt/Iosync`): Key aus `local.properties` lokal, aus GitHub-Secret
-  `OPENWEATHER_API_KEY` im CI, Einbindung als `BuildConfig`-Feld — niemals im Repo.
+- Wetterdaten: OpenWeatherMap "Current Weather Data" (aktuelles Wetter, Topbar-Symbol +
+  Uhr-Widget) sowie "One Call API 3.0" (8-Tage-Vorhersage im Wetter-Screen, `/data/3.0/onecall`,
+  braucht einmalige Abo-Aktivierung mit Zahlungsmethode im OpenWeatherMap-Konto, siehe
+  `WeatherRepository`-Doc-Kommentar), API-Key-Handling analog Iosync-Projekt (`/opt/Iosync`):
+  Key aus `local.properties` lokal, aus GitHub-Secret `OPENWEATHER_API_KEY` im CI, Einbindung
+  als `BuildConfig`-Feld — niemals im Repo.
 - Foto-Import/OCR (Kernfunktion 5): Texterkennung on-device über **Tesseract4Android**
   (Apache-2.0), final gewählt gemäß FOSS-Leitlinie gegenüber Googles closed-source ML Kit.
   Wird nicht auf Maven Central, sondern nur über **JitPack** veröffentlicht (Repository in
