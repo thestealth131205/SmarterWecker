@@ -4,17 +4,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -33,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,9 +52,12 @@ fun AlarmEditScreen(
 ) {
     val alarms by viewModel.alarms.collectAsState()
     val rotationOptions by viewModel.rotationOptions.collectAsState()
+    val ioBrokerConnected by viewModel.ioBrokerConnected.collectAsState()
+    val ioBrokerDataPoints by viewModel.ioBrokerDataPoints.collectAsState()
     var alarm by remember { mutableStateOf<AlarmEntity?>(null) }
     var showRotationDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showLampDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(alarms) {
         if (alarm == null) {
@@ -162,6 +171,24 @@ fun AlarmEditScreen(
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clickable {
+                        viewModel.refreshIoBrokerDataPoints()
+                        showLampDialog = true
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Lightbulb, contentDescription = null)
+                Text(
+                    text = current.lampDataPointLabel?.let { "Lampe bei Notfall-Alarm: $it" }
+                        ?: "Keine Lampe/Steckdose bei Notfall-Alarm",
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
         }
     }
 
@@ -189,6 +216,77 @@ fun AlarmEditScreen(
             onDismiss = { showRotationDialog = false }
         )
     }
+
+    if (showLampDialog) {
+        LampDataPointDialog(
+            connected = ioBrokerConnected,
+            dataPoints = ioBrokerDataPoints,
+            selectedId = current.lampDataPointId,
+            onSelect = { dataPoint ->
+                alarm = current.copy(lampDataPointId = dataPoint?.id, lampDataPointLabel = dataPoint?.name)
+                showLampDialog = false
+            },
+            onDismiss = { showLampDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun LampDataPointDialog(
+    connected: Boolean,
+    dataPoints: List<IoBrokerDataPoint>,
+    selectedId: String?,
+    onSelect: (IoBrokerDataPoint?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var search by remember { mutableStateOf("") }
+    val filtered = if (search.isBlank()) dataPoints else dataPoints.filter {
+        it.name.contains(search, ignoreCase = true) || it.id.contains(search, ignoreCase = true)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Lampe/Steckdose bei Notfall-Alarm") },
+        text = {
+            Column {
+                if (!connected) {
+                    Text(
+                        "Noch kein ioBroker-Server verbunden. Unter dem 3-Punkte-Menü \"Smart-Home " +
+                            "(ioBroker)\" zuerst eine Verbindung einrichten."
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = search,
+                        onValueChange = { search = it },
+                        label = { Text("Suche") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    TextButton(onClick = { onSelect(null) }) {
+                        Text(if (selectedId == null) "✓ Keine Verknüpfung" else "Keine Verknüpfung")
+                    }
+                    if (filtered.isEmpty()) {
+                        Text("Keine Datenpunkte gefunden", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                            items(filtered) { dataPoint ->
+                                ListItem(
+                                    headlineContent = {
+                                        Text(if (dataPoint.id == selectedId) "✓ ${dataPoint.name}" else dataPoint.name)
+                                    },
+                                    supportingContent = { Text(dataPoint.id, style = MaterialTheme.typography.labelSmall) },
+                                    modifier = Modifier.fillMaxWidth().clickable { onSelect(dataPoint) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fertig") }
+        }
+    )
 }
 
 @Composable

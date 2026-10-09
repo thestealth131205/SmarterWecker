@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -207,6 +208,19 @@ fun PermissionsScreen(
                             onRequest = { healthConnectLauncher.launch(setOf(READ_STEPS_PERMISSION)) }
                         )
                     }
+                }
+                item {
+                    PermissionRow(
+                        icon = Icons.Filled.LocationOn,
+                        title = "Standort (ungefähr)",
+                        explanation = "Für die Wetteranzeige im Uhr-Homescreen-Widget. Es wird nur " +
+                            "die letzte bekannte, ungefähre Position genutzt, keine aktive GPS-Ortung.",
+                        granted = remember(refreshKey) {
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                        },
+                        onRequest = { runtimePermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)) }
+                    )
                 }
                 item {
                     PermissionRow(

@@ -270,3 +270,21 @@ interface SyncedEventDao {
     @Query("DELETE FROM synced_events WHERE accountId = :accountId")
     suspend fun deleteAllForAccount(accountId: Long)
 }
+
+@Dao
+interface IoBrokerAccountDao {
+    @Query("SELECT * FROM iobroker_accounts LIMIT 1")
+    fun observeAccount(): Flow<IoBrokerAccountEntity?>
+
+    @Query("SELECT * FROM iobroker_accounts LIMIT 1")
+    suspend fun getAccountOnce(): IoBrokerAccountEntity?
+
+    @Insert
+    suspend fun insert(account: IoBrokerAccountEntity): Long
+
+    @Update
+    suspend fun update(account: IoBrokerAccountEntity)
+
+    @Delete
+    suspend fun delete(account: IoBrokerAccountEntity)
+}

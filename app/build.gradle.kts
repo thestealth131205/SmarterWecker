@@ -34,8 +34,14 @@ android {
         // + Gradle 9 + Kotlin 2.2/KSP2 (API 37/Android 17) — bewusst (noch) nicht gemacht.
         minSdk = 33
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
+
+        // OpenWeatherMap-Key-Handling analog zum Iosync-Projekt: lokal aus local.properties,
+        // im CI aus dem GitHub-Secret OPENWEATHER_API_KEY als gleichnamige Umgebungsvariable.
+        val owmKey = localProperties.getProperty("OPENWEATHER_API_KEY", "")
+        val apiKey = System.getenv("OPENWEATHER_API_KEY") ?: owmKey
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"$apiKey\"")
     }
 
     signingConfigs {
@@ -69,6 +75,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

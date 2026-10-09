@@ -14,6 +14,8 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
+import de.letheapp.nocturn.data.repository.AlarmRepository
+import de.letheapp.nocturn.iobroker.IoBrokerRepository
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -39,6 +41,8 @@ private const val ESCALATION_STEP_MILLIS = 30_000L
 class EmergencyAlarmService : Service() {
 
     @Inject lateinit var soundRepository: SoundRepository
+    @Inject lateinit var alarmRepository: AlarmRepository
+    @Inject lateinit var ioBrokerRepository: IoBrokerRepository
 
     private val scope = CoroutineScope(SupervisorJob())
     private var escalationJob: Job? = null
@@ -66,8 +70,17 @@ class EmergencyAlarmService : Service() {
             acquireWakeLock()
             playSound()
             startEscalation()
+            turnOnLampIfConfigured()
         }
         return START_STICKY
+    }
+
+    /** Schaltet die diesem Alarm zugeordnete ioBroker-Lampe/Steckdose ein (siehe CLAUDE.md "Smart-Home-Kopplung"). */
+    private fun turnOnLampIfConfigured() {
+        scope.launch {
+            val dataPointId = alarmRepository.getById(alarmId)?.lampDataPointId ?: return@launch
+            ioBrokerRepository.turnOn(dataPointId)
+        }
     }
 
     private fun playSound() {

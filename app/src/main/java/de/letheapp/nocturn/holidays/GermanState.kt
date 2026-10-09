@@ -1,6 +1,10 @@
 package de.letheapp.nocturn.holidays
 
-/** Die 16 deutschen Bundesländer mit ihrem ISO-3166-2-Subdivision-Code, wie ihn die OpenHolidaysAPI erwartet. */
+/**
+ * Die 16 deutschen Bundesländer mit ihrem ISO-3166-2-Subdivision-Code — dient als lokaler
+ * Cache-Schlüssel in [de.letheapp.nocturn.data.db.HolidayEntity]; [HolidaysApi] leitet daraus
+ * den zweistelligen Kleinbuchstaben-Code ab, den die schulferiendaten.de-API erwartet.
+ */
 enum class GermanState(val subdivisionCode: String, val displayName: String) {
     BADEN_WUERTTEMBERG("DE-BW", "Baden-Württemberg"),
     BAYERN("DE-BY", "Bayern"),

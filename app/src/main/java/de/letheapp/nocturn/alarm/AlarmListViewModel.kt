@@ -7,9 +7,13 @@ import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
+import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
+import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,11 +33,27 @@ data class RotationOption(
 class AlarmListViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
-    private val calendarRepository: CalendarRepository
+    private val calendarRepository: CalendarRepository,
+    private val ioBrokerRepository: IoBrokerRepository
 ) : ViewModel() {
 
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _ioBrokerDataPoints = MutableStateFlow<List<IoBrokerDataPoint>>(emptyList())
+    val ioBrokerDataPoints: StateFlow<List<IoBrokerDataPoint>> = _ioBrokerDataPoints
+
+    /** Lädt die verfügbaren ioBroker-Datenpunkte neu (z. B. beim Öffnen des Lampen-Auswahl-Dialogs). */
+    fun refreshIoBrokerDataPoints() {
+        viewModelScope.launch {
+            ioBrokerRepository.fetchDataPoints()
+                .onSuccess { _ioBrokerDataPoints.value = it }
+        }
+    }
 
     val rotationOptions: StateFlow<List<RotationOption>> = combine(
         calendarRepository.observeAllRotations(),

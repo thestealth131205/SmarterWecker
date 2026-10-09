@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shield
@@ -61,6 +62,7 @@ fun AlarmListScreen(
     onOpenCalendarMonth: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenHealthConnectStatus: () -> Unit,
+    onOpenIoBrokerSettings: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -101,6 +103,14 @@ fun AlarmListScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenPermissions()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Smart-Home (ioBroker)") },
+                            leadingIcon = { Icon(Icons.Filled.Lightbulb, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenIoBrokerSettings()
                             }
                         )
                     }

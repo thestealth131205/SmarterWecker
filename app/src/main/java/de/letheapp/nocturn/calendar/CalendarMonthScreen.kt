@@ -7,18 +7,20 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -66,19 +68,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 
-private val WEEKDAY_HEADERS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
-private const val MAX_DOTS_PER_DAY = 4
-private val DAY_CELL_MIN_HEIGHT = 92.dp
+private val WEEKDAY_HEADERS = listOf("M", "D", "M", "D", "F", "S", "S")
+private const val MAX_ENTRIES_PER_DAY = 3
+private const val GRID_WEEKS = 6
+private val DAY_CELL_MIN_HEIGHT = 64.dp
 private const val SWIPE_THRESHOLD_PX = 120f
+private const val LETHE_PACKAGE_NAME = "com.Lethe.app"
 
 /**
  * Übersichtliche Monatsansicht: ein Punkt pro Schicht/Termin am jeweiligen Tag (max. 4, Rest
@@ -123,7 +129,20 @@ fun CalendarMonthScreen(
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Kalender teilen"))
+        // Lethe (letheapp.de) ist der Inhaber-Messenger dieses Ökosystems und soll beim
+        // Kalender-Teilen bevorzugt angeboten werden statt nur alphabetisch irgendwo in der
+        // Android-Liste zu stehen – daher als pinned "Direct Share"-Vorschlag vor den
+        // restigen Apps, sofern installiert.
+        val letheIntent = Intent(intent).setPackage(LETHE_PACKAGE_NAME)
+        val letheInstalled = context.packageManager
+            .queryIntentActivities(letheIntent, 0)
+            .isNotEmpty()
+        val chooser = Intent.createChooser(intent, "Kalender teilen").apply {
+            if (letheInstalled) {
+                putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(letheIntent))
+            }
+        }
+        context.startActivity(chooser)
         viewModel.consumeShareFile()
     }
 
@@ -307,40 +326,45 @@ fun CalendarMonthScreen(
                     }
                 }
 
-                val firstOfMonth = month.atDay(1)
-                val leadingBlanks = firstOfMonth.dayOfWeek.value - 1
-                val daysInMonth = month.lengthOfMonth()
+                val gridStart = monthGridStart(month)
                 val today = LocalDate.now()
+                val gridScrollState = rememberScrollState()
 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(7),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(gridScrollState)
                 ) {
-                    items(leadingBlanks) {
-                        Box(modifier = Modifier.heightIn(min = DAY_CELL_MIN_HEIGHT))
-                    }
-
-                    items(daysInMonth) { index ->
-                        val date = firstOfMonth.plusDays(index.toLong())
-                        DayCell(
-                            date = date,
-                            isToday = date == today,
-                            isSelected = date == selectedDay,
-                            entries = entriesByDay[date].orEmpty(),
-                            onClick = {
-                                val rotation = pendingRotation
-                                if (rotation != null) {
-                                    durationDialogFor = rotation to date
-                                    pendingRotation = null
-                                } else {
-                                    selectedDay = date
-                                    if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
-                                }
+                    for (week in 0 until GRID_WEEKS) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min)
+                        ) {
+                            for (dayOfWeekIndex in 0 until 7) {
+                                val date = gridStart.plusDays((week * 7 + dayOfWeekIndex).toLong())
+                                DayCell(
+                                    date = date,
+                                    isCurrentMonth = YearMonth.from(date) == month,
+                                    isWeekend = dayOfWeekIndex >= 5,
+                                    isToday = date == today,
+                                    isSelected = date == selectedDay,
+                                    entries = entriesByDay[date].orEmpty(),
+                                    onClick = {
+                                        val rotation = pendingRotation
+                                        if (rotation != null) {
+                                            durationDialogFor = rotation to date
+                                            pendingRotation = null
+                                        } else {
+                                            selectedDay = date
+                                            if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                )
                             }
-                        )
+                        }
+                        Divider()
                     }
                 }
             }
@@ -443,72 +467,87 @@ internal fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -
     )
 }
 
-@Composable
-private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entries: List<CalendarDayEntry>, onClick: () -> Unit) {
-    val hasPublicHoliday = entries.any { it is HolidayDayEntry && !it.isSchoolHoliday }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = DAY_CELL_MIN_HEIGHT)
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .background(
-                    when {
-                        isToday -> MaterialTheme.colorScheme.primary
-                        hasPublicHoliday -> Color(PUBLIC_HOLIDAY_COLOR_ARGB)
-                        else -> Color.Transparent
-                    },
-                    CircleShape
-                )
-                .then(
-                    if (isSelected && !isToday) {
-                        Modifier.border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                    } else {
-                        Modifier
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = date.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isToday || hasPublicHoliday) Color.White else MaterialTheme.colorScheme.onSurface
-            )
-        }
+/** Montag der ersten in der Monatsansicht sichtbaren Woche (inkl. Vormonats-Resttage). */
+internal fun monthGridStart(month: YearMonth): LocalDate {
+    val firstOfMonth = month.atDay(1)
+    val leadingBlanks = firstOfMonth.dayOfWeek.value - 1
+    return firstOfMonth.minusDays(leadingBlanks.toLong())
+}
 
-        Row(
-            modifier = Modifier.padding(top = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            entries.take(MAX_DOTS_PER_DAY).forEach { entry ->
+@Composable
+private fun DayCell(
+    date: LocalDate,
+    isCurrentMonth: Boolean,
+    isWeekend: Boolean,
+    isToday: Boolean,
+    isSelected: Boolean,
+    entries: List<CalendarDayEntry>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val hasPublicHoliday = entries.any { it is HolidayDayEntry && !it.isSchoolHoliday }
+    val contentAlpha = if (isCurrentMonth) 1f else 0.35f
+    val weekendTint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = if (isCurrentMonth) 0.55f else 0.2f)
+
+    Column(
+        modifier = modifier
+            .heightIn(min = DAY_CELL_MIN_HEIGHT)
+            .background(
+                color = when {
+                    isToday -> MaterialTheme.colorScheme.surfaceVariant
+                    isWeekend -> weekendTint
+                    else -> Color.Transparent
+                },
+                shape = RoundedCornerShape(6.dp)
+            )
+            .then(
+                if (isSelected && !isToday) {
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                } else {
+                    Modifier
+                }
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = date.dayOfMonth.toString(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+            color = (if (hasPublicHoliday && isCurrentMonth) Color(PUBLIC_HOLIDAY_COLOR_ARGB) else MaterialTheme.colorScheme.onSurface)
+                .copy(alpha = if (hasPublicHoliday && isCurrentMonth) 1f else contentAlpha),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Column(modifier = Modifier.padding(top = 3.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            entries.take(MAX_ENTRIES_PER_DAY).forEach { entry ->
                 Box(
                     modifier = Modifier
-                        .size(7.dp)
-                        .background(Color(entry.colorArgb), CircleShape)
-                )
+                        .fillMaxWidth()
+                        .background(Color(entry.colorArgb).copy(alpha = contentAlpha), RoundedCornerShape(4.dp))
+                ) {
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = contentAlpha),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp, horizontal = 2.dp)
+                    )
+                }
             }
-            if (entries.size > MAX_DOTS_PER_DAY) {
+            if (entries.size > MAX_ENTRIES_PER_DAY) {
                 Text(
-                    text = "+${entries.size - MAX_DOTS_PER_DAY}",
-                    style = MaterialTheme.typography.labelSmall
+                    text = "+${entries.size - MAX_ENTRIES_PER_DAY}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
                 )
             }
-        }
-
-        if (entries.isNotEmpty()) {
-            Text(
-                text = entries.first().label,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = 2.dp, end = 2.dp)
-            )
         }
     }
 }

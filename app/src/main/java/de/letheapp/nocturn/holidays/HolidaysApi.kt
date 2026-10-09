@@ -4,23 +4,21 @@ import de.letheapp.nocturn.data.db.HolidayEntity
 import de.letheapp.nocturn.data.db.HolidayType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
-import org.json.JSONObject
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Minimaler Client für die kostenlose, schlüssellose OpenHolidaysAPI (openholidaysapi.org,
- * ODbL-Lizenz) — liefert sowohl gesetzliche Feiertage als auch Schulferien pro Bundesland,
- * daher hier statt z. B. feiertage-api.de verwendet (siehe CLAUDE.md Kernfunktion 6,
- * "Ferien, gesetzliche Feiertage"). Bewusst mit OkHttp + Androids eingebautem `org.json` statt
- * Retrofit/Moshi umgesetzt, passend zur FOSS-Minimalismus-Leitlinie (keine neue Abhängigkeit
- * für zwei einfache GET-Endpunkte).
+ * Minimaler Client für die kostenlose, schlüssellose Schulferien-/Feiertage-API von
+ * schulferiendaten.de — liefert sowohl gesetzliche Feiertage als auch Schulferien pro
+ * Bundesland für die Jahre 2025–2030 (siehe CLAUDE.md Kernfunktion 6, "Ferien, gesetzliche
+ * Feiertage"). Bewusst mit OkHttp + Androids eingebautem `org.json` statt Retrofit/Moshi
+ * umgesetzt, passend zur FOSS-Minimalismus-Leitlinie. Die Nutzungsbedingungen verlangen eine
+ * sichtbare Quellenangabe mit Link zu schulferiendaten.de (siehe [HolidaySettingsScreen]).
  */
 @Singleton
 class HolidaysApi @Inject constructor() {
@@ -30,40 +28,38 @@ class HolidaysApi @Inject constructor() {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    suspend fun fetchHolidays(
-        subdivisionCode: String,
-        validFrom: LocalDate,
-        validTo: LocalDate,
-        type: HolidayType
-    ): List<HolidayEntity> = withContext(Dispatchers.IO) {
-        val path = if (type == HolidayType.SCHOOL) "SchoolHolidays" else "PublicHolidays"
-        val url = "https://openholidaysapi.org/$path".toHttpUrl().newBuilder()
-            .addQueryParameter("countryIsoCode", "DE")
-            .addQueryParameter("languageIsoCode", "DE")
-            .addQueryParameter("subdivisionCode", subdivisionCode)
-            .addQueryParameter("validFrom", validFrom.toString())
-            .addQueryParameter("validTo", validTo.toString())
-            .build()
-        val request = Request.Builder().url(url).build()
+    /** [subdivisionCode] im "DE-NW"-Format (lokaler Cache-Schlüssel), wird für den Request in den schulferiendaten.de-Code umgewandelt. */
+    suspend fun fetchHolidays(subdivisionCode: String, year: Int, type: HolidayType): List<HolidayEntity> =
+        withContext(Dispatchers.IO) {
+            val apiCode = subdivisionCode.removePrefix("DE-").lowercase()
+            val segment = if (type == HolidayType.SCHOOL) "ferien" else "feiertage"
+            val url = "https://schulferiendaten.de/api/v1/$segment/$apiCode/$year.json"
+            val request = Request.Builder().url(url).build()
 
-        httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@use emptyList()
-            val body = response.body?.string().orEmpty()
-            parseHolidays(body, subdivisionCode, type)
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                val body = response.body?.string().orEmpty()
+                if (type == HolidayType.SCHOOL) {
+                    parseSchoolHolidays(body, subdivisionCode)
+                } else {
+                    parsePublicHolidays(body, subdivisionCode)
+                }
+            }
         }
-    }
 
-    private fun parseHolidays(json: String, subdivisionCode: String, type: HolidayType): List<HolidayEntity> {
+    // Die Antwort ist bereits pfadseitig auf ein Bundesland gefiltert (kein Code pro Eintrag),
+    // daher wird der bereits bekannte subdivisionCode direkt für alle Einträge verwendet.
+    private fun parseSchoolHolidays(json: String, subdivisionCode: String): List<HolidayEntity> {
         if (json.isBlank()) return emptyList()
         val array = JSONArray(json)
         return (0 until array.length()).mapNotNull { index ->
             val obj = array.getJSONObject(index)
-            val start = runCatching { LocalDate.parse(obj.optString("startDate")) }.getOrNull() ?: return@mapNotNull null
-            val end = runCatching { LocalDate.parse(obj.optString("endDate")) }.getOrNull() ?: start
-            val name = extractGermanName(obj) ?: return@mapNotNull null
+            val start = runCatching { LocalDate.parse(obj.optString("start")) }.getOrNull() ?: return@mapNotNull null
+            val end = runCatching { LocalDate.parse(obj.optString("ende")) }.getOrNull() ?: start
+            val name = obj.optString("name").ifBlank { null } ?: return@mapNotNull null
             HolidayEntity(
                 subdivisionCode = subdivisionCode,
-                type = type.name,
+                type = HolidayType.SCHOOL.name,
                 name = name,
                 startEpochDay = start.toEpochDay(),
                 endEpochDay = end.toEpochDay()
@@ -71,15 +67,20 @@ class HolidaysApi @Inject constructor() {
         }
     }
 
-    private fun extractGermanName(obj: JSONObject): String? {
-        val names = obj.optJSONArray("name") ?: return null
-        var fallback: String? = null
-        for (i in 0 until names.length()) {
-            val entry = names.optJSONObject(i) ?: continue
-            val text = entry.optString("text").ifBlank { null } ?: continue
-            if (fallback == null) fallback = text
-            if (entry.optString("language") == "DE") return text
+    private fun parsePublicHolidays(json: String, subdivisionCode: String): List<HolidayEntity> {
+        if (json.isBlank()) return emptyList()
+        val array = JSONArray(json)
+        return (0 until array.length()).mapNotNull { index ->
+            val obj = array.getJSONObject(index)
+            val date = runCatching { LocalDate.parse(obj.optString("datum")) }.getOrNull() ?: return@mapNotNull null
+            val name = obj.optString("name").ifBlank { null } ?: return@mapNotNull null
+            HolidayEntity(
+                subdivisionCode = subdivisionCode,
+                type = HolidayType.PUBLIC.name,
+                name = name,
+                startEpochDay = date.toEpochDay(),
+                endEpochDay = date.toEpochDay()
+            )
         }
-        return fallback
     }
 }

@@ -299,6 +299,40 @@ optional im Kalender anzeigen).
   gegen die im Projekt gepinnte Compose-BOM-Version 2024.09.03 verifiziert. Echte
   Verifikation läuft über die GitHub Action `build-apk.yml` beim nächsten Push.
 
+## Nachträglich ergänzte Anforderungen (2026-10-09, Wetter im Uhr-Widget + Agenda-Zeile, umgesetzt)
+
+Nutzerwunsch: Das Uhr-Widget soll zusätzlich das Wetter zeigen (OpenWeatherMap, Key als
+GitHub-Secret) sowie die nächsten zwei Termine schmal unten anzeigen, mit "+N" falls am
+betroffenen Tag noch mehr Termine anstehen.
+
+- [x] **GitHub-Secret `OPENWEATHER_API_KEY`** im Repo `SmarterWecker` angelegt (per GitHub
+  API mit `libsodium`/PyNaCl verschlüsselt übertragen, da kein `gh`-CLI verfügbar ist) —
+  wiederverwendet der bereits im Iosync-Projekt genutzte OpenWeatherMap-Key. Lokal zusätzlich
+  in `local.properties` (gitignored) hinterlegt.
+- [x] **`app/build.gradle.kts`**: `buildConfigField("String", "OPENWEATHER_API_KEY", ...)`
+  nach demselben lokal/CI-Fallback-Muster wie beim Release-Keystore; `buildFeatures.buildConfig
+  = true` ergänzt.
+- [x] **Neues Package `weather`** (`WeatherRepository`): OkHttp + `org.json` (kein Retrofit/
+  Moshi, FOSS-Minimalismus), Standort über Androids Plattform-`LocationManager` (letzte
+  bekannte Position) statt der proprietären Google-Play-Services-Standort-Lib — im Projekt
+  bislang keine GMS-Abhängigkeit vorhanden, soll auch keine neue entstehen. Ergebnis 30
+  Minuten in SharedPreferences gecacht, damit der minütliche Uhr-Tick nicht bei jedem Update
+  einen Netzwerk-Request auslöst. Wetter-Icon als Emoji (kein zusätzliches Bild-Asset).
+- [x] **Neue Berechtigung `ACCESS_COARSE_LOCATION`**: Manifest-Eintrag + neue Zeile im
+  Berechtigungs-Onboarding (`PermissionsScreen`) mit Erklärung.
+- [x] **`CalendarRepository.getUpcomingAgendaForWidget(maxShown)`** (neu, neben dem
+  bestehenden `getUpcomingAgenda`, beide greifen jetzt auf eine gemeinsame private
+  `buildAgenda()`-Hilfsfunktion zurück): liefert die nächsten `maxShown` Einträge plus die
+  Anzahl weiterer Einträge am selben Tag wie der zuletzt gezeigte Eintrag.
+- [x] **`ClockWidgetProvider`** auf Hilt-`@AndroidEntryPoint` umgestellt (gleiches Pattern wie
+  `CalendarWidgetProvider`), zeigt Wetter neben dem nächsten Alarm und darunter schmal bis zu
+  2 Agenda-Zeilen mit farbigem Punkt, bei Bedarf mit angehängtem "(+N)".
+- **Bekannte Einschränkung**: lokale Verifikation weiterhin durch das aapt2-Problem
+  blockiert (erneut mit einem frischen `./gradlew compileDebugKotlin`-Versuch bestätigt);
+  alle geänderten/neuen Dateien stattdessen auf Klammern-/Strukturbalance sowie
+  Wohlgeformtheit der XML-Dateien automatisiert geprüft. Echte Verifikation läuft über die
+  GitHub Action `build-apk.yml` beim nächsten Push.
+
 ## Grobe Umsetzungsreihenfolge
 
 1. Projekt-Setup: Gradle-Grundgerüst, Kotlin + Jetpack Compose + Hilt,

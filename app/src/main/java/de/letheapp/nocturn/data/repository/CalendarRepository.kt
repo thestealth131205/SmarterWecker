@@ -263,7 +263,26 @@ class CalendarRepository @Inject constructor(
      * (Schichten aus Rotationen + freie Termine) ab heute, über die nächsten
      * [AGENDA_LOOKAHEAD_DAYS] Tage, chronologisch sortiert.
      */
-    suspend fun getUpcomingAgenda(maxItems: Int): List<AgendaEntry> {
+    suspend fun getUpcomingAgenda(maxItems: Int): List<AgendaEntry> = buildAgenda().take(maxItems)
+
+    /**
+     * Für das Uhr-Homescreen-Widget: die nächsten [maxShown] anstehenden Einträge schmal
+     * zur Anzeige unter der Uhrzeit, plus die Anzahl weiterer Einträge, die am selben Tag wie
+     * der zuletzt gezeigte Eintrag noch anstehen (als "+N weitere" statt sie alle aufzulisten).
+     */
+    suspend fun getUpcomingAgendaForWidget(maxShown: Int): WidgetAgenda {
+        val all = buildAgenda()
+        val shown = all.take(maxShown)
+        val extraCount = if (shown.size == maxShown) {
+            val lastShownDay = shown.last().epochDay
+            all.count { it.epochDay == lastShownDay } - shown.count { it.epochDay == lastShownDay }
+        } else {
+            0
+        }
+        return WidgetAgenda(entries = shown, extraCountForLastDay = extraCount)
+    }
+
+    private suspend fun buildAgenda(): List<AgendaEntry> {
         val today = LocalDate.now().toEpochDay()
         val toDay = today + AGENDA_LOOKAHEAD_DAYS
 
@@ -297,7 +316,7 @@ class CalendarRepository @Inject constructor(
             )
         }
 
-        return (shiftAgenda + appointmentAgenda).sortedBy { it.epochDay }.take(maxItems)
+        return (shiftAgenda + appointmentAgenda).sortedBy { it.epochDay }
     }
 }
 
@@ -307,4 +326,10 @@ data class AgendaEntry(
     val label: String,
     val colorArgb: Int,
     val timeLabel: String?
+)
+
+/** Für das Uhr-Widget (CLAUDE.md Kernfunktion 7): die schmal angezeigten nächsten Termine. */
+data class WidgetAgenda(
+    val entries: List<AgendaEntry>,
+    val extraCountForLastDay: Int
 )

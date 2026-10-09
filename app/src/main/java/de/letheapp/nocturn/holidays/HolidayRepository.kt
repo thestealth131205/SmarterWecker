@@ -54,7 +54,7 @@ class HolidayRepository @Inject constructor(
         if (missingTypes.isEmpty()) return
 
         val fetched = missingTypes.flatMap { type ->
-            runCatching { api.fetchHolidays(subdivisionCode, yearStart, yearEnd, type) }.getOrDefault(emptyList())
+            runCatching { api.fetchHolidays(subdivisionCode, year, type) }.getOrDefault(emptyList())
         }
         if (fetched.isNotEmpty()) holidayDao.insertAll(fetched)
     }

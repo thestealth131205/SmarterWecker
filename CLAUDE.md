@@ -125,9 +125,10 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - **Ferien & gesetzliche Feiertage**: über einen eigenen Einstellungs-Screen (3-Punkte-
      Menü der Alarmliste) wird ein Bundesland gewählt; Feiertage und Schulferien werden
      optional (je einzeln togglebar) farbig in der Monatsansicht angezeigt. Datenquelle:
-     kostenlose, schlüssellose **OpenHolidaysAPI** (openholidaysapi.org, ODbL-Lizenz) —
-     liefert als eine der wenigen freien Quellen sowohl Feiertage als auch Schulferien
-     pro Bundesland; Ergebnisse werden pro Bundesland/Jahr lokal gecacht.
+     kostenlose, schlüssellose **Schulferien-/Feiertage-API von schulferiendaten.de** —
+     liefert sowohl Feiertage als auch Schulferien pro Bundesland für 2025–2030; verlangt
+     laut Nutzungsbedingungen eine sichtbare Quellenangabe mit Link (siehe Button im
+     Einstellungs-Screen). Ergebnisse werden pro Bundesland/Jahr lokal gecacht.
    - **System-Registrierung als Kalender-Ziel für "Zum Kalender hinzufügen"**: NocTurn
      bietet sich über einen Manifest-Intent-Filter (`ACTION_INSERT`/`ACTION_EDIT` auf
      `CalendarContract.Events`) im Android-Auswahlmenü an, wenn eine Fremd-App (z. B.
@@ -158,12 +159,22 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - Uhr-Widget, Kalender-/Termine-Widget und Wetter-Widget für den Android-Homescreen.
    - Wetter-Widget nutzt **OpenWeatherMap** als Datenquelle (gleicher Ansatz wie im
      Iosync-Projekt: API-Key über `local.properties`/CI-Secret `OPENWEATHER_API_KEY`,
-     nicht hart codiert). **Noch nicht umgesetzt.**
+     nicht hart codiert) — **ins Uhr-Widget integriert statt eines eigenen dritten Widgets**:
+     aktuelle Temperatur + Emoji-Icon (kein zusätzliches Icon-Asset) neben dem nächsten Alarm,
+     Standort über Androids Plattform-`LocationManager` (letzte bekannte, ungefähre Position,
+     Berechtigung `ACCESS_COARSE_LOCATION`) statt der proprietären Google-Play-Services-
+     Standort-Lib, passend zur FOSS-Minimalismus-Leitlinie. 30 Minuten lokal gecacht, damit der
+     minütliche Uhr-Tick nicht bei jedem Update einen Netzwerk-Request auslöst.
    - Uhr-Widget-Layout (siehe Referenzbild): transparent über dem Homescreen-Hintergrund,
      von oben nach unten vertikal zentriert gestapelt:
      1. Datum klein/hell (z. B. "Do., 8. Okt.")
      2. Uhrzeit sehr groß (z. B. "00:29")
-     3. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47")
+     3. nächster Alarm klein mit Wecker-Icon davor (z. B. "⏰ Do., 04:47") + Wetter daneben
+        (z. B. "☀ 14°")
+     4. darunter schmal die nächsten 2 anstehenden Kalendereinträge (Schichten + freie
+        Termine), je Zeile ein farbiger Punkt passend zur Schicht-/Termin-Farbe; stehen am Tag
+        des zuletzt gezeigten Eintrags noch weitere an, wird das als "(+N)" angehängt statt
+        sie einzeln aufzulisten.
    - Kalender-/Termine-Widget: Agenda-Ansicht der nächsten anstehenden Einträge
      (Schichten aus Rotationen + freie Termine), je Zeile farbiger Punkt passend zur
      Schicht-/Termin-Farbe, Tag/Uhrzeit und Bezeichnung. Tippen öffnet die App direkt in
@@ -218,6 +229,8 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
         Körpersensor) und ist daher komplett entfernt.
       - Kontakte (`READ_CONTACTS`) — um Geburtstage der Kontakte im Kalender anzuzeigen
         (Kernfunktion 6).
+      - Standort (`ACCESS_COARSE_LOCATION`) — für die Wetteranzeige im Uhr-Widget
+        (Kernfunktion 7); nur die letzte bekannte, ungefähre Position wird genutzt.
       - Ignorieren von Akku-Optimierungen — damit die Überwachung nach dem Klingeln
         nicht durch Doze/Battery-Optimizations unterbrochen wird.
     - **Health-Connect-Berechtigung zuverlässig auch auf Android 14+**: neben dem
@@ -301,14 +314,22 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `AlarmScheduler` Alarme bereits über `setAlarmClock` plant. Kalender-Widget liest
   `CalendarRepository.getUpcomingAgenda(...)` per Hilt-`@AndroidEntryPoint` auf dem
   `AppWidgetProvider` (gleiches Pattern wie bei `BootReceiver`/`AlarmReceiver`, da
-  `AppWidgetProvider` selbst ein `BroadcastReceiver` ist).
+  `AppWidgetProvider` selbst ein `BroadcastReceiver` ist). Uhr-Widget nutzt denselben
+  Hilt-`@AndroidEntryPoint`-Ansatz, um zusätzlich `WeatherRepository.currentWeather()`
+  (neues Package `weather`, OpenWeatherMap über OkHttp + `org.json`, Standort über
+  Androids `LocationManager` statt proprietärer Play-Services-Standort-Lib, 30 Minuten
+  SharedPreferences-Cache) und `CalendarRepository.getUpcomingAgendaForWidget(2)`
+  (nächste 2 Einträge + "+N" für weitere Einträge am selben Tag) einzublenden.
 - Ferien/Feiertage (Kernfunktion 6, neues Package `holidays`): Datenquelle ist die
-  kostenlose, schlüssellose **OpenHolidaysAPI** (openholidaysapi.org, ODbL-Lizenz) —
-  liefert sowohl gesetzliche Feiertage als auch Schulferien pro Bundesland über dieselbe
-  API, daher gegenüber z. B. feiertage-api.de (nur Feiertage) bevorzugt. Anfragen über
-  das bereits vorhandene OkHttp + Androids eingebautes `org.json` (keine neue JSON-Lib-
-  Abhängigkeit). Ergebnisse werden pro Bundesland/Jahr lokal in Room gecacht, damit der
-  Kalender auch offline funktioniert und nicht bei jedem Öffnen neu angefragt wird.
+  kostenlose, schlüssellose **Schulferien-/Feiertage-API von schulferiendaten.de**
+  (`https://schulferiendaten.de/api/v1/`) — liefert sowohl gesetzliche Feiertage
+  (`/feiertage/{bundesland}/{jahr}.json`) als auch Schulferien
+  (`/ferien/{bundesland}/{jahr}.json`) pro Bundesland (zweistelliger Kleinbuchstaben-Code,
+  z. B. `nw`), Datenjahre 2025–2030. Nutzungsbedingungen verlangen eine sichtbare
+  Quellenangabe mit Link zu schulferiendaten.de (im Einstellungs-Screen umgesetzt).
+  Anfragen über das bereits vorhandene OkHttp + Androids eingebautes `org.json` (keine neue
+  JSON-Lib-Abhängigkeit). Ergebnisse werden pro Bundesland/Jahr lokal in Room gecacht, damit
+  der Kalender auch offline funktioniert und nicht bei jedem Öffnen neu angefragt wird.
 - Lethe-Bibliothek als Weckton-Quelle (Kernfunktion 8, neues Package `sound/lethe`): eigener
   `media:read`-Scope statt des Lethe-Login-JWT/UMK, umgesetzt als neue, vom Login komplett
   getrennte Tabelle `nocturn_media_grants` + Routen `/nocturn/media/pair/*` und

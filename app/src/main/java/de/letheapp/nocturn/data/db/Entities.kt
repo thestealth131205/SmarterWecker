@@ -16,7 +16,15 @@ data class AlarmEntity(
     val soundUri: String? = null,
     val rotationId: Long? = null,
     /** Verknüpfung mit einem Job im Schüler/Student-Modus statt mit einer Rotation (siehe [JobEntity.mode]). */
-    val timetableJobId: Long? = null
+    val timetableJobId: Long? = null,
+    /**
+     * ioBroker-Datenpunkt-ID (z. B. "hm-rpc.0.OEQ123.1.STATE"), der beim Auslösen des
+     * Notfall-Alarms (siehe [de.letheapp.nocturn.emergency.EmergencyAlarmService]) auf "true"
+     * gesetzt wird, um eine Lampe/Steckdose einzuschalten. Null = keine Smart-Home-Kopplung.
+     */
+    val lampDataPointId: String? = null,
+    /** Anzeigename des [lampDataPointId] zum Zeitpunkt der Auswahl, fürs UI ohne erneuten Verbindungsaufbau. */
+    val lampDataPointLabel: String? = null
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */
@@ -257,8 +265,8 @@ data class HolidaySettingsEntity(
 )
 
 /**
- * Lokal gecachter Feiertag/Ferienzeitraum, von der kostenlosen, schlüssellosen OpenHolidaysAPI
- * (openholidaysapi.org, ODbL) pro Bundesland und Jahr nachgeladen (siehe
+ * Lokal gecachter Feiertag/Ferienzeitraum, von der kostenlosen, schlüssellosen
+ * Schulferien-/Feiertage-API von schulferiendaten.de pro Bundesland und Jahr nachgeladen (siehe
  * [de.letheapp.nocturn.holidays.HolidayRepository]), damit der Kalender auch offline
  * funktioniert und nicht bei jedem Öffnen neu abgefragt werden muss.
  */
@@ -328,4 +336,19 @@ data class SyncedEventEntity(
     val etag: String,
     /** Einfacher Inhalts-Hash (nur bei Schichten genutzt), um unveränderte Events nicht erneut hochzuladen. */
     val contentHash: Int = 0
+)
+
+/**
+ * Ein verbundenes ioBroker-Konto (siehe CLAUDE.md "Smart-Home-Kopplung (ioBroker)"). Es wird genau
+ * ein Server verbunden, dessen Datenpunkte einem Alarm als Lampe/Steckdose zugeordnet werden können
+ * (siehe [AlarmEntity.lampDataPointId]). Das Passwort liegt NICHT hier, sondern AES/Android-
+ * Keystore-verschlüsselt in [de.letheapp.nocturn.iobroker.IoBrokerCredentialsStore].
+ */
+@Entity(tableName = "iobroker_accounts")
+data class IoBrokerAccountEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val host: String,
+    val port: Int,
+    val useHttps: Boolean = false,
+    val username: String = ""
 )

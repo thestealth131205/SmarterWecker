@@ -1,5 +1,7 @@
 package de.letheapp.nocturn.holidays
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
@@ -20,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -29,12 +33,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * Einstellt-Screen "Ferien & Feiertage" (3-Punkte-Menü der Alarmliste, siehe CLAUDE.md
- * Kernfunktion 6): Bundesland wählen, Datenquelle ist die kostenlose OpenHolidaysAPI.
+ * Kernfunktion 6): Bundesland wählen, Datenquelle ist die kostenlose Schulferien-/Feiertage-API
+ * von schulferiendaten.de. Deren Nutzungsbedingungen verlangen eine sichtbare Quellenangabe mit
+ * Link — siehe der "schulferiendaten.de"-Button unten.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +53,7 @@ fun HolidaySettingsScreen(onBack: () -> Unit, viewModel: HolidaySettingsViewMode
     var showPublic by remember(settings) { mutableStateOf(settings?.showPublicHolidays ?: true) }
     var showSchool by remember(settings) { mutableStateOf(settings?.showSchoolHolidays ?: true) }
     var menuExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -65,9 +73,14 @@ fun HolidaySettingsScreen(onBack: () -> Unit, viewModel: HolidaySettingsViewMode
         ) {
             Text(
                 "Zeigt gesetzliche Feiertage und Schulferien deines Bundeslands im Kalender an. " +
-                    "Datenquelle: OpenHolidaysAPI (openholidaysapi.org), kostenlos und ohne Anmeldung.",
+                    "Datenquelle: schulferiendaten.de, kostenlos und ohne Anmeldung.",
                 style = MaterialTheme.typography.bodySmall
             )
+            TextButton(
+                onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://schulferiendaten.de")))
+                }
+            ) { Text("Daten von schulferiendaten.de") }
 
             ExposedDropdownMenuBox(expanded = menuExpanded, onExpandedChange = { menuExpanded = it }) {
                 OutlinedTextField(

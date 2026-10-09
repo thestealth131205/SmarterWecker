@@ -107,8 +107,8 @@ class CalendarMonthViewModel @Inject constructor(
     val entriesByDay: StateFlow<Map<LocalDate, List<CalendarDayEntry>>> =
         combine(_month, holidaySettings) { month, settings -> month to settings }
             .flatMapLatest { (month, settings) ->
-                val fromEpochDay = month.atDay(1).toEpochDay()
-                val toEpochDay = month.atEndOfMonth().toEpochDay()
+                val fromEpochDay = monthGridStart(month).toEpochDay()
+                val toEpochDay = fromEpochDay + 7 * 6 - 1
 
                 val shiftAndAppointmentFlow = combine(
                     calendarRepository.observeCalendarEntries(fromEpochDay, toEpochDay),

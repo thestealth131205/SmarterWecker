@@ -22,6 +22,7 @@ import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
 import de.letheapp.nocturn.export.CalendarExportScreen
 import de.letheapp.nocturn.holidays.HolidaySettingsScreen
+import de.letheapp.nocturn.iobroker.IoBrokerSettingsScreen
 import de.letheapp.nocturn.monitoring.HealthConnectStatusScreen
 import de.letheapp.nocturn.ocr.PhotoImportScreen
 import de.letheapp.nocturn.onboarding.AppPreferences
@@ -49,6 +50,7 @@ private const val ROUTE_HOLIDAY_SETTINGS = "holidaySettings"
 private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
 private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
 private const val ROUTE_NEXTCLOUD_SYNC = "nextcloudSync"
+private const val ROUTE_IOBROKER_SETTINGS = "ioBrokerSettings"
 private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
 private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
@@ -88,8 +90,13 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
                 onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
                 onOpenPermissions = { navController.navigate("permissions/false") },
-                onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) }
+                onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) },
+                onOpenIoBrokerSettings = { navController.navigate(ROUTE_IOBROKER_SETTINGS) }
             )
+        }
+
+        composable(ROUTE_IOBROKER_SETTINGS) {
+            IoBrokerSettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_HOLIDAY_SETTINGS) {

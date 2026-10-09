@@ -339,7 +339,8 @@ genannt, die als "noch nicht umgesetzt" in PLAN.md und als neue Kernfunktionen
 - Nutzer: "Baue das [Uhr] Widget ein sowie ein Widget für Termine Kalender" →
   `ClockWidgetProvider` und `CalendarWidgetProvider` (neues `widget`-Package) implementiert.
   Details siehe PLAN.md, Abschnitt "Nachträglich ergänzte Anforderungen (Uhr- und
-  Kalender-Widget)". Wetter-Widget bleibt weiterhin offen (nicht Teil dieser Anfrage).
+  Kalender-Widget)". Wetter-Widget war zu diesem Zeitpunkt noch offen (nicht Teil dieser
+  Anfrage) — am 2026-10-09 ins Uhr-Widget nachgerüstet, siehe Eintrag unten.
 - Technische Leitentscheidung: klassische `AppWidgetProvider`/`RemoteViews` statt Jetpack
   Glance (FOSS-Minimalismus, keine zusätzliche Abhängigkeit für zwei überwiegend statische
   Widgets nötig). "Nächster Alarm" im Uhr-Widget kommt direkt von
@@ -521,3 +522,52 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
 - Noch **nicht committet/gepusht** (Standing-Regel). `processDebugManifest` lief lokal
   durch (validiert die Manifest-XML-Änderungen), `compileDebugKotlin` weiterhin durch
   aapt2/x86_64 auf dem Pi blockiert.
+
+## Ergänzung (2026-10-09, Feiertage/Ferien-Datenquelle gewechselt zu schulferiendaten.de)
+
+- **OpenHolidaysAPI ersetzt durch schulferiendaten.de** auf expliziten Nutzerwunsch.
+  Per `curl` live gegen die echte API verifizierte Endpunkte (Basis
+  `https://schulferiendaten.de/api/v1/`):
+  - Feiertage: `GET /feiertage/{bundesland}/{jahr}.json` → Array `{datum, name, bundesweit}`,
+    bereits pfadseitig auf das gewählte Bundesland gefiltert (bundesweite + landesspezifische
+    Feiertage gemischt in einer Liste).
+  - Schulferien: `GET /ferien/{bundesland}/{jahr}.json` → Array
+    `{bundesland, bundeslandName, jahr, ferienart, name, start, ende, tage, hinweise[]}`.
+  - `{bundesland}` ist der zweistellige Kleinbuchstaben-Code (z. B. `nw`, `by`), **nicht**
+    der ISO-3166-2-Code (`DE-NW`) der OpenHolidaysAPI. `HolidaysApi.fetchHolidays()` leitet
+    ihn aus dem weiterhin als DB-Cache-Schlüssel verwendeten `GermanState.subdivisionCode`
+    (`DE-NW`-Format) ab (`removePrefix("DE-").lowercase()`), damit `HolidayEntity`/DAO/
+    Settings unverändert bleiben.
+  - Kein API-Key nötig, Datenjahre 2025–2030 abgedeckt (ensureYearLoaded fragt nur
+    Jahre außerhalb dieses Fensters an, falls Nutzer z. B. weit in der Zukunft blättert —
+    liefert dann schlicht leere Liste statt Fehler, kein Sonderfall nötig).
+  - **Lizenzauflage**: kostenlos für privat/schulisch/kommerziell, aber nur mit **sichtbarer
+    Quellenangabe + Link** zu schulferiendaten.de. Dafür neuer `TextButton` "Daten von
+    schulferiendaten.de" im `HolidaySettingsScreen`, öffnet die Seite per `ACTION_VIEW`.
+  - Nebenbei entdeckter und mitgefixter echter Compile-Fehler in dieser Datei: fehlender
+    `ExposedDropdownMenu`-Import (Composable wurde benutzt, aber nie importiert).
+- Noch **nicht committet/gepusht** (Standing-Regel).
+
+## Ergänzung (2026-10-09, Wetter im Uhr-Widget + Agenda-Zeile)
+
+- Nutzer: "Das [Uhren-]Widget ist super soll aber auch das Wetter zeigen [...] Und die
+  nächsten zwei Termine sollen unten in schmal angezeigt werden falls für den nächsten Tag
+  mehr Termine anstehen soll dies mit einer +Anzahl der Termine angezeigt werden."
+- GitHub-Secret `OPENWEATHER_API_KEY` im Repo `SmarterWecker` selbst angelegt (kein `gh`-CLI
+  verfügbar, daher direkt per GitHub-REST-API mit `libsodium`/PyNaCl-Sealed-Box-Verschlüsselung
+  des Secret-Public-Keys) — Wert ist der bereits im Iosync-Projekt (`/opt/Iosync/local.properties`)
+  genutzte OpenWeatherMap-Key, wiederverwendet statt einen zweiten zu beantragen.
+- `WeatherRepository` (neues Package `weather`) nutzt bewusst Androids Plattform-
+  `LocationManager` (letzte bekannte Position) statt `FusedLocationProviderClient`/Play-
+  Services-Standort — Letzteres ist eine proprietäre Google-Abhängigkeit, die es im Projekt
+  bislang nicht gibt und die der FOSS-Minimalismus-Leitlinie widersprochen hätte, obwohl
+  Iosync selbst dafür Play Services nutzt (dort bereits vorhanden/akzeptiert, hier bewusst
+  nicht übernommen).
+- Ergebnis wird 30 Minuten in `SharedPreferences` gecacht, da das Uhr-Widget sich ohnehin
+  jede Minute per `AlarmManager` selbst neu anstößt — ohne Cache gäbe es bei jedem Tick einen
+  Netzwerk-Request, obwohl sich Wetter so häufig nicht ändert.
+- "+N"-Logik für die Agenda-Zeile: `CalendarRepository.getUpcomingAgendaForWidget(2)` zählt
+  Einträge am selben Tag wie der zuletzt (zweit-)gezeigte Eintrag, die nicht mehr in die
+  2 angezeigten Zeilen passen, und hängt sie als "(+N)" an statt sie separat aufzulisten.
+- Noch **nicht committet/gepusht** (Standing-Regel) — das GitHub-Secret selbst ist davon
+  unabhängig bereits live im Repo-Einstellungen angelegt.
