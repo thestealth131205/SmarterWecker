@@ -34,11 +34,11 @@ private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 private val NEXT_ALARM_FORMATTER = DateTimeFormatter.ofPattern("EEE, HH:mm", Locale.GERMAN)
 private val AGENDA_WEEKDAY_FORMATTER = DateTimeFormatter.ofPattern("EEE", Locale.GERMAN)
 
-private data class AgendaRowIds(val rowId: Int, val dotId: Int, val textId: Int)
+private data class ClockAgendaRowIds(val rowId: Int, val dotId: Int, val textId: Int)
 
 private val AGENDA_ROW_SPECS = listOf(
-    AgendaRowIds(R.id.widget_clock_agenda_row1, R.id.widget_clock_agenda_dot1, R.id.widget_clock_agenda_text1),
-    AgendaRowIds(R.id.widget_clock_agenda_row2, R.id.widget_clock_agenda_dot2, R.id.widget_clock_agenda_text2)
+    ClockAgendaRowIds(R.id.widget_clock_agenda_row1, R.id.widget_clock_agenda_dot1, R.id.widget_clock_agenda_text1),
+    ClockAgendaRowIds(R.id.widget_clock_agenda_row2, R.id.widget_clock_agenda_dot2, R.id.widget_clock_agenda_text2)
 )
 
 /**

@@ -23,13 +23,13 @@ import javax.inject.Inject
 
 private const val MAX_AGENDA_ITEMS = 4
 
-private data class AgendaRowIds(val rowId: Int, val dotId: Int, val timeId: Int, val labelId: Int)
+private data class CalendarAgendaRowIds(val rowId: Int, val dotId: Int, val timeId: Int, val labelId: Int)
 
 private val ROW_SPECS = listOf(
-    AgendaRowIds(R.id.widget_calendar_row1, R.id.widget_calendar_dot1, R.id.widget_calendar_time1, R.id.widget_calendar_label1),
-    AgendaRowIds(R.id.widget_calendar_row2, R.id.widget_calendar_dot2, R.id.widget_calendar_time2, R.id.widget_calendar_label2),
-    AgendaRowIds(R.id.widget_calendar_row3, R.id.widget_calendar_dot3, R.id.widget_calendar_time3, R.id.widget_calendar_label3),
-    AgendaRowIds(R.id.widget_calendar_row4, R.id.widget_calendar_dot4, R.id.widget_calendar_time4, R.id.widget_calendar_label4)
+    CalendarAgendaRowIds(R.id.widget_calendar_row1, R.id.widget_calendar_dot1, R.id.widget_calendar_time1, R.id.widget_calendar_label1),
+    CalendarAgendaRowIds(R.id.widget_calendar_row2, R.id.widget_calendar_dot2, R.id.widget_calendar_time2, R.id.widget_calendar_label2),
+    CalendarAgendaRowIds(R.id.widget_calendar_row3, R.id.widget_calendar_dot3, R.id.widget_calendar_time3, R.id.widget_calendar_label3),
+    CalendarAgendaRowIds(R.id.widget_calendar_row4, R.id.widget_calendar_dot4, R.id.widget_calendar_time4, R.id.widget_calendar_label4)
 )
 
 private val WEEKDAY_FORMATTER = DateTimeFormatter.ofPattern("EEE", Locale.GERMAN)
