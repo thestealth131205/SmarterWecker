@@ -21,13 +21,16 @@ import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.emergency.EmergencyAlarmService
 import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
+import de.letheapp.nocturn.monitoring.SensorMovementMonitorFactory
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -46,18 +49,24 @@ private const val SNOOZE_MIN_MINUTES = 3L
 private const val SNOOZE_MAX_MINUTES = 5L
 private const val ESCALATION_STEP_MILLIS = 60_000L
 
+private const val STOP_PAUSE_MIN_MILLIS = 400L
+private const val STOP_PAUSE_MAX_MILLIS = 1000L
+private const val STOP_QUICK_CHECK_WINDOW_MILLIS = 5_000L
+
 @AndroidEntryPoint
 class AlarmRingingService : Service() {
 
     @Inject lateinit var alarmRepository: AlarmRepository
     @Inject lateinit var soundRepository: SoundRepository
     @Inject lateinit var alarmScheduler: AlarmScheduler
+    @Inject lateinit var sensorMovementMonitorFactory: SensorMovementMonitorFactory
 
     private val scope = CoroutineScope(SupervisorJob())
     private var escalationJob: Job? = null
     private var mediaPlayer: MediaPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarmId: Long = -1
+    private var currentVolume = 0.4f
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -80,6 +89,7 @@ class AlarmRingingService : Service() {
 
     private fun startRinging(alarmId: Long) {
         acquireWakeLock()
+        currentVolume = 0.4f
         startForeground(NOTIFICATION_ID_RINGING, buildNotification(alarmId))
 
         scope.launch {
@@ -102,7 +112,7 @@ class AlarmRingingService : Service() {
             )
             setDataSource(this@AlarmRingingService, uri)
             isLooping = true
-            setVolume(0.4f, 0.4f)
+            setVolume(currentVolume, currentVolume)
             prepare()
             start()
         }
@@ -122,13 +132,13 @@ class AlarmRingingService : Service() {
             while (true) {
                 delay(ESCALATION_STEP_MILLIS)
                 step++
-                val volume = (0.4f + 0.15f * step).coerceAtMost(1.0f)
+                currentVolume = (0.4f + 0.15f * step).coerceAtMost(1.0f)
 
                 if (alternatingAvailable && step % 2 == 0) {
                     val nextUri = if ((step / 2) % 2 == 0) fallbackUri else primaryUri
                     playSound(nextUri)
                 }
-                mediaPlayer?.setVolume(volume, volume)
+                mediaPlayer?.setVolume(currentVolume, currentVolume)
             }
         }
     }
@@ -155,32 +165,77 @@ class AlarmRingingService : Service() {
 
     /**
      * "Stop" ist kein Freifahrtschein: statt den Wecker einfach verstummen zu lassen, öffnet
-     * sich sofort die Notfall-Alarm-Aufgabe (eskalierender Ton + Zuordnungs-Puzzle). Der
-     * Notfall-Alarm-Dienst wird dafür VOR dem Stoppen des eigenen Tons gestartet und zeigt sich
-     * selbst per Full-Screen-Intent-Benachrichtigung an (zuverlässig, unabhängig vom
-     * Hintergrundstatus der App – ein direkter `startActivity()` aus einem Service heraus wird
-     * von Android sonst als Hintergrund-Activity-Start verzögert/blockiert). So reißt der Ton
-     * nie ab: der Notfall-Ton läuft bereits, bevor der Wecker-Ton stoppt. Parallel überwacht
-     * [PostAlarmMonitoringService] per Sensorik/Health Connect, ob tatsächlich aufgestanden und
-     * gelaufen wird; wird das erkannt, beendet sich der Notfall-Alarm automatisch auch ohne
-     * gelöstes Puzzle.
+     * sich die Notfall-Alarm-Aufgabe (eskalierender Ton + Zuordnungs-Puzzle). Davor liegt eine
+     * kurze, zufällig variierende Ton-Pause (gedämpfte Lautstärke statt echtem Stopp, damit kein
+     * hörbarer Riss entsteht) von [STOP_PAUSE_MIN_MILLIS]–[STOP_PAUSE_MAX_MILLIS] ms, währenddessen
+     * und direkt danach bis zu [STOP_QUICK_CHECK_WINDOW_MILLIS] ms lang per Gyroskop/Beschleunigungssensor
+     * geprüft wird, ob bereits anhaltende Bewegung vorliegt (ein kurzes Aufschütteln beim Greifen
+     * nach dem Handy reicht dafür nicht, siehe SensorMovementMonitor). Steht der Nutzer
+     * in diesem Fenster bereits nachweislich auf, endet der Alarm direkt ohne Notfall-Alarm.
+     * Sonst öffnet sich wie gehabt sofort die Notfall-Alarm-Aufgabe: der Notfall-Alarm-Dienst
+     * wird VOR dem Stoppen des eigenen Tons gestartet und zeigt sich selbst per
+     * Full-Screen-Intent-Benachrichtigung an (zuverlässig, unabhängig vom Hintergrundstatus der
+     * App – ein direkter `startActivity()` aus einem Service heraus wird von Android sonst als
+     * Hintergrund-Activity-Start verzögert/blockiert). So reißt der Ton nie ab: der Notfall-Ton
+     * läuft bereits, bevor der Wecker-Ton stoppt. Parallel überwacht [PostAlarmMonitoringService]
+     * per Sensorik/Health Connect weiter, ob tatsächlich aufgestanden und gelaufen wird; wird das
+     * erkannt, beendet sich der Notfall-Alarm automatisch auch ohne gelöstes Puzzle.
      */
     private fun handleStop() {
         escalationJob?.cancel()
+        // Main-Dispatcher: SensorManager.registerListener() in pauseAndCheckMovement() braucht
+        // einen Thread mit Looper (Default-Dispatcher-Threads haben keinen).
+        scope.launch(Dispatchers.Main) {
+            val alreadyMoving = pauseAndCheckMovement()
+            if (alreadyMoving) {
+                stopSoundAndEscalation()
+                stopForegroundCompat()
+                stopSelf()
+                return@launch
+            }
 
-        val emergencyIntent = Intent(this, EmergencyAlarmService::class.java).apply {
-            putExtra(EXTRA_ALARM_ID, currentAlarmId)
+            val emergencyIntent = Intent(this@AlarmRingingService, EmergencyAlarmService::class.java).apply {
+                putExtra(EXTRA_ALARM_ID, currentAlarmId)
+            }
+            ContextCompat.startForegroundService(this@AlarmRingingService, emergencyIntent)
+
+            val monitoringIntent = Intent(this@AlarmRingingService, PostAlarmMonitoringService::class.java).apply {
+                putExtra(EXTRA_ALARM_ID, currentAlarmId)
+            }
+            ContextCompat.startForegroundService(this@AlarmRingingService, monitoringIntent)
+
+            stopSoundAndEscalation()
+            stopForegroundCompat()
+            stopSelf()
         }
-        ContextCompat.startForegroundService(this, emergencyIntent)
+    }
 
-        val monitoringIntent = Intent(this, PostAlarmMonitoringService::class.java).apply {
-            putExtra(EXTRA_ALARM_ID, currentAlarmId)
+    /** Dämpft den laufenden Ton kurz und prüft währenddessen auf bereits anhaltende Bewegung. Siehe [handleStop]. */
+    private suspend fun pauseAndCheckMovement(): Boolean {
+        mediaPlayer?.setVolume(0.05f, 0.05f)
+        delay(Random.nextLong(STOP_PAUSE_MIN_MILLIS, STOP_PAUSE_MAX_MILLIS + 1))
+        mediaPlayer?.setVolume(currentVolume, currentVolume)
+
+        return suspendCancellableCoroutine { cont ->
+            val monitor = sensorMovementMonitorFactory.create()
+            var finished = false
+            fun finish(result: Boolean) {
+                if (finished) return
+                finished = true
+                monitor.stop()
+                if (cont.isActive) cont.resumeWith(Result.success(result))
+            }
+
+            monitor.start { finish(true) }
+            val timeoutJob = scope.launch(Dispatchers.Main) {
+                delay(STOP_QUICK_CHECK_WINDOW_MILLIS)
+                finish(false)
+            }
+            cont.invokeOnCancellation {
+                timeoutJob.cancel()
+                monitor.stop()
+            }
         }
-        ContextCompat.startForegroundService(this, monitoringIntent)
-
-        stopSoundAndEscalation()
-        stopForegroundCompat()
-        stopSelf()
     }
 
     private fun stopSoundAndEscalation() {

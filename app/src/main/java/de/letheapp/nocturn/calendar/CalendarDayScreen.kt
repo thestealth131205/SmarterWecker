@@ -1,5 +1,8 @@
 package de.letheapp.nocturn.calendar
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -29,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,9 +42,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -84,6 +96,7 @@ fun CalendarDayScreen(
                 Text("Keine Einträge an diesem Tag")
             }
         } else {
+            val birthdayItems = items.filterIsInstance<BirthdayAgendaItem>()
             val allDayItems = items.filterIsInstance<AllDayAgendaItem>()
             val timedItems = items.filterIsInstance<TimedAgendaItem>().sortedBy { it.startMinuteOfDay }
 
@@ -92,6 +105,7 @@ fun CalendarDayScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                items(birthdayItems) { BirthdayCard(it) }
                 items(allDayItems) { AllDayCard(it) }
                 items(timedItems) { TimedCard(it) }
             }
@@ -114,13 +128,83 @@ fun CalendarDayScreen(
 }
 
 @Composable
-private fun AllDayCard(item: AllDayAgendaItem) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun BirthdayCard(item: BirthdayAgendaItem) {
+    val accentColor = Color(item.colorArgb)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = accentColor.copy(alpha = 0.18f))
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(12.dp).background(Color(item.colorArgb), CircleShape))
+            ContactPhoto(
+                photoUri = item.photoUri,
+                fallbackColor = accentColor,
+                modifier = Modifier.size(44.dp)
+            )
+            Column(modifier = Modifier.padding(start = 12.dp)) {
+                Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                item.subtitle?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Lädt das Kontaktbild (content://-Uri aus den Geräte-Kontakten) ohne zusätzliche Bild-Bibliothek
+ * (FOSS-Minimalismus) direkt über den ContentResolver; ohne Bild erscheint ein Torten-Icon im
+ * Akzentkreis.
+ */
+@Composable
+private fun ContactPhoto(photoUri: String?, fallbackColor: Color, modifier: Modifier) {
+    val context = LocalContext.current
+    var bitmap by remember(photoUri) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(photoUri) {
+        bitmap = if (photoUri == null) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(Uri.parse(photoUri))?.use { stream ->
+                        BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                    }
+                }.getOrNull()
+            }
+        }
+    }
+    val loaded = bitmap
+    if (loaded != null) {
+        Image(
+            bitmap = loaded,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.clip(CircleShape)
+        )
+    } else {
+        Box(
+            modifier = modifier.background(fallbackColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Cake, contentDescription = null, tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun AllDayCard(item: AllDayAgendaItem) {
+    val accentColor = Color(item.colorArgb)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = accentColor.copy(alpha = 0.18f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(12.dp).background(accentColor, CircleShape))
             Column(modifier = Modifier.padding(start = 12.dp)) {
                 Text(item.title, style = MaterialTheme.typography.bodyLarge)
                 item.subtitle?.let {

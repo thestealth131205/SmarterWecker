@@ -3,7 +3,6 @@ package de.letheapp.nocturn.onboarding
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Favorite
@@ -159,24 +159,31 @@ fun PermissionsScreen(
                 item {
                     PermissionRow(
                         icon = Icons.Filled.DirectionsRun,
-                        title = "Körpersensoren/Aktivitätserkennung",
-                        explanation = "Für die Aufsteh-Erkennung über Schrittzähler/Beschleunigungssensor, " +
-                            "falls keine Smartwatch mit Health Connect verbunden ist.",
+                        title = "Aktivitätserkennung (Bewegung)",
+                        explanation = "Für die Aufsteh-Erkennung über den Schrittzähler des Geräts, " +
+                            "falls keine Smartwatch mit Health Connect verbunden ist. Die Bewegungserkennung " +
+                            "über Beschleunigungs-/Gyroskop-Sensor braucht keine Berechtigung.",
                         granted = remember(refreshKey) {
-                            val activityRecognitionGranted = ContextCompat.checkSelfPermission(
+                            ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.ACTIVITY_RECOGNITION
                             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            val bodySensorsGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                ContextCompat.checkSelfPermission(context, Manifest.permission.BODY_SENSORS) ==
-                                    android.content.pm.PackageManager.PERMISSION_GRANTED
-                            } else true
-                            activityRecognitionGranted && bodySensorsGranted
                         },
                         onRequest = {
-                            runtimePermissionLauncher.launch(
-                                arrayOf(Manifest.permission.ACTIVITY_RECOGNITION, Manifest.permission.BODY_SENSORS)
-                            )
+                            runtimePermissionLauncher.launch(arrayOf(Manifest.permission.ACTIVITY_RECOGNITION))
                         }
+                    )
+                }
+                item {
+                    PermissionRow(
+                        icon = Icons.Filled.Cake,
+                        title = "Kontakte",
+                        explanation = "Um Geburtstage deiner Kontakte automatisch im Kalender anzuzeigen " +
+                            "(mit Namen und, falls vorhanden, Kontaktbild). Die Daten verlassen dein Gerät nicht.",
+                        granted = remember(refreshKey) {
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                        },
+                        onRequest = { runtimePermissionLauncher.launch(arrayOf(Manifest.permission.READ_CONTACTS)) }
                     )
                 }
                 item {

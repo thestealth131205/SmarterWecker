@@ -19,7 +19,7 @@ import androidx.room.RoomDatabase
         HolidaySettingsEntity::class,
         HolidayEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class NocturnDatabase : RoomDatabase() {

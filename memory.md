@@ -117,11 +117,20 @@ geklärt. Nächster Schritt wäre das Gradle-Projekt-Grundgerüst aufzusetzen.
 
 - Nutzer: "beginne den Plan mit Phase 1" → Gradle-Projekt-Grundgerüst (PLAN.md
   Schritt 1) sowie Room-Datenmodell-Grundgerüst (Schritt 2) implementiert.
-- Stack konkretisiert: Gradle 8.9 (Wrapper), AGP 8.5.2, Kotlin 2.0.21 (neuer
+- Stack konkretisiert: Gradle 8.11.1 (Wrapper), AGP 8.9.1, Kotlin 2.0.21 (neuer
   Compose-Compiler-Plugin-Ansatz, keine separate `composeCompilerExtensionVersion`
   mehr nötig), KSP für Room- und Hilt-Compiler (statt kapt), Hilt 2.52, Room 2.6.1,
-  Compose BOM 2024.09.03. compileSdk bewusst auf 34 gesetzt (reine Toolchain-Version
-  für AndroidX-Kompatibilität), minSdk/targetSdk bleiben wie entschieden bei 33.
+  Compose BOM 2024.09.03.
+- **SDK-Anhebung 2026-10-09**: compileSdk + targetSdk von 34/33 auf **36 (Android 16)**
+  angehoben (Gerät des Nutzers ist Android 17), minSdk bleibt **33 (Android 13, Pflicht-
+  Abwärtskompatibilität)**. Dafür Gradle 8.9→8.11.1 und AGP 8.5.2→8.9.1 (Minimum für
+  compileSdk 36). Bewusst NICHT auf API 37/Android 17 gegangen: das bräuchte AGP 9 +
+  Gradle 9 + Kotlin 2.2 + KSP2 (+ vermutlich Hilt/Room-Bumps) — großer Toolchain-Sprung,
+  hohes CI-Bruchrisiko, funktional für Health Connect identisch. Manifest war bereits
+  vorbereitet (FGS-Types + FOREGROUND_SERVICE_*-Permissions, FLAG_IMMUTABLE-PendingIntents,
+  ContextCompat.registerReceiver mit RECEIVER_NOT_EXPORTED), daher keine targetSdk-34+-
+  Crash-Quellen offen. Edge-to-edge (targetSdk 35+) wird von Material3-Scaffold-Insets
+  abgedeckt.
 - App startet mit Platzhalter-Alarmliste-Screen (Scaffold, FAB, leere Liste) als
   Basis für PLAN.md Schritt 3.
 - Room-Entities `AlarmEntity`/`JobEntity`/`ShiftEntity`/`RotationEntity`/
@@ -472,3 +481,43 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   in allen vorherigen Sessions der GitHub Action vorbehalten; alle Änderungen wurden
   stattdessen besonders sorgfältig manuell gegen bestehende Code-Muster und exakte
   DAO-/Repository-Signaturen geprüft.
+
+## Session 2026-10-09 (Teil 2): Kontakt-Geburtstage + Berechtigungs-Fixes
+
+- **Geburtstage aus Geräte-Kontakten im Kalender** (neues Package `contacts`):
+  `ContactBirthdayRepository` (@Singleton, Hilt-Constructor-Injection, kein Modul nötig)
+  liest per `ContactsContract.Data` die Event-Rows vom Typ `TYPE_BIRTHDAY`
+  (Spalten CONTACT_ID/DISPLAY_NAME/PHOTO_URI/START_DATE), parst beide Android-Formate
+  "yyyy-MM-dd" und "--MM-dd" (Jahr optional → `year`), 29.02. fällt in Nicht-Schaltjahren
+  auf den 28.02. `birthdaysInRange(from,to)` bildet die jährlich wiederkehrenden
+  Geburtstage auf konkrete Daten im Anzeige-Jahr ab. Braucht `READ_CONTACTS`; ohne
+  Berechtigung leere Liste (kein Throw).
+  - Monatsansicht: neuer `CalendarDayEntry`-Subtyp `BirthdayDayEntry` (lila
+    `BIRTHDAY_COLOR_ARGB`, Label "🎂 Name") — farbiger Punkt + Name wie andere Einträge.
+  - Tagesansicht: neuer `DayAgendaItem`-Subtyp `BirthdayAgendaItem` mit `photoUri`;
+    `CalendarDayScreen.BirthdayCard` zeigt zusätzlich das **Kontaktbild** (geladen ohne
+    Bild-Lib direkt via `ContentResolver`/`BitmapFactory`, Fallback: Torten-Icon im
+    Akzentkreis) und das erreichte Alter (nur wenn Geburtsjahr bekannt).
+  - Beide ViewModels (`CalendarMonthViewModel`, `CalendarDayViewModel`) bekommen das Repo
+    injiziert, Geburtstage über `flow { emit(...) }.flowOn(Dispatchers.IO)` als 4. Flow im
+    jeweiligen finalen `combine` ergänzt.
+  - Bewusste Produktentscheidung: Foto nur in der Tagesansicht, in der Monatsansicht nur
+    Punkt+Name (Grid-Zellen zu klein für Avatare). Falls Avatare im Monatsraster gewünscht
+    → gesondert nachziehen.
+- **Sensor-Berechtigung "funktioniert nicht" behoben**: Die Onboarding-Zeile verlangte
+  früher ACTIVITY_RECOGNITION **und** BODY_SENSORS zusammen. Nichts im Code liest
+  Körper-Vitaldaten (kein Herzfrequenz-Sensor); `SensorMovementMonitor` nutzt nur
+  Schrittzähler (ACTIVITY_RECOGNITION) + Accelerometer/Gyroskop (keine Berechtigung).
+  BODY_SENSORS ließ die Zeile auf Geräten ohne Körpersensor dauerhaft "nicht erteilt"
+  anzeigen. Fix: BODY_SENSORS komplett aus Manifest + PermissionsScreen entfernt, Zeile
+  heißt jetzt "Aktivitätserkennung (Bewegung)" und fragt nur ACTIVITY_RECOGNITION an.
+- **Health-Connect-Berechtigung "trotz mehrfachem Versuch nicht erteilt" behoben**:
+  wahrscheinliche Ursache = Gerät auf Android 14+, wo Health Connect ins System integriert
+  ist und statt `ACTION_SHOW_PERMISSIONS_RATIONALE` eine `activity-alias`
+  `ViewPermissionUsageActivity` mit `VIEW_PERMISSION_USAGE` + Kategorie
+  `HEALTH_PERMISSIONS` (permission `START_VIEW_PERMISSION_USAGE`) im Manifest erwartet.
+  Diese Alias (Ziel = bestehende `PermissionsRationaleActivity`) ergänzt; der alte
+  Rationale-Intent-Filter bleibt für Android 13 (minSdk) erhalten.
+- Noch **nicht committet/gepusht** (Standing-Regel). `processDebugManifest` lief lokal
+  durch (validiert die Manifest-XML-Änderungen), `compileDebugKotlin` weiterhin durch
+  aapt2/x86_64 auf dem Pi blockiert.

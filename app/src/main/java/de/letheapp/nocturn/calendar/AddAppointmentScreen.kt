@@ -50,6 +50,7 @@ fun AddAppointmentScreen(
     initialEndMillis: Long,
     initialAllDay: Boolean,
     initialPriority: AppointmentPriority = AppointmentPriority.NORMAL,
+    initialReminderMinutesBefore: Int? = null,
     onSaved: () -> Unit,
     onCancelled: () -> Unit,
     viewModel: AddAppointmentViewModel = hiltViewModel()
@@ -59,6 +60,7 @@ fun AddAppointmentScreen(
     var description by remember { mutableStateOf(initialDescription) }
     var allDay by remember { mutableStateOf(initialAllDay) }
     var priority by remember { mutableStateOf(initialPriority) }
+    var reminderMinutesBefore by remember { mutableStateOf(initialReminderMinutesBefore) }
     var beginMillis by remember { mutableLongStateOf(initialBeginMillis) }
     var endMillis by remember { mutableLongStateOf(initialEndMillis) }
     var editingBegin by remember { mutableStateOf(false) }
@@ -116,6 +118,22 @@ fun AddAppointmentScreen(
                 }
             }
 
+            Text("Erinnerung", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf<Pair<Int?, String>>(
+                    null to "Keine",
+                    30 to "30 Min. vorher",
+                    24 * 60 to "1 Tag vorher",
+                    2 * 24 * 60 to "2 Tage vorher"
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = reminderMinutesBefore == value,
+                        onClick = { reminderMinutesBefore = value },
+                        label = { Text(label) }
+                    )
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -155,6 +173,7 @@ fun AddAppointmentScreen(
                         endEpochMillis = endMillis,
                         allDay = allDay,
                         priority = priority,
+                        reminderMinutesBefore = reminderMinutesBefore,
                         onSaved = onSaved
                     )
                 }) { Text("Speichern") }

@@ -1,5 +1,6 @@
 package de.letheapp.nocturn.calendar
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -21,14 +23,22 @@ import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BeachAccess
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -41,8 +51,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -80,17 +93,39 @@ fun CalendarMonthScreen(
     onAddAppointment: (LocalDate) -> Unit,
     onAddShift: (LocalDate) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onOpenExport: () -> Unit,
+    onOpenCalendarTemplates: () -> Unit,
+    onOpenHolidaySettings: () -> Unit,
+    onOpenNextcloudSync: () -> Unit,
     viewModel: CalendarMonthViewModel = hiltViewModel()
 ) {
     val month by viewModel.month.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     val rotations by viewModel.rotations.collectAsState()
+    val shareFileUri by viewModel.shareFileUri.collectAsState()
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
     var durationDialogFor by remember { mutableStateOf<Pair<RotationOption, LocalDate>?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    BackHandler(enabled = drawerState.isOpen) {
+        drawerScope.launch { drawerState.close() }
+    }
+
+    LaunchedEffect(shareFileUri) {
+        val uri = shareFileUri ?: return@LaunchedEffect
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/calendar"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Kalender teilen"))
+        viewModel.consumeShareFile()
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -135,6 +170,21 @@ fun CalendarMonthScreen(
                         )
                     }
                 }
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "Ferien & Feiertage",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                Text(
+                    "Diese Farben markieren Feiertage und Ferien im Kalender:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+                )
+                HolidayLegendRow(color = Color(PUBLIC_HOLIDAY_COLOR_ARGB), label = "Gesetzliche Feiertage")
+                HolidayLegendRow(color = Color(SCHOOL_HOLIDAY_COLOR_ARGB), label = "Schulferien")
             }
         }
     ) {
@@ -147,6 +197,12 @@ fun CalendarMonthScreen(
                                 .replaceFirstChar { it.uppercase() } + " ${month.year}"
                         )
                     },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
                     navigationIcon = {
                         IconButton(onClick = { drawerScope.launch { drawerState.open() } }) {
                             Icon(Icons.Filled.Menu, contentDescription = "Menü")
@@ -158,6 +214,46 @@ fun CalendarMonthScreen(
                         }
                         IconButton(onClick = viewModel::nextMonth) {
                             Icon(Icons.Filled.ChevronRight, contentDescription = "Nächster Monat")
+                        }
+                        IconButton(onClick = viewModel::shareMonth) {
+                            Icon(Icons.Filled.Share, contentDescription = "Kalender teilen")
+                        }
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Weitere Optionen")
+                        }
+                        DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Kalender-Vorlagen") },
+                                leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenCalendarTemplates()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ferien & Feiertage") },
+                                leadingIcon = { Icon(Icons.Filled.BeachAccess, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenHolidaySettings()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nextcloud-Sync") },
+                                leadingIcon = { Icon(Icons.Filled.CloudSync, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenNextcloudSync()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Kalender exportieren") },
+                                leadingIcon = { Icon(Icons.Filled.Print, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenExport()
+                                }
+                            )
                         }
                     }
                 )
@@ -322,6 +418,17 @@ private fun RotationDurationDialog(
 }
 
 @Composable
+private fun HolidayLegendRow(color: Color, label: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(12.dp).background(color, CircleShape))
+        Text(label, modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
 internal fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -338,6 +445,7 @@ internal fun AddEntryTypeDialog(onPickAppointment: () -> Unit, onPickShift: () -
 
 @Composable
 private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entries: List<CalendarDayEntry>, onClick: () -> Unit) {
+    val hasPublicHoliday = entries.any { it is HolidayDayEntry && !it.isSchoolHoliday }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -350,7 +458,11 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entr
             modifier = Modifier
                 .size(28.dp)
                 .background(
-                    if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    when {
+                        isToday -> MaterialTheme.colorScheme.primary
+                        hasPublicHoliday -> Color(PUBLIC_HOLIDAY_COLOR_ARGB)
+                        else -> Color.Transparent
+                    },
                     CircleShape
                 )
                 .then(
@@ -365,7 +477,7 @@ private fun DayCell(date: LocalDate, isToday: Boolean, isSelected: Boolean, entr
             Text(
                 text = date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isToday) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                color = if (isToday || hasPublicHoliday) Color.White else MaterialTheme.colorScheme.onSurface
             )
         }
 

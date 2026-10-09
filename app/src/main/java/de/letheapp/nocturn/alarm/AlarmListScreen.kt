@@ -18,15 +18,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BeachAccess
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarViewMonth
-import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,11 +58,8 @@ import java.time.DayOfWeek
 @Composable
 fun AlarmListScreen(
     onEditAlarm: (Long) -> Unit,
-    onOpenCalendarTemplates: () -> Unit,
     onOpenCalendarMonth: () -> Unit,
     onOpenPermissions: () -> Unit,
-    onOpenNextcloudSync: () -> Unit,
-    onOpenHolidaySettings: () -> Unit,
     onOpenHealthConnectStatus: () -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
@@ -78,6 +74,11 @@ fun AlarmListScreen(
         topBar = {
             TopAppBar(
                 title = { Text("NocTurn") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
                 actions = {
                     IconButton(onClick = onOpenCalendarMonth) {
                         Icon(Icons.Filled.CalendarViewMonth, contentDescription = "Kalender")
@@ -87,10 +88,6 @@ fun AlarmListScreen(
                     }
                     DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Wecker") },
-                            onClick = { showOverflowMenu = false }
-                        )
-                        DropdownMenuItem(
                             text = { Text("Status") },
                             leadingIcon = { Icon(Icons.Filled.MonitorHeart, contentDescription = null) },
                             onClick = {
@@ -99,42 +96,11 @@ fun AlarmListScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Kalender") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onOpenCalendarMonth()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Kalender-Vorlagen") },
-                            leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                onOpenCalendarTemplates()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Ferien & Feiertage") },
-                            leadingIcon = { Icon(Icons.Filled.BeachAccess, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                onOpenHolidaySettings()
-                            }
-                        )
-                        DropdownMenuItem(
                             text = { Text("Berechtigungen") },
                             leadingIcon = { Icon(Icons.Filled.Shield, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenPermissions()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Nextcloud-Sync") },
-                            leadingIcon = { Icon(Icons.Filled.CloudSync, contentDescription = null) },
-                            onClick = {
-                                showOverflowMenu = false
-                                onOpenNextcloudSync()
                             }
                         )
                     }
@@ -241,7 +207,13 @@ private fun WeekdayPickerDialog(onConfirm: (repeatDays: Int) -> Unit, onDismiss:
 
 @Composable
 private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    val accentColor = if (alarm.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    val contentAlpha = if (alarm.enabled) 1f else 0.6f
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (alarm.enabled) 2.dp else 0.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -249,12 +221,13 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
             Box(
                 modifier = Modifier
                     .size(8.dp, 40.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
+                    .background(accentColor, RoundedCornerShape(4.dp))
             )
             Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
                 Text(
                     text = "%02d:%02d".format(alarm.hour, alarm.minute),
-                    style = MaterialTheme.typography.headlineMedium
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
                 )
                 Text(
                     text = if (alarm.label.isNotBlank()) {
@@ -262,7 +235,8 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
                     } else {
                         AlarmRepeat.describe(alarm.repeatDays)
                     },
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
                 )
             }
             Switch(checked = alarm.enabled, onCheckedChange = onToggle)

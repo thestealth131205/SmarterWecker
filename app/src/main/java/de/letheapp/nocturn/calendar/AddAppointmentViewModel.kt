@@ -21,6 +21,7 @@ class AddAppointmentViewModel @Inject constructor(
         endEpochMillis: Long,
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
+        reminderMinutesBefore: Int? = null,
         onSaved: () -> Unit
     ) {
         if (title.isBlank()) return
@@ -32,7 +33,8 @@ class AddAppointmentViewModel @Inject constructor(
                 startEpochMillis = startEpochMillis,
                 endEpochMillis = maxOf(startEpochMillis, endEpochMillis),
                 allDay = allDay,
-                priority = priority
+                priority = priority,
+                reminderMinutesBefore = reminderMinutesBefore
             )
             onSaved()
         }

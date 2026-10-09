@@ -11,11 +11,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.INTERNET" />
 
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
@@ -101,6 +101,25 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Zweiter, für Android 14+ (API 34) nötiger Einstiegspunkt derselben Datenschutz-Erklärung:
+            auf neueren Geräten ist Health Connect ins System integriert und verlangt statt des
+            ACTION_SHOW_PERMISSIONS_RATIONALE-Filters diese activity-alias mit
+            VIEW_PERMISSION_USAGE/HEALTH_PERMISSIONS. Fehlt sie, bricht die Berechtigungsvergabe auf
+            Android 14 still ab (gemeldeter Bug: "Health-Connect-Berechtigung wird trotz mehrfachem
+            Versuch nicht erteilt"). Auf Android 13 (minSdk) bleibt der Filter oben maßgeblich.
+        -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".monitoring.PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".ringing.AlarmRingingActivity"
             android:exported="false"
@@ -117,6 +136,10 @@
 
         <receiver
             android:name=".alarm.AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".calendar.AppointmentReminderReceiver"
             android:exported="false" />
 
         <receiver

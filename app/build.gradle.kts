@@ -24,14 +24,18 @@ val releaseStoreFilePath = signingProperty("RELEASE_KEYSTORE_PATH")
 
 android {
     namespace = "de.letheapp.nocturn"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "de.letheapp.nocturn"
+        // minSdk bleibt 33 (Android 13) — Abwärtskompatibilität ist Pflicht. Nur compileSdk/
+        // targetSdk werden angehoben (Android 16 / API 36), damit die App auf aktuellen Geräten
+        // (Android 14/15/16/17) ohne Kompatibilitätsmodus läuft. Höher als 36 ginge nur mit AGP 9
+        // + Gradle 9 + Kotlin 2.2/KSP2 (API 37/Android 17) — bewusst (noch) nicht gemacht.
         minSdk = 33
-        targetSdk = 33
-        versionCode = 3
-        versionName = "0.3.0"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     signingConfigs {

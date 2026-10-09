@@ -4,27 +4,29 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import de.letheapp.nocturn.contacts.ContactBirthday
+import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.HolidayEntity
 import de.letheapp.nocturn.data.db.HolidayType
 import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
-
-private const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
-private const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
 
 /** Ein Eintrag in der Tagesansicht — entweder ganztägig (Feiertag/Ferien, ganztägiger Termin) oder zeitlich verortet. */
 sealed interface DayAgendaItem {
@@ -47,6 +49,14 @@ data class TimedAgendaItem(
     override val colorArgb: Int
 ) : DayAgendaItem
 
+/** Geburtstag eines Geräte-Kontakts — ganztägig, zusätzlich mit optionalem Kontaktbild. */
+data class BirthdayAgendaItem(
+    override val title: String,
+    override val subtitle: String?,
+    val photoUri: String?,
+    override val colorArgb: Int
+) : DayAgendaItem
+
 /**
  * Tagesansicht für einen einzelnen Kalendertag (siehe CLAUDE.md Kernfunktion 6): zeigt alle
  * Schichten (aus Rotation oder manuell eingetragen), Termine und Feiertage/Ferien dieses Tages
@@ -57,6 +67,7 @@ data class TimedAgendaItem(
 class CalendarDayViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val holidayRepository: HolidayRepository,
+    private val contactBirthdayRepository: ContactBirthdayRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -106,7 +117,13 @@ class CalendarDayViewModel @Inject constructor(
             flowOf(emptyList())
         }
 
-        combine(shiftFlow, appointmentFlow, holidayFlow) { a, b, c -> a + b + c }
+        val birthdayFlow = flow {
+            emit(contactBirthdayRepository.birthdaysInRange(epochDay, epochDay))
+        }.flowOn(Dispatchers.IO).map { birthdays ->
+            birthdays.map { (_, birthday) -> birthdayToItem(birthday) }
+        }
+
+        combine(shiftFlow, appointmentFlow, holidayFlow, birthdayFlow) { a, b, c, d -> a + b + c + d }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun shiftToItem(shift: ShiftEntity, jobName: String): DayAgendaItem {
@@ -137,6 +154,16 @@ class CalendarDayViewModel @Inject constructor(
             startMinuteOfDay = start.hour * 60 + start.minute,
             endMinuteOfDay = end.hour * 60 + end.minute,
             colorArgb = appointment.colorArgb
+        )
+    }
+
+    private fun birthdayToItem(birthday: ContactBirthday): DayAgendaItem {
+        val age = birthday.year?.let { date.year - it }?.takeIf { it > 0 }
+        return BirthdayAgendaItem(
+            title = birthday.displayName,
+            subtitle = if (age != null) "Geburtstag · wird $age" else "Geburtstag",
+            photoUri = birthday.photoUri,
+            colorArgb = BIRTHDAY_COLOR_ARGB
         )
     }
 

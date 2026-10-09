@@ -108,6 +108,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
    - **Freie Termine**: eigenständige Termine (z. B. Kinoticket, Arzttermin) unabhängig
      von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht, mit Titel,
      Ort, Notiz und wählbarer **Wichtigkeit** (Niedrig/Normal/Hoch).
+   - **Geburtstage aus Geräte-Kontakten**: Geburtstage der im Gerät gespeicherten Kontakte
+     werden automatisch (jährlich wiederkehrend) als eigener Eintragstyp im Kalender
+     angezeigt — in der Monatsansicht als farbiger Punkt (lila) plus Name mit Torten-Emoji,
+     in der Tagesansicht zusätzlich mit dem **Kontaktbild** (falls vorhanden) und dem
+     erreichten Alter (nur wenn der Kontakt ein Geburtsjahr hinterlegt hat). Gelesen über
+     `ContactsContract` (Event-Rows vom Typ `TYPE_BIRTHDAY`), braucht die Laufzeit-
+     Berechtigung `READ_CONTACTS` (siehe Kernfunktion 10); ohne sie bleiben die Geburtstage
+     einfach leer. Kontaktbild wird ohne zusätzliche Bild-Bibliothek direkt per
+     `ContentResolver`/`BitmapFactory` geladen (FOSS-Minimalismus). Neues Package `contacts`.
    - **"+"-Button in der Monatsansicht**: fragt ab, ob ein Termin oder eine Schicht
      angelegt werden soll. Als Datum wird der zuvor angetippte Tag vorbelegt (alternativ
      frei wählbar über einen Datums-Dialog). Eine manuell für einen einzelnen Tag
@@ -200,10 +209,23 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
         richtigen Zeit klingelt.
       - Benachrichtigungen (`POST_NOTIFICATIONS`) — für Alarm-/Notfall-Anzeige.
       - Kamera — für den Foto-Import von Stundenplan/Schichtplan (Kernfunktion 5).
-      - Körpersensoren/Aktivitätserkennung (`BODY_SENSORS`/`ACTIVITY_RECOGNITION`)
-        sowie Health-Connect-Zugriff — für die Aufsteh-Erkennung (Kernfunktion 1).
+      - Aktivitätserkennung (`ACTIVITY_RECOGNITION`) sowie Health-Connect-Zugriff — für
+        die Aufsteh-Erkennung (Kernfunktion 1). Bewusst **ohne** `BODY_SENSORS`: die App
+        liest keine Körper-Vitaldaten (Herzfrequenz o. Ä.); der Schrittzähler braucht nur
+        `ACTIVITY_RECOGNITION`, die Beschleunigungs-/Gyroskop-Auswertung gar keine
+        Berechtigung. `BODY_SENSORS` hatte die Aufsteh-Erkennungs-Berechtigung früher
+        fälschlich dauerhaft als "nicht erteilt" erscheinen lassen (Gerät ohne
+        Körpersensor) und ist daher komplett entfernt.
+      - Kontakte (`READ_CONTACTS`) — um Geburtstage der Kontakte im Kalender anzuzeigen
+        (Kernfunktion 6).
       - Ignorieren von Akku-Optimierungen — damit die Überwachung nach dem Klingeln
         nicht durch Doze/Battery-Optimizations unterbrochen wird.
+    - **Health-Connect-Berechtigung zuverlässig auch auf Android 14+**: neben dem
+      `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`-Intent-Filter (für Android 13)
+      ist zusätzlich eine `activity-alias` `ViewPermissionUsageActivity` mit
+      `VIEW_PERMISSION_USAGE`/Kategorie `HEALTH_PERMISSIONS` im Manifest registriert; ohne
+      sie bricht die Berechtigungsvergabe auf Geräten mit ins System integriertem Health
+      Connect (Android 14+) still ab ("wird trotz mehrfachem Versuch nicht erteilt").
     - (Noch) nicht erteilte Berechtigungen werden weiterhin mit Hinweis auf die
       eingeschränkte Funktion angezeigt (ähnlich dem bereits bestehenden Banner für
       fehlende Exact-Alarm-Berechtigung), nicht nur einmalig beim Start abgefragt.
@@ -225,9 +247,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Injection, Apache-2.0/Open Source, kostenlos) ab Phase 1.
 - **Package-Name: `de.letheapp.nocturn`** (Reverse-Domain von letheapp.de,
   App-Name "NocTurn").
-- **minSdk = targetSdk = API 33 (Android 13)**. Play-Store-Veröffentlichung ist
-  explizit kein Ziel, daher keine Rücksicht auf Play-Store-Vorgaben (z. B.
-  aktueller targetSdk) nötig.
+- **minSdk = API 33 (Android 13)** — Abwärtskompatibilität zu Android 13 ist Pflicht und
+  bleibt unverändert. **compileSdk = targetSdk = API 36 (Android 16)** (angehoben von
+  vormals compileSdk 34 / targetSdk 33), damit die App auf aktuellen Geräten
+  (Android 14/15/16/17) ohne Kompatibilitätsmodus läuft. Höher (API 37 / Android 17)
+  würde den kompletten Toolchain-Sprung auf AGP 9 + Gradle 9 + Kotlin 2.2 + KSP2 (statt
+  AGP 8.9.1 / Gradle 8.11.1 / Kotlin 2.0.21 / KSP1) erzwingen und ist daher bewusst
+  (noch) nicht erfolgt — funktional für Health Connect & Co. identisch. Play-Store-
+  Veröffentlichung ist explizit kein Ziel, daher keine Rücksicht auf Play-Store-Vorgaben
+  (z. B. aktueller targetSdk) nötig.
 - **FOSS-Kompatibilität als Leitlinie**: Bei Abhängigkeiten werden offene/freie
   Lizenzen bevorzugt, proprietäre/closed-source Komponenten möglichst vermieden.
   Spotify-/Deezer-SDKs (closed-source, Streaming-Anbieter) bleiben rein optionale

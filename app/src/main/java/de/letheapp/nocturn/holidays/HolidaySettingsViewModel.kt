@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,6 +28,13 @@ class HolidaySettingsViewModel @Inject constructor(
     fun save(state: GermanState, showPublicHolidays: Boolean, showSchoolHolidays: Boolean, onSaved: () -> Unit) {
         viewModelScope.launch {
             holidayRepository.saveSettings(state.subdivisionCode, state.displayName, showPublicHolidays, showSchoolHolidays)
+            if (showPublicHolidays || showSchoolHolidays) {
+                // Sofort nachladen statt auf die nächste Rekomposition der Monatsansicht zu
+                // warten — macht den Effekt des Speicherns unmittelbar sichtbar.
+                val currentYear = LocalDate.now().year
+                holidayRepository.ensureYearLoaded(state.subdivisionCode, currentYear)
+                holidayRepository.ensureYearLoaded(state.subdivisionCode, currentYear + 1)
+            }
             onSaved()
         }
     }

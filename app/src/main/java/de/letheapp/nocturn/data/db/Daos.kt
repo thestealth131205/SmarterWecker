@@ -171,6 +171,9 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments WHERE dirty = 1")
     suspend fun getDirty(): List<AppointmentEntity>
 
+    @Query("SELECT * FROM appointments WHERE reminderMinutesBefore IS NOT NULL")
+    suspend fun getAllWithReminder(): List<AppointmentEntity>
+
     @Insert
     suspend fun insert(appointment: AppointmentEntity): Long
 

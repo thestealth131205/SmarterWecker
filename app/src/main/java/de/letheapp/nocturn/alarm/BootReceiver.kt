@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.AndroidEntryPoint
+import de.letheapp.nocturn.calendar.AppointmentReminderScheduler
+import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +18,8 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var alarmRepository: AlarmRepository
     @Inject lateinit var alarmScheduler: AlarmScheduler
+    @Inject lateinit var appointmentDao: AppointmentDao
+    @Inject lateinit var appointmentReminderScheduler: AppointmentReminderScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -26,6 +30,7 @@ class BootReceiver : BroadcastReceiver() {
                 alarmRepository.observeAll().first()
                     .filter { it.enabled }
                     .forEach { alarmScheduler.schedule(it) }
+                appointmentDao.getAllWithReminder().forEach { appointmentReminderScheduler.schedule(it) }
             } finally {
                 pendingResult.finish()
             }

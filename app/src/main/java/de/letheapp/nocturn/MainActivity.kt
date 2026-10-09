@@ -20,6 +20,7 @@ import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
+import de.letheapp.nocturn.export.CalendarExportScreen
 import de.letheapp.nocturn.holidays.HolidaySettingsScreen
 import de.letheapp.nocturn.monitoring.HealthConnectStatusScreen
 import de.letheapp.nocturn.ocr.PhotoImportScreen
@@ -49,6 +50,7 @@ private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
 private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
 private const val ROUTE_NEXTCLOUD_SYNC = "nextcloudSync"
 private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
+private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 /** Von Widgets (siehe `widget`-Package) genutzt, um nach dem Start direkt die Monatsansicht zu öffnen. */
@@ -84,11 +86,8 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
         composable(ROUTE_ALARM_LIST) {
             AlarmListScreen(
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
-                onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
                 onOpenPermissions = { navController.navigate("permissions/false") },
-                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
-                onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
                 onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) }
             )
         }
@@ -132,8 +131,16 @@ private fun NocturnNavHost(startDestination: String, appPreferences: AppPreferen
                 onBack = { navController.popBackStack() },
                 onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
                 onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
-                onOpenDay = { date -> navController.navigate("calendarDay/${date.toEpochDay()}") }
+                onOpenDay = { date -> navController.navigate("calendarDay/${date.toEpochDay()}") },
+                onOpenExport = { navController.navigate(ROUTE_CALENDAR_EXPORT) },
+                onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
+                onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
+                onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) }
             )
+        }
+
+        composable(ROUTE_CALENDAR_EXPORT) {
+            CalendarExportScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_CALENDAR_DAY) {

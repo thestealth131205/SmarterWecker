@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -38,79 +41,96 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+private const val POOL_COLUMNS = 5
+private val MAX_ELEMENT_SIZE = 56.dp
+private val MIN_ELEMENT_SIZE = 30.dp
+private val ELEMENT_SPACING = 4.dp
+private val SCREEN_PADDING = 24.dp
+
 @Composable
 fun PuzzleScreen(puzzle: Puzzle, onSolved: () -> Unit) {
     var pool by remember(puzzle) { mutableStateOf(puzzle.pool) }
     val placedSlots = remember(puzzle) { mutableStateMapOf<Int, PuzzleElement>() }
     val slotBounds = remember(puzzle) { mutableStateMapOf<Int, Rect>() }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-        Text(
-            text = "Notfall-Alarm! Sortiere die Elemente in der vorgegebenen Reihenfolge ein.",
-            style = MaterialTheme.typography.titleMedium
-        )
+    // Alle Reihen (Vorgabe, Ziel, Auswahl) teilen sich dieselbe Elementgröße, berechnet aus der
+    // breitesten Reihe — so wird nie etwas abgeschnitten und nichts muss gescrollt werden
+    // (die Elemente werden stattdessen kleiner, je mehr auf einmal angezeigt werden müssen).
+    val widestRowCount = maxOf(puzzle.sequence.size, minOf(pool.size, POOL_COLUMNS))
 
-        Text(
-            text = "Vorgabe",
-            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
-            style = MaterialTheme.typography.labelLarge
-        )
-        Row(modifier = Modifier.fillMaxWidth()) {
-            puzzle.sequence.forEach { element ->
-                ElementVisual(element, modifier = Modifier.padding(4.dp))
-            }
-        }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(SCREEN_PADDING)) {
+        val availableWidth = maxWidth
+        val rawSize = (availableWidth - ELEMENT_SPACING * 2 * widestRowCount) / widestRowCount
+        val elementSize = rawSize.coerceIn(MIN_ELEMENT_SIZE, MAX_ELEMENT_SIZE)
 
-        Text(
-            text = "Ziel",
-            modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
-            style = MaterialTheme.typography.labelLarge
-        )
-        Row(modifier = Modifier.fillMaxWidth()) {
-            puzzle.sequence.indices.forEach { index ->
-                Box(
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .size(56.dp)
-                        .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                        .onGloballyPositioned { coordinates ->
-                            slotBounds[index] = coordinates.boundsInWindow()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    placedSlots[index]?.let { ElementVisual(it) }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Notfall-Alarm! Sortiere die Elemente in der vorgegebenen Reihenfolge ein.",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Text(
+                text = "Vorgabe",
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                puzzle.sequence.forEach { element ->
+                    ElementVisual(element, size = elementSize, modifier = Modifier.padding(ELEMENT_SPACING))
                 }
             }
-        }
 
-        Text(
-            text = "Auswahl",
-            modifier = Modifier.padding(top = 32.dp, bottom = 8.dp),
-            style = MaterialTheme.typography.labelLarge
-        )
-        FlowPool(
-            pool = pool,
-            slotBounds = slotBounds,
-            onDropped = { element, slotIndex ->
-                if (slotIndex != null && placedSlots[slotIndex] == null &&
-                    puzzle.sequence[slotIndex].key == element.key
-                ) {
-                    placedSlots[slotIndex] = element
-                    pool = pool.filterNot { it.key == element.key }
-                    if (placedSlots.size == puzzle.sequence.size) {
-                        onSolved()
+            Text(
+                text = "Ziel",
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                puzzle.sequence.indices.forEach { index ->
+                    Box(
+                        modifier = Modifier
+                            .padding(ELEMENT_SPACING)
+                            .size(elementSize)
+                            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                            .onGloballyPositioned { coordinates ->
+                                slotBounds[index] = coordinates.boundsInWindow()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        placedSlots[index]?.let { ElementVisual(it, size = elementSize) }
                     }
                 }
             }
-        )
+
+            Text(
+                text = "Auswahl",
+                modifier = Modifier.padding(top = 32.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+            FlowPool(
+                pool = pool,
+                elementSize = elementSize,
+                slotBounds = slotBounds,
+                onDropped = { element, slotIndex ->
+                    if (slotIndex != null && placedSlots[slotIndex] == null &&
+                        element.matches(puzzle.sequence[slotIndex])
+                    ) {
+                        placedSlots[slotIndex] = element
+                        pool = pool.toMutableList().apply { remove(element) }
+                        if (placedSlots.size == puzzle.sequence.size) {
+                            onSolved()
+                        }
+                    }
+                }
+            )
+        }
     }
 }
-
-private const val POOL_COLUMNS = 5
 
 @Composable
 private fun FlowPool(
     pool: List<PuzzleElement>,
+    elementSize: Dp,
     slotBounds: Map<Int, Rect>,
     onDropped: (PuzzleElement, Int?) -> Unit
 ) {
@@ -120,6 +140,7 @@ private fun FlowPool(
                 rowElements.forEach { element ->
                     DraggableElement(
                         element = element,
+                        size = elementSize,
                         slotBounds = slotBounds,
                         onDropped = { slotIndex -> onDropped(element, slotIndex) }
                     )
@@ -132,6 +153,7 @@ private fun FlowPool(
 @Composable
 private fun DraggableElement(
     element: PuzzleElement,
+    size: Dp,
     slotBounds: Map<Int, Rect>,
     onDropped: (Int?) -> Unit
 ) {
@@ -141,7 +163,7 @@ private fun DraggableElement(
 
     Box(
         modifier = Modifier
-            .padding(4.dp)
+            .padding(ELEMENT_SPACING)
             .zIndex(if (dragging) 1f else 0f)
             .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
             .onGloballyPositioned { coordinates -> bounds = coordinates.boundsInWindow() }
@@ -168,23 +190,29 @@ private fun DraggableElement(
                 )
             }
     ) {
-        ElementVisual(element)
+        ElementVisual(element, size = size)
     }
 }
 
 @Composable
-private fun ElementVisual(element: PuzzleElement, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.size(48.dp), contentAlignment = Alignment.Center) {
+private fun ElementVisual(element: PuzzleElement, size: Dp = MAX_ELEMENT_SIZE, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         when (element) {
             is PuzzleElement.EmojiElement -> Text(text = element.emoji, style = MaterialTheme.typography.headlineSmall)
-            is PuzzleElement.ShapeElement -> ShapeVisual(element.shape, element.color)
+            is PuzzleElement.ShapeElement -> ShapeVisual(element.shape, element.color, size)
+            is PuzzleElement.NumberElement -> Text(
+                text = element.number.toString(),
+                color = element.color,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall
+            )
         }
     }
 }
 
 @Composable
-private fun ShapeVisual(shape: PuzzleShape, color: Color) {
-    val base = Modifier.size(40.dp).background(color)
+private fun ShapeVisual(shape: PuzzleShape, color: Color, size: Dp) {
+    val base = Modifier.size(size * 0.82f).background(color)
     when (shape) {
         PuzzleShape.CIRCLE -> Box(base.clip(CircleShape))
         PuzzleShape.SQUARE -> Box(base)

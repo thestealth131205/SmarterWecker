@@ -1,11 +1,17 @@
 package de.letheapp.nocturn.calendar
 
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.HolidayType
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,10 +19,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -52,16 +61,29 @@ data class HolidayDayEntry(
     override val label: String get() = name
 }
 
-private const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
-private const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
+/** Geburtstag eines Geräte-Kontakts (CLAUDE.md Kernfunktion 6), jährlich wiederkehrend. */
+data class BirthdayDayEntry(
+    val contactName: String,
+    val photoUri: String?,
+    val age: Int?,
+    override val colorArgb: Int
+) : CalendarDayEntry {
+    override val label: String get() = "🎂 $contactName"
+}
+
+const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
+const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
+const val BIRTHDAY_COLOR_ARGB = 0xFF8E24AA.toInt()
 
 /** Eine Rotation zur Anzeige in der Seitenleiste, mit dem Namen ihres Jobs zur Unterscheidung. */
 data class RotationOption(val id: Long, val name: String, val jobName: String)
 
 @HiltViewModel
 class CalendarMonthViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val calendarRepository: CalendarRepository,
-    private val holidayRepository: HolidayRepository
+    private val holidayRepository: HolidayRepository,
+    private val contactBirthdayRepository: ContactBirthdayRepository
 ) : ViewModel() {
 
     private val _month = MutableStateFlow(YearMonth.now())
@@ -161,8 +183,21 @@ class CalendarMonthViewModel @Inject constructor(
                     flowOf(emptyList())
                 }
 
-                combine(shiftAndAppointmentFlow, manualShiftFlow, holidayFlow) { a, b, c ->
-                    (a + b + c).groupBy({ it.first }, { it.second })
+                val birthdayFlow = flow {
+                    emit(contactBirthdayRepository.birthdaysInRange(fromEpochDay, toEpochDay))
+                }.flowOn(Dispatchers.IO).map { birthdays ->
+                    birthdays.map { (date, birthday) ->
+                        date to (BirthdayDayEntry(
+                            contactName = birthday.displayName,
+                            photoUri = birthday.photoUri,
+                            age = birthday.year?.let { date.year - it }?.takeIf { it > 0 },
+                            colorArgb = BIRTHDAY_COLOR_ARGB
+                        ) as CalendarDayEntry)
+                    }
+                }
+
+                combine(shiftAndAppointmentFlow, manualShiftFlow, holidayFlow, birthdayFlow) { a, b, c, d ->
+                    (a + b + c + d).groupBy({ it.first }, { it.second })
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -193,5 +228,30 @@ class CalendarMonthViewModel @Inject constructor(
         viewModelScope.launch {
             calendarRepository.applyRotationRange(rotationId, startEpochDay, totalDays)
         }
+    }
+
+    private val _shareFileUri = MutableStateFlow<Uri?>(null)
+
+    /** Einmaliger Wert für den "Teilen"-Button in der Topbar — eine erzeugte ICS-Datei, die der
+     *  Screen dann über Androids Teilen-Menü an eine andere App übergibt (siehe
+     *  [CalendarShareExporter] und CLAUDE.md "Kalender teilen": serverunabhängig, läuft direkt
+     *  von App-Nutzer zu App-Nutzer über einen beliebigen Übertragungsweg). */
+    val shareFileUri: StateFlow<Uri?> = _shareFileUri
+
+    fun shareMonth() {
+        val currentMonth = _month.value
+        val currentEntries = entriesByDay.value
+        viewModelScope.launch {
+            val ics = CalendarShareExporter.buildIcs(currentMonth, currentEntries)
+            val dir = File(context.cacheDir, "calendar_share").apply { mkdirs() }
+            dir.listFiles()?.forEach { it.delete() }
+            val file = File(dir, "NocTurn_Kalender_$currentMonth.ics")
+            file.writeText(ics)
+            _shareFileUri.value = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        }
+    }
+
+    fun consumeShareFile() {
+        _shareFileUri.value = null
     }
 }

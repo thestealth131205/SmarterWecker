@@ -198,6 +198,8 @@ data class AppointmentEntity(
     val allDay: Boolean = false,
     val colorArgb: Int,
     val priority: String = AppointmentPriority.NORMAL.name,
+    /** Minuten vor [startEpochMillis] für eine Erinnerungs-Benachrichtigung, null = keine Erinnerung. */
+    val reminderMinutesBefore: Int? = null,
     /** True = seit dem letzten Nextcloud-Sync lokal verändert/neu angelegt, muss noch hochgeladen werden. */
     val dirty: Boolean = true
 )

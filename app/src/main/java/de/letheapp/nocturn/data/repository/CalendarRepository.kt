@@ -17,6 +17,7 @@ import de.letheapp.nocturn.data.db.RotationDayEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.ShiftEntity
+import de.letheapp.nocturn.calendar.AppointmentReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Instant
@@ -38,7 +39,8 @@ class CalendarRepository @Inject constructor(
     private val calendarEntryDao: CalendarEntryDao,
     private val lessonDao: LessonDao,
     private val appointmentDao: AppointmentDao,
-    private val manualShiftEntryDao: ManualShiftEntryDao
+    private val manualShiftEntryDao: ManualShiftEntryDao,
+    private val appointmentReminderScheduler: AppointmentReminderScheduler
 ) {
     companion object {
         const val FORECAST_YEARS = 5
@@ -217,28 +219,34 @@ class CalendarRepository @Inject constructor(
         endEpochMillis: Long,
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
+        reminderMinutesBefore: Int? = null,
         colorArgb: Int = DEFAULT_APPOINTMENT_COLOR_ARGB
     ): Long {
         val zone = java.time.ZoneId.systemDefault()
         val startDay = java.time.Instant.ofEpochMilli(startEpochMillis).atZone(zone).toLocalDate().toEpochDay()
         val endDay = java.time.Instant.ofEpochMilli(endEpochMillis).atZone(zone).toLocalDate().toEpochDay()
-        return appointmentDao.insert(
-            AppointmentEntity(
-                title = title,
-                location = location,
-                description = description,
-                startEpochMillis = startEpochMillis,
-                endEpochMillis = endEpochMillis,
-                startEpochDay = startDay,
-                endEpochDay = maxOf(startDay, endDay),
-                allDay = allDay,
-                colorArgb = colorArgb,
-                priority = priority.name
-            )
+        val appointment = AppointmentEntity(
+            title = title,
+            location = location,
+            description = description,
+            startEpochMillis = startEpochMillis,
+            endEpochMillis = endEpochMillis,
+            startEpochDay = startDay,
+            endEpochDay = maxOf(startDay, endDay),
+            allDay = allDay,
+            colorArgb = colorArgb,
+            priority = priority.name,
+            reminderMinutesBefore = reminderMinutesBefore
         )
+        val id = appointmentDao.insert(appointment)
+        appointmentReminderScheduler.schedule(appointment.copy(id = id))
+        return id
     }
 
-    suspend fun deleteAppointment(appointment: AppointmentEntity) = appointmentDao.delete(appointment)
+    suspend fun deleteAppointment(appointment: AppointmentEntity) {
+        appointmentReminderScheduler.cancel(appointment.id)
+        appointmentDao.delete(appointment)
+    }
 
     // Manuell eingetragene Einzel-Schichten (siehe CalendarMonthScreen-FAB, Option "Schicht")
 
