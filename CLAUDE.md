@@ -125,7 +125,14 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      werden. Die Schnellauswahl-Chips beim Schicht-Anlegen (`ShiftEditDialog`) heißen
      Urlaub/**Freischicht**/Früh/Nacht/Spät — bewusst "Freischicht" statt "Frei", da ein Tag
      ohne zugewiesene Schicht im Rotationsraster bereits "Frei" heißt und eine gleichnamige
-     Schicht sonst mit dem leeren Tag verwechselbar wäre.
+     Schicht sonst mit dem leeren Tag verwechselbar wäre. Speichert der Nutzer die neu
+     angelegte Rotation im `RotationEditorScreen` ab (Haken in der Topbar oder "Rotation
+     speichern"-Button), springt die App direkt zur Kalender-Monatsansicht zurück statt nur
+     eine einzelne Ebene des Assistenten (`ShiftSetupScreen`) zu schließen — der komplette
+     "+"-Ablauf gilt als eine zusammenhängende Aufgabe. Beim Bearbeiten einer bestehenden
+     Rotation aus der Job-Verwaltung heraus (`JobDetailScreen` → Rotationen-Tab) bleibt das
+     Speichern dagegen ein einfaches Zurück zur Job-Detailansicht, da dort kein mehrstufiger
+     Assistent vorausgeht.
    - Eine fertige Rotations-Vorlage wird erst über die ausklappbare Seitenleiste der
      Kalender-Monatsansicht tatsächlich in den Kalender eingetragen: Rotation wählen →
      Starttag im Kalender antippen → in einem schwebenden Fenster den Zeitraum festlegen
@@ -140,7 +147,10 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Tracking einzelner Zuweisungen, nur die `rotationId` an jedem Kalendereintrag). Die
      Rotations-**Vorlage** selbst bleibt dabei erhalten und lässt sich danach erneut zuweisen —
      anders als das Löschen der Vorlage selbst (löscht über Kaskade automatisch auch alle
-     zugehörigen Kalendereinträge).
+     zugehörigen Kalendereinträge). Die Vorlage selbst löschen lässt sich direkt im Abschnitt
+     "Rotation anwenden" derselben Seitenleiste per langem Gedrückthalten eines Rotations-
+     Eintrags — es erscheint ein rotes Löschen-Icon neben dem Eintrag, das nach Bestätigung
+     die Rotation inklusive aller ihrer Kalendereinträge endgültig entfernt.
    - **Phasen-Rückfrage bei mehrdeutigem Starttag**: Das Rotations-Raster im Editor nimmt
      Tag-Index 0 implizit als Montag an (Tag-Index mod 7 = Wochentag). Tippt der Nutzer in
      der Seitenleiste einen Starttag an, dessen Wochentag bei einer Zykluslänge über einer
@@ -291,9 +301,16 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        direkt den Wetter-Detail-Screen (`EXTRA_OPEN_WEATHER`, analog zu `EXTRA_OPEN_CALENDAR`),
        Tippen auf die Agenda-Zeilen öffnet direkt die Kalender-Monatsansicht.
    - Kalender-/Termine-Widget: Agenda-Ansicht der nächsten anstehenden Einträge
-     (Schichten aus Rotationen + freie Termine), je Zeile farbiger Punkt passend zur
-     Schicht-/Termin-Farbe, Tag/Uhrzeit und Bezeichnung. Tippen öffnet die App direkt in
-     der Kalender-Monatsansicht.
+     (Schichten aus Rotationen + freie Termine + Geburtstage aus den Geräte-Kontakten), je
+     Zeile farbiger Punkt passend zur Schicht-/Termin-/Geburtstags-Farbe, Tag/Uhrzeit und
+     Bezeichnung. Tippen öffnet die App direkt in der Kalender-Monatsansicht. Geburtstage
+     fließen direkt in `CalendarRepository.buildAgenda()` ein (gemeinsame Grundlage für
+     dieses Widget und die Agenda-Zeilen im Uhr-Widget), daher profitiert auch Letzteres
+     automatisch mit.
+   - **Untere Tab-Leiste** (`NocturnBottomBar`, Wecker/Wetter/Kalender): zusätzlich zum Tippen
+     lässt sich per Wischen direkt auf der Leiste selbst zum vorherigen/nächsten Tab wechseln
+     — bewusst nur auf der Leiste, damit Wischen im jeweiligen Bildschirminhalt (z. B. der
+     Monatswechsel in der Kalender-Monatsansicht) davon unberührt bleibt.
 
 8. **Ton-Auswahl für Wecker/Alarm:**
    - Neben lokalen/klassischen Wecktönen auch Auswahl aus **Spotify**, **Deezer** und der
@@ -368,6 +385,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
       - `android.intent.category.APP_CALENDAR` und `android.intent.category.APP_CLOCK`,
         damit die App in den Android-Einstellungen unter "Standard-Apps" als Kalender-
         bzw. Uhr-App auswählbar ist.
+    - **"Standard-Apps öffnen"-Button im Einstellungen-Screen**: Android selbst hat (anders
+      als für Browser/Telefon/SMS) keine generische RoleManager-Rolle für Wecker/Uhr/Kalender
+      — ob eine eigene Auswahlseite dafür existiert, hängt vom Hersteller/der Android-Version
+      ab. Der Button öffnet direkt `Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS` (API 31+,
+      unterhalb von minSdk 33 also immer verfügbar), mit Fallback auf die normale App-Info-
+      Seite der App, falls das Gerät diese Einstellungsseite nicht kennt. Unabhängig davon
+      merkt sich Android bei den oben genannten Intent-Filtern automatisch eine vom Nutzer per
+      "Immer"-Auswahl im System-Dialog getroffene Standard-App-Entscheidung (z. B. beim ersten
+      "Wecker stellen" per Sprachassistent, wenn mehrere Wecker-Apps installiert sind).
 
 ## Architektur
 

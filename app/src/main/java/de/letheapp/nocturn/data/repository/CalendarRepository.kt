@@ -20,6 +20,8 @@ import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.data.db.TaskDao
 import de.letheapp.nocturn.data.db.TaskEntity
 import de.letheapp.nocturn.calendar.AppointmentReminderScheduler
+import de.letheapp.nocturn.calendar.BIRTHDAY_COLOR_ARGB
+import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.time.Instant
@@ -43,7 +45,8 @@ class CalendarRepository @Inject constructor(
     private val appointmentDao: AppointmentDao,
     private val manualShiftEntryDao: ManualShiftEntryDao,
     private val appointmentReminderScheduler: AppointmentReminderScheduler,
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val contactBirthdayRepository: ContactBirthdayRepository
 ) {
     companion object {
         /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
@@ -568,7 +571,16 @@ class CalendarRepository @Inject constructor(
             )
         }
 
-        return (shiftAgenda + appointmentAgenda).sortedBy { it.epochDay }
+        val birthdayAgenda = contactBirthdayRepository.birthdaysInRange(today, toDay).map { (date, birthday) ->
+            AgendaEntry(
+                epochDay = date.toEpochDay(),
+                label = "🎂 ${birthday.displayName}",
+                colorArgb = BIRTHDAY_COLOR_ARGB,
+                timeLabel = null
+            )
+        }
+
+        return (shiftAgenda + appointmentAgenda + birthdayAgenda).sortedBy { it.epochDay }
     }
 }
 

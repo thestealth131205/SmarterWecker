@@ -87,6 +87,7 @@ data class TaskDayEntry(
 const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
 const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
 const val BIRTHDAY_COLOR_ARGB = 0xFF8E24AA.toInt()
+const val NEON_YELLOW_ARGB = 0xFFEEFF00.toInt()
 
 /** Eine Rotation zur Anzeige in der Seitenleiste, mit dem Namen ihres Jobs zur Unterscheidung. */
 data class RotationOption(val id: Long, val name: String, val jobName: String)
@@ -280,6 +281,17 @@ class CalendarMonthViewModel @Inject constructor(
     fun removeRotationEntries(rotationId: Long) {
         viewModelScope.launch {
             calendarRepository.removeRotationEntries(rotationId)
+            shiftWakeupAlarmSyncer.sync()
+        }
+    }
+
+    /** Löscht die Rotations-**Vorlage** selbst (per Kaskade inkl. aller ihrer Kalendereinträge,
+     *  egal für welchen Zeitraum sie zugewiesen war) — anders als [removeRotationEntries], das nur
+     *  die Kalendereinträge entfernt und die Vorlage für eine erneute Zuweisung erhält. Ausgelöst
+     *  durch langes Gedrückthalten eines Rotations-Eintrags in der Seitenleiste. */
+    fun deleteRotationTemplate(rotationId: Long) {
+        viewModelScope.launch {
+            calendarRepository.getRotation(rotationId)?.let { calendarRepository.deleteRotation(it) }
             shiftWakeupAlarmSyncer.sync()
         }
     }

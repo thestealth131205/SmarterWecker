@@ -62,6 +62,7 @@ private val WEEKDAY_LABELS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
 @Composable
 fun RotationEditorScreen(
     onBack: () -> Unit,
+    onSaved: () -> Unit = onBack,
     viewModel: RotationEditorViewModel = hiltViewModel()
 ) {
     val shifts by viewModel.shifts.collectAsState()
@@ -83,7 +84,7 @@ fun RotationEditorScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.save(onBack) }) {
+                    IconButton(onClick = { viewModel.save(onSaved) }) {
                         Icon(Icons.Filled.Check, contentDescription = "Rotation speichern")
                     }
                 }
@@ -201,7 +202,7 @@ fun RotationEditorScreen(
             }
 
             Button(
-                onClick = { viewModel.save(onBack) },
+                onClick = { viewModel.save(onSaved) },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 enabled = viewModel.name.isNotBlank() && viewModel.days.isNotEmpty()
             ) {

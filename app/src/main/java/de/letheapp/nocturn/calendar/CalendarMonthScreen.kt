@@ -1,8 +1,10 @@
 package de.letheapp.nocturn.calendar
 
 import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Menu
@@ -107,7 +111,7 @@ private const val LETHE_PACKAGE_NAME = "com.Lethe.app"
  * reduzierter als klassische Schichtplan-Apps (siehe CLAUDE.md Kernfunktion 6) — großzügigere
  * Zellen als in früheren Versionen, damit pro Tag mehr erkennbar ist, ohne überladen zu wirken.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CalendarMonthScreen(
     onBack: () -> Unit,
@@ -136,6 +140,8 @@ fun CalendarMonthScreen(
     var showNoJobTip by remember { mutableStateOf(false) }
     var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
     var pendingDeleteRotation by remember { mutableStateOf<RotationOption?>(null) }
+    var longPressedRotationId by remember { mutableStateOf<Long?>(null) }
+    var pendingDeleteRotationTemplate by remember { mutableStateOf<RotationOption?>(null) }
     var durationDialogFor by remember { mutableStateOf<RotationApplyRequest?>(null) }
     var phaseQueryFor by remember { mutableStateOf<RotationTodayShiftQueryState?>(null) }
     var fridayQueryFor by remember { mutableStateOf<RotationFridayQueryState?>(null) }
@@ -201,19 +207,58 @@ fun CalendarMonthScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 } else {
+                    Text(
+                        "Zum Löschen der Vorlage selbst gedrückt halten.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, bottom = 4.dp)
+                    )
                     rotations.forEach { rotation ->
-                        NavigationDrawerItem(
-                            label = {
-                                Text(if (rotation.jobName.isNotBlank()) "${rotation.name} · ${rotation.jobName}" else rotation.name)
-                            },
-                            icon = { Icon(Icons.Filled.EventRepeat, contentDescription = null) },
-                            selected = pendingRotation?.id == rotation.id,
-                            onClick = {
-                                pendingRotation = rotation
-                                drawerScope.launch { drawerState.close() }
-                            },
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
+                        val isLongPressed = longPressedRotationId == rotation.id
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    if (pendingRotation?.id == rotation.id) {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surface
+                                    },
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isLongPressed) {
+                                            longPressedRotationId = null
+                                        } else {
+                                            pendingRotation = rotation
+                                            drawerScope.launch { drawerState.close() }
+                                        }
+                                    },
+                                    onLongClick = { longPressedRotationId = rotation.id }
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Filled.EventRepeat, contentDescription = null)
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = if (rotation.jobName.isNotBlank()) "${rotation.name} · ${rotation.jobName}" else rotation.name,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isLongPressed) {
+                                IconButton(onClick = {
+                                    longPressedRotationId = null
+                                    pendingDeleteRotationTemplate = rotation
+                                }) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = "Rotation „${rotation.name}“ löschen",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -601,6 +646,29 @@ fun CalendarMonthScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingDeleteRotation = null }) { Text("Abbrechen") }
+                }
+            )
+        }
+
+        pendingDeleteRotationTemplate?.let { rotation ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteRotationTemplate = null },
+                title = { Text("„${rotation.name}“ löschen?") },
+                text = {
+                    Text(
+                        "Die Rotations-Vorlage wird komplett gelöscht, inklusive aller bisher damit eingetragenen Kalendertage. Das lässt sich nicht widerrufen."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteRotationTemplate(rotation.id)
+                        pendingDeleteRotationTemplate = null
+                    }) {
+                        Text("Löschen")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteRotationTemplate = null }) { Text("Abbrechen") }
                 }
             )
         }
@@ -1047,10 +1115,10 @@ private fun DayCell(
                 shape = RoundedCornerShape(6.dp)
             )
             .then(
-                if (isSelected && !isToday) {
-                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
-                } else {
-                    Modifier
+                when {
+                    isToday -> Modifier.border(1.dp, Color(NEON_YELLOW_ARGB), RoundedCornerShape(6.dp))
+                    isSelected -> Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(6.dp))
+                    else -> Modifier
                 }
             )
             .clickable(onClick = onClick)

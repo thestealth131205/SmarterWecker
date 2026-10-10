@@ -232,7 +232,7 @@ START_TIME=$(date +%s)
 while [[ -z "$RUN_ID" ]]; do
     (( $(date +%s) - START_TIME > POLL_TIMEOUT )) && die "Timeout beim Warten auf den Workflow-Start"
     RESPONSE="$(gh_api "/actions/workflows/$WORKFLOW_FILE/runs?branch=main&event=push&per_page=10" || true)"
-    RUN_ID="$(python3 -c "
+    RUN_ID="$(printf '%s' "$RESPONSE" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 sha = sys.argv[1]
@@ -240,7 +240,7 @@ for run in data.get('workflow_runs', []):
     if run['head_sha'] == sha:
         print(run['id'])
         break
-" "$RESPONSE" "$HEAD_SHA" 2>/dev/null || true)"
+" "$HEAD_SHA" 2>/dev/null || true)"
     [[ -n "$RUN_ID" ]] || sleep "$POLL_INTERVAL"
 done
 log "Workflow-Run gefunden: https://github.com/$GH_REPO/actions/runs/$RUN_ID"
@@ -267,7 +267,7 @@ START_TIME=$(date +%s)
 while [[ -z "$RELEASE_JSON" ]]; do
     (( $(date +%s) - START_TIME > 600 )) && die "Timeout beim Warten auf das GitHub Release"
     RELEASES="$(gh_api "/releases?per_page=10" || true)"
-    RELEASE_JSON="$(python3 -c "
+    RELEASE_JSON="$(printf '%s' "$RELEASES" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 prefix = sys.argv[1]
@@ -275,7 +275,7 @@ for rel in data:
     if rel['tag_name'].startswith(prefix):
         print(json.dumps(rel))
         break
-" "$RELEASES" "v${NEW_NAME}-" 2>/dev/null || true)"
+" "v${NEW_NAME}-" 2>/dev/null || true)"
     [[ -n "$RELEASE_JSON" ]] || sleep 10
 done
 set_phase "release_found"

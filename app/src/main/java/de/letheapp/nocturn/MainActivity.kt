@@ -48,7 +48,7 @@ private const val ROUTE_ALARM_EDIT = "alarmEdit/{alarmId}"
 private const val ROUTE_SOUND_PICKER = "soundPicker/{currentUri}"
 private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
-private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
+private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}/{fromWizard}"
 private const val ROUTE_SHIFT_SETUP = "shiftSetup/{jobId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
 private const val ROUTE_CALENDAR_DAY = "calendarDay/{epochDay}"
@@ -280,21 +280,31 @@ private fun NocturnNavHost(
             JobDetailScreen(
                 jobName = jobName,
                 onOpenRotationEditor = { rotationId ->
-                    navController.navigate("rotationEditor/$jobId/${rotationId ?: -1L}")
+                    navController.navigate("rotationEditor/$jobId/${rotationId ?: -1L}/false")
                 },
                 onOpenPhotoImport = { navController.navigate("photoImport/$jobId") },
                 onBack = { navController.popBackStack() }
             )
         }
 
-        composable(ROUTE_ROTATION_EDITOR) {
-            RotationEditorScreen(onBack = { navController.popBackStack() })
+        composable(ROUTE_ROTATION_EDITOR) { backStackEntry ->
+            val fromWizard = backStackEntry.arguments?.getString("fromWizard") == "true"
+            RotationEditorScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    if (fromWizard) {
+                        navController.popBackStack(ROUTE_CALENDAR_MONTH, false)
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
+            )
         }
 
         composable(ROUTE_SHIFT_SETUP) { backStackEntry ->
             val jobId = backStackEntry.arguments?.getString("jobId")?.toLongOrNull() ?: return@composable
             ShiftSetupScreen(
-                onContinue = { navController.navigate("rotationEditor/$jobId/-1") },
+                onContinue = { navController.navigate("rotationEditor/$jobId/-1/true") },
                 onBack = { navController.popBackStack() }
             )
         }
