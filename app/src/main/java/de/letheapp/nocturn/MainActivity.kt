@@ -23,6 +23,7 @@ import de.letheapp.nocturn.calendar.CalendarMonthScreen
 import de.letheapp.nocturn.calendar.JobDetailScreen
 import de.letheapp.nocturn.calendar.JobListScreen
 import de.letheapp.nocturn.calendar.RotationEditorScreen
+import de.letheapp.nocturn.calendar.ShiftSetupScreen
 import de.letheapp.nocturn.export.CalendarExportScreen
 import de.letheapp.nocturn.holidays.HolidaySettingsScreen
 import de.letheapp.nocturn.iobroker.IoBrokerSettingsScreen
@@ -48,6 +49,7 @@ private const val ROUTE_SOUND_PICKER = "soundPicker/{currentUri}"
 private const val ROUTE_JOB_LIST = "jobList"
 private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}"
+private const val ROUTE_SHIFT_SETUP = "shiftSetup/{jobId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
 private const val ROUTE_CALENDAR_DAY = "calendarDay/{epochDay}"
 private const val ROUTE_CALENDAR_ADD_APPOINTMENT = "calendarAddAppointment/{epochDay}"
@@ -196,7 +198,7 @@ private fun NocturnNavHost(
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
                 onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
-                onOpenRotationEditor = { jobId -> navController.navigate("rotationEditor/$jobId/-1") },
+                onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
                     navController.navigate("jobDetail/$jobId/$encodedName")
@@ -215,7 +217,7 @@ private fun NocturnNavHost(
                 onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
                 onAddTask = { date -> navController.navigate("calendarAddTask/${date.toEpochDay()}") },
                 onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
-                onOpenRotationEditor = { jobId -> navController.navigate("rotationEditor/$jobId/-1") },
+                onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
                     navController.navigate("jobDetail/$jobId/$encodedName")
@@ -287,6 +289,14 @@ private fun NocturnNavHost(
 
         composable(ROUTE_ROTATION_EDITOR) {
             RotationEditorScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(ROUTE_SHIFT_SETUP) { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getString("jobId")?.toLongOrNull() ?: return@composable
+            ShiftSetupScreen(
+                onContinue = { navController.navigate("rotationEditor/$jobId/-1") },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(ROUTE_ALARM_EDIT) { backStackEntry ->

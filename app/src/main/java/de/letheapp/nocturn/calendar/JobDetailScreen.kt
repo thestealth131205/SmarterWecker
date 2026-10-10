@@ -259,7 +259,7 @@ private fun ShiftsTab(viewModel: JobDetailViewModel) {
 }
 
 @Composable
-private fun ShiftCard(shift: ShiftEntity, onClick: () -> Unit, onDelete: () -> Unit) {
+internal fun ShiftCard(shift: ShiftEntity, onClick: () -> Unit, onDelete: () -> Unit) {
     val endTotal = shift.startHour * 60 + shift.startMinute + shift.durationMinutes
     val endHour = (endTotal / 60) % 24
     val endMinute = endTotal % 60

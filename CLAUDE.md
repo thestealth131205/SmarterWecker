@@ -113,6 +113,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        dargestellt, genau wie andere mehrfache Tageseinträge. Eine Rotation ist dabei
        eine **reine Vorlage ohne eigenes Startdatum** — das Muster selbst sagt nur, wie
        die Tage aufeinander folgen, nicht ab wann.
+   - **Geführter "Rotation anlegen"-Ablauf** aus dem "+"-Dialog der Monats-/Tagesansicht
+     (Eintragstyp "Rotation"): ein `AlertDialog` mit einheitlichem Titel „Rotation anlegen"
+     fragt zunächst nach einem bestehenden Job oder legt direkt einen neuen an (Name +
+     Schichtarbeit/Schüler-Student). Bei einem Schichtarbeit-Job folgt danach **immer** erst
+     der `ShiftSetupScreen` — eine schlanke Liste der Schichten dieses Jobs mit "+"-FAB, deren
+     Topbar-Aktion je nach Zustand „Überspringen" (noch keine Schicht angelegt) oder „Weiter"
+     zeigt — bevor es zum eigentlichen Rotationsraster im `RotationEditorScreen` weitergeht.
+     Ein Schüler/Student-Job überspringt diesen Zwischenschritt (führt direkt zum
+     Stundenplan-Tab in `JobDetailScreen`), da dort Unterrichtsstunden ohnehin inline verwaltet
+     werden. Die Schnellauswahl-Chips beim Schicht-Anlegen (`ShiftEditDialog`) heißen
+     Urlaub/**Freischicht**/Früh/Nacht/Spät — bewusst "Freischicht" statt "Frei", da ein Tag
+     ohne zugewiesene Schicht im Rotationsraster bereits "Frei" heißt und eine gleichnamige
+     Schicht sonst mit dem leeren Tag verwechselbar wäre.
    - Eine fertige Rotations-Vorlage wird erst über die ausklappbare Seitenleiste der
      Kalender-Monatsansicht tatsächlich in den Kalender eingetragen: Rotation wählen →
      Starttag im Kalender antippen → in einem schwebenden Fenster den Zeitraum festlegen
@@ -145,8 +158,16 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      wiederkehrenden Tag-Indizes im Muster auftaucht — fragt die App statt des Freitags-Tages
      das konkrete Kalenderdatum ab, an dem diese Schicht das nächste Mal vorkommt, und wählt
      darüber den passenden Kandidaten. Erkennung über
-     `CalendarRepository.needsNextOccurrenceDateQuery`, Auflösung über
-     `resolveRotationPhaseByNextOccurrence`.
+     `CalendarRepository.needsNextOccurrenceDateQuery`; welche Schicht dabei konkret erfragt
+     wird, ermittelt `findDistinguishingShiftForOccurrenceQuery` — nicht zwingend die am
+     Starttag genannte Schicht, sondern diejenige im Muster, deren nächstes Vorkommen die
+     verbleibenden Kandidaten tatsächlich eindeutig unterscheidet (bevorzugt die seltenste,
+     z. B. "Kinder-Wochenende" statt der häufigen Frühschicht) — Auflösung über
+     `resolveRotationPhaseByNextOccurrence`. Die Datums-Rückfrage selbst
+     (`RotationNextOccurrenceDateDialog`) nennt dem Nutzer explizit, nach welcher Schicht
+     gefragt wird ("Wann ist deine nächste Schicht „…“?"), als `title`-Slot von Compose'
+     `DatePicker` statt als zusätzliches Geschwister-Element — Letzteres wurde von der festen
+     Dialoghöhe von `DatePicker` weggequetscht und blieb dadurch für den Nutzer unsichtbar.
    - Monatsansicht zeigt pro Tag die zugeordnete(n) Schicht(en) farbig markiert;
      mehrere Einträge pro Tag möglich (z. B. Schicht + zusätzlicher Termin/Urlaub).
      Tageskacheln großzügig bemessen (mehr Platz unter der Tageszahl), zeigen bis zu

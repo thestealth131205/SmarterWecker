@@ -515,8 +515,9 @@ fun CalendarMonthScreen(
                                 durationDialogFor = RotationApplyRequest(queryState.rotation, queryState.startDate, remaining.firstOrNull() ?: 0)
                             }
                             viewModel.needsNextOccurrenceDateQuery(queryState.rotation.id, startEpochDay, todayShiftId) -> {
-                                val label = queryState.shiftOptions.firstOrNull { it?.id == todayShiftId }?.name ?: "Frei"
-                                nextOccurrenceQueryFor = RotationNextOccurrenceQueryState(queryState.rotation, queryState.startDate, todayShiftId, label)
+                                val queryShiftId = viewModel.findDistinguishingShiftForOccurrenceQuery(queryState.rotation.id, startEpochDay, todayShiftId)
+                                val label = queryState.shiftOptions.firstOrNull { it?.id == queryShiftId }?.name ?: "Frei"
+                                nextOccurrenceQueryFor = RotationNextOccurrenceQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryShiftId, label)
                             }
                             else -> {
                                 fridayQueryFor = RotationFridayQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryState.shiftOptions)
@@ -557,6 +558,7 @@ fun CalendarMonthScreen(
                             queryState.rotation.id,
                             queryState.startDate.toEpochDay(),
                             queryState.todayShiftId,
+                            queryState.queryShiftId,
                             nextOccurrenceDate.toEpochDay()
                         )
                         durationDialogFor = RotationApplyRequest(queryState.rotation, queryState.startDate, phaseStartIndex)
@@ -615,8 +617,17 @@ private data class RotationTodayShiftQueryState(val rotation: RotationOption, va
 private data class RotationFridayQueryState(val rotation: RotationOption, val startDate: LocalDate, val todayShiftId: Long?, val shiftOptions: List<ShiftEntity?>)
 
 /** Zustand der Datums-Rückfrage für eine im Muster unregelmäßig/selten vorkommende Schicht,
- *  siehe [de.letheapp.nocturn.data.repository.CalendarRepository.needsNextOccurrenceDateQuery]. */
-private data class RotationNextOccurrenceQueryState(val rotation: RotationOption, val startDate: LocalDate, val todayShiftId: Long?, val shiftLabel: String)
+ *  siehe [de.letheapp.nocturn.data.repository.CalendarRepository.needsNextOccurrenceDateQuery].
+ *  [queryShiftId] ist die tatsächlich erfragte, unterscheidende Schicht (siehe
+ *  [de.letheapp.nocturn.data.repository.CalendarRepository.findDistinguishingShiftForOccurrenceQuery]),
+ *  [shiftLabel] ihr Anzeigename ("Frei", falls `null`). */
+private data class RotationNextOccurrenceQueryState(
+    val rotation: RotationOption,
+    val startDate: LocalDate,
+    val todayShiftId: Long?,
+    val queryShiftId: Long?,
+    val shiftLabel: String
+)
 
 private val ROTATION_DURATION_OPTIONS = listOf(
     "1 Monat" to 1,
@@ -788,14 +799,20 @@ private fun RotationNextOccurrenceDateDialog(
             TextButton(onClick = onDismiss) { Text("Abbrechen") }
         }
     ) {
-        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-            Text(
-                "„${state.shiftLabel}“ kommt in „${state.rotation.name}“ nur unregelmäßig vor — der Wochentag allein reicht hier nicht aus. Wann hast du diese Schicht das nächste Mal?",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-        DatePicker(state = datePickerState)
+        // Wird bewusst als title-Slot von DatePicker statt als zusätzliches Geschwister-Element
+        // übergeben: Letzteres wurde von der festen Dialoghöhe von DatePicker weggequetscht und
+        // war dadurch für den Nutzer unsichtbar (siehe Bugreport — nur noch "Datum auswählen" kam
+        // an, die eigentliche Erklärung nie).
+        DatePicker(
+            state = datePickerState,
+            title = {
+                Text(
+                    "Um genau bestimmen zu können, wo du dich in „${state.rotation.name}“ befindest, müssen wir wissen: Wann ist deine nächste Schicht „${state.shiftLabel}“?",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp, bottom = 12.dp)
+                )
+            }
+        )
     }
 }
 
@@ -875,11 +892,11 @@ internal fun AddEntryTypeDialog(
 }
 
 /**
- * Zwischenschritt des "+"-Dialogs für "Rotation / Stundenplan": Rotationen und Wochenstundenpläne
- * gehören zu einem Job (siehe [JobDetailScreen]), daher wird hier zuerst ein bestehender Job
- * gewählt oder direkt ein neuer angelegt, bevor zum passenden Editor weiternavigiert wird
- * (Schichtarbeit-Job → neue Rotation in [RotationEditorScreen], Schüler/Student-Job →
- * Stundenplan-Tab in [JobDetailScreen]).
+ * Erster Schritt des "Rotation anlegen"-Ablaufs aus dem "+"-Dialog: Rotationen und
+ * Wochenstundenpläne gehören zu einem Job (siehe [JobDetailScreen]), daher wird hier zuerst ein
+ * bestehender Job gewählt oder direkt ein neuer angelegt, bevor weiternavigiert wird
+ * (Schichtarbeit-Job → [ShiftSetupScreen] (Schichten anlegen oder überspringen) →
+ * [RotationEditorScreen]; Schüler/Student-Job → direkt der Stundenplan-Tab in [JobDetailScreen]).
  */
 @Composable
 internal fun RotationEntryPickerDialog(
@@ -894,7 +911,7 @@ internal fun RotationEntryPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (showCreateForm) "Neuer Job" else "Rotation / Stundenplan anlegen") },
+        title = { Text("Rotation anlegen") },
         text = {
             if (showCreateForm) {
                 Column {

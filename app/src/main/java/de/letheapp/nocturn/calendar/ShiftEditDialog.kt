@@ -48,7 +48,9 @@ import androidx.compose.ui.window.DialogProperties
 import de.letheapp.nocturn.alarm.NocturnTimePickerDialog
 import de.letheapp.nocturn.data.db.ShiftEntity
 
-private val SHIFT_NAME_SUGGESTIONS = listOf("Urlaub", "Frei", "Früh", "Nacht", "Spät")
+// "Freischicht" statt "Frei", da ein Tag ohne zugewiesene Schicht in der Rotation bereits
+// "Frei" heißt – eine gleichnamige Schicht würde beides verwechselbar machen.
+private val SHIFT_NAME_SUGGESTIONS = listOf("Urlaub", "Freischicht", "Früh", "Nacht", "Spät")
 
 /** Tippt man auf eine Schnellauswahl, werden zusätzlich zum Titel auch die typischen Start-/Endzeiten vorbelegt. */
 private val SHIFT_DEFAULT_TIMES: Map<String, IntArray> = mapOf(

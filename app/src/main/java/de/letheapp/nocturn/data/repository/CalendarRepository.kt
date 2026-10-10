@@ -295,9 +295,53 @@ class CalendarRepository @Inject constructor(
     }
 
     /**
+     * Ermittelt, nach welcher Schicht bei der Datums-Rückfrage ([RotationNextOccurrenceDateDialog])
+     * gefragt werden soll, wenn [needsNextOccurrenceDateQuery] `true` ergab: die Freitags-Frage
+     * hilft hier nicht, weil die eigentlich unterscheidende Schicht nicht wochentaktisch auftritt
+     * (z. B. eine seltene Zusatzschicht wie "Kinder-Wochenende", die nur alle paar Wochen auf
+     * denselben Wochentag fällt). Gesucht wird die Schicht, deren nächstes Vorkommen ab jedem
+     * verbleibenden Kandidaten-Tag-Index einen **eindeutigen** Abstand ergibt (die Nutzerantwort
+     * also wirklich zwischen den Kandidaten unterscheidet) — bevorzugt die im gesamten Muster am
+     * seltensten vorkommende Schicht, da gerade deren nächstes Auftreten dem Nutzer typischerweise
+     * noch im Kopf ist. Fällt auf [todayShiftId] zurück, falls keine andere Schicht eindeutig
+     * unterscheidet.
+     */
+    suspend fun findDistinguishingShiftForOccurrenceQuery(
+        rotationId: Long,
+        startEpochDay: Long,
+        todayShiftId: Long?
+    ): Long? {
+        val remaining = candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
+        if (remaining.size <= 1) return todayShiftId
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        if (cycleLength == 0) return todayShiftId
+
+        fun nextOccurrenceOffset(idx: Int, shiftId: Long?): Int {
+            for (offset in 1..cycleLength) {
+                if (shiftMatchesDay(daysByIndex[(idx + offset) % cycleLength].orEmpty(), shiftId)) return offset
+            }
+            return cycleLength
+        }
+
+        val allShiftIds: List<Long?> = daysByIndex.values.flatten().distinct()
+        val distinguishing = allShiftIds.mapNotNull { shiftId ->
+            val offsets = remaining.map { nextOccurrenceOffset(it, shiftId) }
+            if (offsets.toSet().size == remaining.size) {
+                val occurrenceCount = (0 until cycleLength).count { shiftMatchesDay(daysByIndex[it].orEmpty(), shiftId) }
+                shiftId to occurrenceCount
+            } else {
+                null
+            }
+        }
+        return distinguishing.minByOrNull { it.second }?.first ?: todayShiftId
+    }
+
+    /**
      * Ermittelt den tatsächlichen Tag-Index, wenn die Schicht am Starttag allein nicht reicht und
      * [needsNextOccurrenceDateQuery] `true` ergab: statt eines Wochentags wird das konkrete
-     * Datum der nächsten Wiederholung dieser Schicht erfragt, und darüber unter den verbleibenden
+     * Datum der nächsten Wiederholung von [queryShiftId] (siehe
+     * [findDistinguishingShiftForOccurrenceQuery]) erfragt, und darüber unter den verbleibenden
      * Kandidaten derjenige ausgewählt, dessen berechnete nächste Wiederholung auf
      * [nextOccurrenceEpochDay] fällt.
      */
@@ -305,6 +349,7 @@ class CalendarRepository @Inject constructor(
         rotationId: Long,
         startEpochDay: Long,
         todayShiftId: Long?,
+        queryShiftId: Long?,
         nextOccurrenceEpochDay: Long
     ): Int {
         val remaining = candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
@@ -314,7 +359,7 @@ class CalendarRepository @Inject constructor(
 
         fun nextOccurrenceEpochDayFor(idx: Int): Long {
             for (offset in 1..cycleLength) {
-                if (shiftMatchesDay(daysByIndex[(idx + offset) % cycleLength].orEmpty(), todayShiftId)) {
+                if (shiftMatchesDay(daysByIndex[(idx + offset) % cycleLength].orEmpty(), queryShiftId)) {
                     return startEpochDay + offset
                 }
             }

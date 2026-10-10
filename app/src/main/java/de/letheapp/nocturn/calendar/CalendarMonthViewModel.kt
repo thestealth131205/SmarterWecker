@@ -304,9 +304,13 @@ class CalendarMonthViewModel @Inject constructor(
     suspend fun needsNextOccurrenceDateQuery(rotationId: Long, startEpochDay: Long, todayShiftId: Long?): Boolean =
         calendarRepository.needsNextOccurrenceDateQuery(rotationId, startEpochDay, todayShiftId)
 
+    /** Siehe [CalendarRepository.findDistinguishingShiftForOccurrenceQuery]. */
+    suspend fun findDistinguishingShiftForOccurrenceQuery(rotationId: Long, startEpochDay: Long, todayShiftId: Long?): Long? =
+        calendarRepository.findDistinguishingShiftForOccurrenceQuery(rotationId, startEpochDay, todayShiftId)
+
     /** Siehe [CalendarRepository.resolveRotationPhaseByNextOccurrence]. */
-    suspend fun resolveRotationPhaseByNextOccurrence(rotationId: Long, startEpochDay: Long, todayShiftId: Long?, nextOccurrenceEpochDay: Long): Int =
-        calendarRepository.resolveRotationPhaseByNextOccurrence(rotationId, startEpochDay, todayShiftId, nextOccurrenceEpochDay)
+    suspend fun resolveRotationPhaseByNextOccurrence(rotationId: Long, startEpochDay: Long, todayShiftId: Long?, queryShiftId: Long?, nextOccurrenceEpochDay: Long): Int =
+        calendarRepository.resolveRotationPhaseByNextOccurrence(rotationId, startEpochDay, todayShiftId, queryShiftId, nextOccurrenceEpochDay)
 
     private val _shareFileUri = MutableStateFlow<Uri?>(null)
 
