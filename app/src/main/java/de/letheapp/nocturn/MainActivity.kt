@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -31,6 +33,7 @@ import de.letheapp.nocturn.onboarding.PermissionsScreen
 import de.letheapp.nocturn.settings.SettingsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
 import de.letheapp.nocturn.sync.NextcloudSyncScreen
+import de.letheapp.nocturn.ui.NocturnTab
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import de.letheapp.nocturn.weather.WeatherScreen
 import java.net.URLDecoder
@@ -94,12 +97,33 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Standard-Navigationsmuster für eine untere Tab-Leiste: wechselt zwischen den drei
+ * gleichrangigen Hauptrouten, ohne bei jedem Tab-Wechsel neue Backstack-Einträge zu stapeln,
+ * und merkt sich den Scroll-/Eingabezustand jedes Tabs (`saveState`/`restoreState`).
+ */
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 private fun NocturnNavHost(
     startDestination: String,
     appPreferences: AppPreferences
 ) {
     val navController = rememberNavController()
+    val onSelectTab: (NocturnTab) -> Unit = { tab ->
+        val route = when (tab) {
+            NocturnTab.WECKER -> ROUTE_ALARM_LIST
+            NocturnTab.WETTER -> ROUTE_WEATHER
+            NocturnTab.KALENDER -> ROUTE_CALENDAR_MONTH
+        }
+        navController.navigateToTab(route)
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable(ROUTE_ALARM_LIST) {
@@ -110,12 +134,13 @@ private fun NocturnNavHost(
                 onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) },
                 onOpenIoBrokerSettings = { navController.navigate(ROUTE_IOBROKER_SETTINGS) },
                 onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                onOpenWeather = { navController.navigate(ROUTE_WEATHER) }
+                onOpenWeather = { navController.navigate(ROUTE_WEATHER) },
+                onSelectTab = onSelectTab
             )
         }
 
         composable(ROUTE_WEATHER) {
-            WeatherScreen(onBack = { navController.popBackStack() })
+            WeatherScreen(onBack = { navController.popBackStack() }, onSelectTab = onSelectTab)
         }
 
         composable(ROUTE_IOBROKER_SETTINGS) {
@@ -175,7 +200,8 @@ private fun NocturnNavHost(
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
                     navController.navigate("jobDetail/$jobId/$encodedName")
-                }
+                },
+                onSelectTab = onSelectTab
             )
         }
 

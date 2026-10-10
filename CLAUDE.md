@@ -340,11 +340,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Wecker-UI: Alarmliste, Zifferblatt-Zeitpicker und Weckton-Auswahl-Screen (Tabs)
   orientieren sich an der Google-Uhr-App, siehe Kernfunktion 9.
 - Wetterdaten: OpenWeatherMap "Current Weather Data" (aktuelles Wetter, Topbar-Symbol +
-  Uhr-Widget) sowie "One Call API 4.0" (8-Tage-Vorhersage im Wetter-Screen,
-  `/data/4.0/onecall/timeline/1day` — abgelöste Vorgängerversion 3.0 lief über
-  `/data/3.0/onecall`, seit Herbst 2026 eigenes, zu 4.0 inkompatibles Abo im
-  OpenWeatherMap-Konto), braucht einmalige Abo-Aktivierung mit Zahlungsmethode im
-  OpenWeatherMap-Konto, siehe
+  Uhr-Widget) sowie "One Call API 4.0" für Vorhersagen im Wetter-Screen — 8-Tage-Vorhersage
+  über `/data/4.0/onecall/timeline/1day`, zusätzlich eine auf den aktuellen Kalendertag
+  gefilterte **stündliche Vorhersage** über `/data/4.0/onecall/timeline/1h` (liefert bis zu
+  20 Stunden ab jetzt), als eigener, vertikal scrollbarer Abschnitt (`HourlyForecastCard`,
+  feste Maximalhöhe per `heightIn(max=...)` statt `fillMaxSize`/`weight`, da eine verschachtelte
+  `LazyColumn` in der äußeren scrollbaren Spalte sonst wegen unbegrenzter Höhenvorgabe abstürzt)
+  direkt oberhalb der Tagesliste. Abgelöste Vorgängerversion 3.0 lief über `/data/3.0/onecall`,
+  seit Herbst 2026 eigenes, zu 4.0 inkompatibles Abo im OpenWeatherMap-Konto, braucht einmalige
+  Abo-Aktivierung mit Zahlungsmethode im OpenWeatherMap-Konto, siehe
   `WeatherRepository`-Doc-Kommentar), API-Key-Handling analog Iosync-Projekt (`/opt/Iosync`):
   Key aus `local.properties` lokal, aus GitHub-Secret `OPENWEATHER_API_KEY` im CI, Einbindung
   als `BuildConfig`-Feld — niemals im Repo.

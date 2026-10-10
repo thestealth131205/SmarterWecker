@@ -19,6 +19,9 @@ class WeatherViewModel @Inject constructor(
     private val _forecast = MutableStateFlow<List<DailyForecast>>(emptyList())
     val forecast: StateFlow<List<DailyForecast>> = _forecast
 
+    private val _hourly = MutableStateFlow<List<HourlyForecast>>(emptyList())
+    val hourly: StateFlow<List<HourlyForecast>> = _hourly
+
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
@@ -35,6 +38,7 @@ class WeatherViewModel @Inject constructor(
             _weather.value = weatherRepository.currentWeather()
             _forecast.value = weatherRepository.dailyForecast().orEmpty()
             _forecastError.value = weatherRepository.lastForecastError
+            _hourly.value = weatherRepository.hourlyForecastToday().orEmpty()
             _loading.value = false
         }
     }

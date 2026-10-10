@@ -56,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.ui.NocturnBottomBar
+import de.letheapp.nocturn.ui.NocturnTab
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,6 +70,7 @@ fun AlarmListScreen(
     onOpenIoBrokerSettings: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenWeather: () -> Unit,
+    onSelectTab: (NocturnTab) -> Unit,
     viewModel: AlarmListViewModel = hiltViewModel()
 ) {
     val alarms by viewModel.alarms.collectAsState()
@@ -150,6 +153,9 @@ fun AlarmListScreen(
             FloatingActionButton(onClick = { showTimePicker = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Alarm hinzufügen")
             }
+        },
+        bottomBar = {
+            NocturnBottomBar(selected = NocturnTab.WECKER, onSelect = onSelectTab)
         }
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {

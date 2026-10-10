@@ -77,6 +77,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.ui.NocturnBottomBar
+import de.letheapp.nocturn.ui.NocturnTab
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -109,6 +111,7 @@ fun CalendarMonthScreen(
     onOpenNextcloudSync: () -> Unit,
     onOpenRotationEditor: (jobId: Long) -> Unit,
     onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
+    onSelectTab: (NocturnTab) -> Unit,
     viewModel: CalendarMonthViewModel = hiltViewModel()
 ) {
     val month by viewModel.month.collectAsState()
@@ -289,6 +292,9 @@ fun CalendarMonthScreen(
                 SmallFloatingActionButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
                 }
+            },
+            bottomBar = {
+                NocturnBottomBar(selected = NocturnTab.KALENDER, onSelect = onSelectTab)
             }
         ) { innerPadding ->
             var dragAccumulated by remember { mutableStateOf(0f) }

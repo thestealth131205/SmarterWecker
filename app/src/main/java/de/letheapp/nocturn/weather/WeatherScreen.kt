@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -32,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import de.letheapp.nocturn.ui.NocturnBottomBar
+import de.letheapp.nocturn.ui.NocturnTab
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -48,9 +52,14 @@ private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = hiltViewModel()) {
+fun WeatherScreen(
+    onBack: () -> Unit,
+    onSelectTab: (NocturnTab) -> Unit,
+    viewModel: WeatherViewModel = hiltViewModel()
+) {
     val weather by viewModel.weather.collectAsState()
     val forecast by viewModel.forecast.collectAsState()
+    val hourly by viewModel.hourly.collectAsState()
     val loading by viewModel.loading.collectAsState()
     val forecastError by viewModel.forecastError.collectAsState()
 
@@ -69,6 +78,9 @@ fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = hiltViewMode
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        bottomBar = {
+            NocturnBottomBar(selected = NocturnTab.WETTER, onSelect = onSelectTab)
         }
     ) { innerPadding ->
         when {
@@ -78,6 +90,16 @@ fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = hiltViewMode
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item { CurrentWeatherCard(weather!!) }
+                if (hourly.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Heute stündlich",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+                    item { HourlyForecastCard(hourly) }
+                }
                 item {
                     Text(
                         "Vorhersage",
@@ -178,6 +200,52 @@ private fun CurrentWeatherCard(weather: DetailedWeather) {
 }
 
 @Composable
+private fun HourlyForecastCard(hourly: List<HourlyForecast>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 260.dp)
+        ) {
+            itemsIndexed(hourly) { index, hour ->
+                HourlyRow(hour)
+                if (index != hourly.lastIndex) HorizontalDivider()
+            }
+        }
+    }
+}
+
+@Composable
+private fun HourlyRow(hour: HourlyForecast) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            formatHourLabel(hour.timeEpochMillis),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.width(56.dp)
+        )
+        Text(hour.emoji, style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(36.dp))
+        Text(
+            hour.description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        if (hour.precipitationProbabilityPercent > 0) {
+            Text(
+                "💧${hour.precipitationProbabilityPercent}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        Text("${hour.temperatureCelsius}°", style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
 private fun ForecastRow(day: DailyForecast) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
@@ -221,6 +289,9 @@ private fun WeatherStat(label: String, value: String) {
 }
 
 private fun formatTime(epochMillis: Long): String =
+    TIME_FORMATTER.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
+
+private fun formatHourLabel(epochMillis: Long): String =
     TIME_FORMATTER.format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()))
 
 private fun formatDayLabel(epochMillis: Long): String {

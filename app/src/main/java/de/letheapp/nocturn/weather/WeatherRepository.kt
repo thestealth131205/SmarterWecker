@@ -16,6 +16,8 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,6 +50,15 @@ data class DailyForecast(
     val dateEpochMillis: Long,
     val minCelsius: Int,
     val maxCelsius: Int,
+    val emoji: String,
+    val description: String,
+    val precipitationProbabilityPercent: Int
+)
+
+/** Eine Stunde der stündlichen Vorhersage für den aktuellen Tag (OpenWeatherMap One Call 4.0, siehe [WeatherRepository.hourlyForecastToday]). */
+data class HourlyForecast(
+    val timeEpochMillis: Long,
+    val temperatureCelsius: Int,
     val emoji: String,
     val description: String,
     val precipitationProbabilityPercent: Int
@@ -133,6 +144,27 @@ class WeatherRepository @Inject constructor(
      */
     @Volatile
     var lastForecastError: String? = null
+        private set
+
+    /**
+     * Stündliche Vorhersage für den Rest des **aktuellen Tages**, über den OpenWeatherMap-
+     * "One Call API 4.0"-Endpoint `/data/4.0/onecall/timeline/1h` (liefert bis zu 20 Stunden
+     * ab jetzt, hier auf den aktuellen Kalendertag gefiltert). Wird im Wetter-Screen oberhalb
+     * der 8-Tage-Vorhersage als eigener, vertikal scrollbarer Abschnitt angezeigt.
+     */
+    suspend fun hourlyForecastToday(): List<HourlyForecast>? = withContext(Dispatchers.IO) {
+        if (!appPreferences.isWeatherEnabled()) return@withContext null
+
+        val cachedAt = cachePrefs.getLong(KEY_HOURLY_CACHED_AT, 0L)
+        val cached = readHourlyCache()
+        if (cached != null && System.currentTimeMillis() - cachedAt < CACHE_VALIDITY_MS) {
+            return@withContext cached
+        }
+        fetchHourlyFromApi() ?: cached
+    }
+
+    @Volatile
+    var lastHourlyError: String? = null
         private set
 
     /** Löscht den Wetter-Cache, z. B. nachdem der Nutzer einen anderen Ort gewählt hat. */
@@ -222,6 +254,56 @@ class WeatherRepository @Inject constructor(
             onFailure = { throwable -> lastForecastError = throwable.message ?: throwable.toString() }
         )
         return result.getOrNull()
+    }
+
+    private fun fetchHourlyFromApi(): List<HourlyForecast>? {
+        val apiKey = BuildConfig.OPENWEATHER_API_KEY
+        if (apiKey.isBlank()) {
+            lastHourlyError = "Kein OpenWeatherMap-API-Key hinterlegt."
+            return null
+        }
+        val location = resolvedLocation() ?: run {
+            lastHourlyError = "Kein Standort verfügbar (Berechtigung/Ortswahl prüfen)."
+            return null
+        }
+
+        val result = runCatching {
+            val url = "https://api.openweathermap.org/data/4.0/onecall/timeline/1h?" +
+                "lat=${location.latitude}&lon=${location.longitude}&appid=$apiKey&units=metric&lang=de"
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val bodySnippet = response.body?.string().orEmpty().take(200)
+                    error("HTTP ${response.code} ${response.message}".trim() + if (bodySnippet.isNotBlank()) " – $bodySnippet" else "")
+                }
+                val body = response.body?.string().orEmpty()
+                val hourly = JSONObject(body).optJSONArray("data")
+                    ?: error("Antwort enthält kein \"data\"-Feld: ${body.take(200)}")
+                val today = java.time.LocalDate.now()
+                (0 until hourly.length())
+                    .map { index -> parseHourlyForecast(hourly.getJSONObject(index)) }
+                    .filter { hour ->
+                        Instant.ofEpochMilli(hour.timeEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate() == today
+                    }
+                    .also(::writeHourlyCache)
+            }
+        }
+        result.fold(
+            onSuccess = { lastHourlyError = null },
+            onFailure = { throwable -> lastHourlyError = throwable.message ?: throwable.toString() }
+        )
+        return result.getOrNull()
+    }
+
+    private fun parseHourlyForecast(obj: JSONObject): HourlyForecast {
+        val weather = obj.getJSONArray("weather").getJSONObject(0)
+        return HourlyForecast(
+            timeEpochMillis = obj.getLong("dt") * 1000L,
+            temperatureCelsius = obj.getDouble("temp").toInt(),
+            emoji = emojiForConditionId(weather.getInt("id")),
+            description = weather.optString("description", "").replaceFirstChar { it.uppercase() },
+            precipitationProbabilityPercent = (obj.optDouble("pop", 0.0) * 100).toInt()
+        )
     }
 
     private fun parseDailyForecast(obj: JSONObject): DailyForecast {
@@ -340,6 +422,41 @@ class WeatherRepository @Inject constructor(
         }.getOrNull()
     }
 
+    private fun readHourlyCache(): List<HourlyForecast>? {
+        val json = cachePrefs.getString(KEY_HOURLY_DATA, null) ?: return null
+        return runCatching {
+            val array = JSONArray(json)
+            (0 until array.length()).map { index ->
+                val obj = array.getJSONObject(index)
+                HourlyForecast(
+                    timeEpochMillis = obj.getLong("time"),
+                    temperatureCelsius = obj.getInt("temp"),
+                    emoji = obj.getString("emoji"),
+                    description = obj.getString("description"),
+                    precipitationProbabilityPercent = obj.getInt("pop")
+                )
+            }
+        }.getOrNull()
+    }
+
+    private fun writeHourlyCache(hourly: List<HourlyForecast>) {
+        val array = JSONArray()
+        hourly.forEach { hour ->
+            array.put(
+                JSONObject()
+                    .put("time", hour.timeEpochMillis)
+                    .put("temp", hour.temperatureCelsius)
+                    .put("emoji", hour.emoji)
+                    .put("description", hour.description)
+                    .put("pop", hour.precipitationProbabilityPercent)
+            )
+        }
+        cachePrefs.edit()
+            .putString(KEY_HOURLY_DATA, array.toString())
+            .putLong(KEY_HOURLY_CACHED_AT, System.currentTimeMillis())
+            .apply()
+    }
+
     private fun writeForecastCache(forecast: List<DailyForecast>) {
         val array = JSONArray()
         forecast.forEach { day ->
@@ -388,5 +505,7 @@ class WeatherRepository @Inject constructor(
         const val KEY_CACHED_AT = "cached_at"
         const val KEY_FORECAST_DATA = "forecast_data"
         const val KEY_FORECAST_CACHED_AT = "forecast_cached_at"
+        const val KEY_HOURLY_DATA = "hourly_data"
+        const val KEY_HOURLY_CACHED_AT = "hourly_cached_at"
     }
 }
