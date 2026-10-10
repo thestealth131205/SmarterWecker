@@ -213,6 +213,20 @@ class CalendarRepository @Inject constructor(
         (0 until cycleLength).count { shiftMatchesDay(daysByIndex[it].orEmpty(), shiftId) }
 
     /**
+     * Wie oft jede in [getRotationShiftOptions] angebotene Schicht (`null` = Frei) im gesamten
+     * Zyklus vorkommt — wird unter den Auswahl-Chips der Phasen-Rückfrage angezeigt, damit für
+     * den Nutzer sichtbar ist, welche Schicht selten auftritt (siehe
+     * [findDistinguishingShiftForOccurrenceQuery]).
+     */
+    suspend fun getRotationShiftUsageCounts(rotationId: Long): Map<Long?, Int> {
+        val days = rotationDao.getDaysOnce(rotationId)
+        val daysByIndex = days.groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        return days.map { it.shiftId }.distinct()
+            .associateWith { occurrenceCount(daysByIndex, cycleLength, it) }
+    }
+
+    /**
      * Tag-Indizes im Rotationsmuster, die vom Wochentag her zu [startEpochDay] passen würden.
      * Das Muster wird im Editor als 7-Wochentags-Spalten-Raster angelegt (Tag-Index 0 = Montag,
      * siehe [de.letheapp.nocturn.calendar.RotationEditorScreen]), Tag-Index mod 7 ergibt also
@@ -310,48 +324,40 @@ class CalendarRepository @Inject constructor(
      * gefragt werden soll, wenn [needsNextOccurrenceDateQuery] `true` ergab: die Freitags-Frage
      * hilft hier nicht, weil die eigentlich unterscheidende Schicht nicht wochentaktisch auftritt
      * (z. B. eine seltene Zusatzschicht wie "Kinder-Wochenende", die nur alle paar Wochen auf
-     * denselben Wochentag fällt). Gesucht wird die Schicht, deren nächstes Vorkommen ab jedem
-     * verbleibenden Kandidaten-Tag-Index einen **eindeutigen** Abstand ergibt (die Nutzerantwort
-     * also wirklich zwischen den Kandidaten unterscheidet) — bevorzugt die im gesamten Muster am
-     * seltensten vorkommende Schicht, da gerade deren nächstes Auftreten dem Nutzer typischerweise
-     * noch im Kopf ist. Schichten mit nur einem einzigen Vorkommen im gesamten Zyklus gelten nicht
-     * als echter, wiederkehrender Teil des Musters (siehe [getRotationShiftOptions]) und werden
-     * dabei ignoriert. Fällt auf [todayShiftId] zurück, falls keine andere Schicht eindeutig
-     * unterscheidet.
+     * denselben Wochentag fällt). Gefragt wird nach der im gesamten Muster am **seltensten**
+     * vorkommenden Schicht (außer [todayShiftId] selbst, die der Nutzer schon beantwortet hat) —
+     * nicht erst nach einer, deren nächstes Vorkommen rechnerisch *jeden* verbleibenden Kandidaten
+     * eindeutig von jedem anderen unterscheidet: bei typischen Mustern (z. B. wöchentlich
+     * alternierende Hauptschichten + eine alle paar Wochen wiederkehrende Zusatzschicht)
+     * überlappen sich beide Perioden so, dass praktisch nie eine Schicht *alle* Kandidaten auf
+     * einen Schlag eindeutig auseinanderhält — dieser früher verlangte strikte Test schlug daher
+     * fast immer fehl und fiel auf [todayShiftId] selbst zurück, obwohl deren nächstes Vorkommen
+     * meist trivial ist (z. B. schon am Folgetag, da eine ganze Woche dieselbe Schicht trägt) und
+     * dem Nutzer daher keinerlei neue Information entlockt. Die seltenste Schicht grenzt die
+     * Kandidaten in der Praxis zuverlässig stark ein (siehe [resolveRotationPhaseByNextOccurrence],
+     * die auch bei verbleibender Mehrdeutigkeit den nächstgelegenen Kandidaten wählt). Schichten
+     * mit nur einem einzigen Vorkommen im gesamten Zyklus gelten nicht als echter, wiederkehrender
+     * Teil des Musters (siehe [getRotationShiftOptions]) und werden dabei ignoriert. Fällt auf
+     * [todayShiftId] zurück, falls keine andere Schicht im Muster vorkommt.
      */
     suspend fun findDistinguishingShiftForOccurrenceQuery(
         rotationId: Long,
         startEpochDay: Long,
         todayShiftId: Long?
     ): Long? {
-        val remaining = candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
-        if (remaining.size <= 1) return todayShiftId
         val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
         val cycleLength = daysByIndex.keys.size
         if (cycleLength == 0) return todayShiftId
 
-        fun nextOccurrenceOffset(idx: Int, shiftId: Long?): Int {
-            for (offset in 1..cycleLength) {
-                if (shiftMatchesDay(daysByIndex[(idx + offset) % cycleLength].orEmpty(), shiftId)) return offset
-            }
-            return cycleLength
-        }
-
         val allShiftIds: List<Long?> = daysByIndex.values.flatten().distinct()
-        val distinguishing = allShiftIds.mapNotNull { shiftId ->
-            val occurrenceCount = occurrenceCount(daysByIndex, cycleLength, shiftId)
+        val rarest = allShiftIds
+            .filter { it != todayShiftId }
             // Ein einzelnes Vorkommen ist meist ein versehentlicher Tipp, kein echter Teil des
             // Musters (siehe getRotationShiftOptions) — "Frei" bleibt davon ausgenommen, da auch
             // ein einzelner freier Tag ein legitimer Ankerpunkt im Muster ist.
-            if (shiftId != null && occurrenceCount <= 1) return@mapNotNull null
-            val offsets = remaining.map { nextOccurrenceOffset(it, shiftId) }
-            if (offsets.toSet().size == remaining.size) {
-                shiftId to occurrenceCount
-            } else {
-                null
-            }
-        }
-        return distinguishing.minByOrNull { it.second }?.first ?: todayShiftId
+            .filter { shiftId -> shiftId == null || occurrenceCount(daysByIndex, cycleLength, shiftId) > 1 }
+            .minByOrNull { shiftId -> occurrenceCount(daysByIndex, cycleLength, shiftId) }
+        return rarest ?: todayShiftId
     }
 
     /**
@@ -359,8 +365,12 @@ class CalendarRepository @Inject constructor(
      * [needsNextOccurrenceDateQuery] `true` ergab: statt eines Wochentags wird das konkrete
      * Datum der nächsten Wiederholung von [queryShiftId] (siehe
      * [findDistinguishingShiftForOccurrenceQuery]) erfragt, und darüber unter den verbleibenden
-     * Kandidaten derjenige ausgewählt, dessen berechnete nächste Wiederholung auf
-     * [nextOccurrenceEpochDay] fällt.
+     * Kandidaten derjenige ausgewählt, dessen berechnete nächste Wiederholung am genauesten auf
+     * [nextOccurrenceEpochDay] passt. Da die erfragte Schicht die Kandidaten nicht zwingend
+     * *alle* eindeutig voneinander trennt (siehe [findDistinguishingShiftForOccurrenceQuery]),
+     * wird bei mehreren gleich guten Treffern der zeitlich nächstgelegene gewählt statt stur der
+     * erste in der Liste — in der Praxis grenzt bereits die seltenste Schicht so stark ein, dass
+     * ein exakter Treffer der Normalfall ist.
      */
     suspend fun resolveRotationPhaseByNextOccurrence(
         rotationId: Long,
@@ -383,7 +393,7 @@ class CalendarRepository @Inject constructor(
             return startEpochDay + cycleLength
         }
 
-        return remaining.firstOrNull { nextOccurrenceEpochDayFor(it) == nextOccurrenceEpochDay }
+        return remaining.minByOrNull { kotlin.math.abs(nextOccurrenceEpochDayFor(it) - nextOccurrenceEpochDay) }
             ?: remaining.first()
     }
 

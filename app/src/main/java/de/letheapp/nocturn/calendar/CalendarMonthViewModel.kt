@@ -292,6 +292,10 @@ class CalendarMonthViewModel @Inject constructor(
     suspend fun getRotationShiftOptions(rotationId: Long): List<ShiftEntity?> =
         calendarRepository.getRotationShiftOptions(rotationId)
 
+    /** Siehe [CalendarRepository.getRotationShiftUsageCounts]. */
+    suspend fun getRotationShiftUsageCounts(rotationId: Long): Map<Long?, Int> =
+        calendarRepository.getRotationShiftUsageCounts(rotationId)
+
     /** Siehe [CalendarRepository.resolveRotationPhase]. */
     suspend fun resolveRotationPhase(rotationId: Long, startEpochDay: Long, todayShiftId: Long?, nextFridayShiftId: Long?): Int =
         calendarRepository.resolveRotationPhase(rotationId, startEpochDay, todayShiftId, nextFridayShiftId)

@@ -421,7 +421,8 @@ fun CalendarMonthScreen(
                                                     durationDialogFor = RotationApplyRequest(rotation, date, candidates.firstOrNull() ?: 0)
                                                 } else {
                                                     val shiftOptions = viewModel.getRotationShiftOptions(rotation.id)
-                                                    phaseQueryFor = RotationTodayShiftQueryState(rotation, date, shiftOptions)
+                                                    val usageCounts = viewModel.getRotationShiftUsageCounts(rotation.id)
+                                                    phaseQueryFor = RotationTodayShiftQueryState(rotation, date, shiftOptions, usageCounts)
                                                 }
                                             }
                                         } else {
@@ -520,7 +521,7 @@ fun CalendarMonthScreen(
                                 nextOccurrenceQueryFor = RotationNextOccurrenceQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryShiftId, label)
                             }
                             else -> {
-                                fridayQueryFor = RotationFridayQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryState.shiftOptions)
+                                fridayQueryFor = RotationFridayQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryState.shiftOptions, queryState.usageCounts)
                             }
                         }
                     }
@@ -609,12 +610,25 @@ fun CalendarMonthScreen(
 /** Starttag + aufgelöster Tag-Index im Rotationsmuster, bereit für [RotationDurationDialog]. */
 private data class RotationApplyRequest(val rotation: RotationOption, val startDate: LocalDate, val phaseStartIndex: Int)
 
-/** Zustand des ersten Rückfrage-Schritts, wenn derselbe Wochentag mehrfach im Rotationsmuster vorkommt. */
-private data class RotationTodayShiftQueryState(val rotation: RotationOption, val startDate: LocalDate, val shiftOptions: List<ShiftEntity?>)
+/** Zustand des ersten Rückfrage-Schritts, wenn derselbe Wochentag mehrfach im Rotationsmuster vorkommt.
+ *  [usageCounts] zeigt pro Schicht (`null` = Frei) ihre Häufigkeit im Muster unter den Auswahl-Chips an,
+ *  damit erkennbar ist, welche Schicht selten auftritt. */
+private data class RotationTodayShiftQueryState(
+    val rotation: RotationOption,
+    val startDate: LocalDate,
+    val shiftOptions: List<ShiftEntity?>,
+    val usageCounts: Map<Long?, Int> = emptyMap()
+)
 
 /** Zustand des zweiten Rückfrage-Schritts (Schicht am nächsten Freitag), falls die Schicht am
  *  Starttag allein nicht reicht und die Freitags-Frage zuverlässig weiterhilft. */
-private data class RotationFridayQueryState(val rotation: RotationOption, val startDate: LocalDate, val todayShiftId: Long?, val shiftOptions: List<ShiftEntity?>)
+private data class RotationFridayQueryState(
+    val rotation: RotationOption,
+    val startDate: LocalDate,
+    val todayShiftId: Long?,
+    val shiftOptions: List<ShiftEntity?>,
+    val usageCounts: Map<Long?, Int> = emptyMap()
+)
 
 /** Zustand der Datums-Rückfrage für eine im Muster unregelmäßig/selten vorkommende Schicht,
  *  siehe [de.letheapp.nocturn.data.repository.CalendarRepository.needsNextOccurrenceDateQuery].
@@ -708,6 +722,7 @@ private fun RotationTodayShiftQueryDialog(
                 Text("Welche Schicht hast du am ${state.startDate}?", style = MaterialTheme.typography.labelLarge)
                 ShiftChipRow(
                     options = state.shiftOptions,
+                    usageCounts = state.usageCounts,
                     selectedShiftId = shiftId,
                     hasSelection = selected,
                     onSelect = { selected = true; shiftId = it }
@@ -752,6 +767,7 @@ private fun RotationFridayQueryDialog(
                 )
                 ShiftChipRow(
                     options = state.shiftOptions,
+                    usageCounts = state.usageCounts,
                     selectedShiftId = shiftId,
                     hasSelection = selected,
                     onSelect = { selected = true; shiftId = it }
@@ -822,7 +838,8 @@ private fun ShiftChipRow(
     options: List<ShiftEntity?>,
     selectedShiftId: Long?,
     hasSelection: Boolean,
-    onSelect: (Long?) -> Unit
+    onSelect: (Long?) -> Unit,
+    usageCounts: Map<Long?, Int> = emptyMap()
 ) {
     Row(
         modifier = Modifier
@@ -832,10 +849,21 @@ private fun ShiftChipRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         options.forEach { shift ->
+            val count = usageCounts[shift?.id]
             FilterChip(
                 selected = hasSelection && selectedShiftId == shift?.id,
                 onClick = { onSelect(shift?.id) },
-                label = { Text(shift?.name ?: "Frei") }
+                label = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(shift?.name ?: "Frei")
+                        if (count != null) {
+                            Text(
+                                if (count == 1) "1 Tag" else "$count Tage",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
             )
         }
     }
