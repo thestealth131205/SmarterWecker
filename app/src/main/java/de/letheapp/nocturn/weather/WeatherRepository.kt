@@ -45,14 +45,24 @@ data class DetailedWeather(
     val sunsetEpochMillis: Long
 )
 
-/** Ein Tag der 8-Tage-Vorhersage (OpenWeatherMap One Call 4.0, siehe [WeatherRepository.dailyForecast]). */
+/**
+ * Ein Tag der 8-Tage-Vorhersage (OpenWeatherMap One Call 4.0, siehe [WeatherRepository.dailyForecast]).
+ * [summary]/[humidityPercent]/[windSpeedKmh]/[pressureHpa]/[precipitationMm] sind optional, da sie
+ * defensiv aus verschachtelten Feldern der Timeline-API gelesen werden und je nach Antwort fehlen
+ * können — zeigt die Tages-Detailansicht im Wetter-Screen zusätzlich an, falls vorhanden.
+ */
 data class DailyForecast(
     val dateEpochMillis: Long,
     val minCelsius: Int,
     val maxCelsius: Int,
     val emoji: String,
     val description: String,
-    val precipitationProbabilityPercent: Int
+    val precipitationProbabilityPercent: Int,
+    val summary: String? = null,
+    val humidityPercent: Int? = null,
+    val windSpeedKmh: Int? = null,
+    val pressureHpa: Int? = null,
+    val precipitationMm: Double? = null
 )
 
 /** Eine Stunde der stündlichen Vorhersage für den aktuellen Tag (OpenWeatherMap One Call 4.0, siehe [WeatherRepository.hourlyForecastToday]). */
@@ -309,13 +319,22 @@ class WeatherRepository @Inject constructor(
     private fun parseDailyForecast(obj: JSONObject): DailyForecast {
         val temp = obj.getJSONObject("temp")
         val weather = obj.getJSONArray("weather").getJSONObject(0)
+        val humidity = obj.optJSONObject("humidity")?.optDouble("afternoon", -1.0) ?: -1.0
+        val windMaxSpeed = obj.optJSONObject("wind")?.optJSONObject("max")?.optDouble("speed", -1.0) ?: -1.0
+        val pressure = obj.optJSONObject("pressure")?.optDouble("afternoon", -1.0) ?: -1.0
+        val precipitationTotal = obj.optJSONObject("precipitation")?.optDouble("total", -1.0) ?: -1.0
         return DailyForecast(
             dateEpochMillis = obj.getLong("dt") * 1000L,
             minCelsius = temp.getDouble("min").toInt(),
             maxCelsius = temp.getDouble("max").toInt(),
             emoji = emojiForConditionId(weather.getInt("id")),
             description = weather.optString("description", "").replaceFirstChar { it.uppercase() },
-            precipitationProbabilityPercent = (obj.optDouble("pop", 0.0) * 100).toInt()
+            precipitationProbabilityPercent = (obj.optDouble("pop", 0.0) * 100).toInt(),
+            summary = obj.optString("summary", "").takeIf { it.isNotBlank() },
+            humidityPercent = humidity.takeIf { it >= 0 }?.toInt(),
+            windSpeedKmh = windMaxSpeed.takeIf { it >= 0 }?.let { (it * 3.6).toInt() },
+            pressureHpa = pressure.takeIf { it >= 0 }?.toInt(),
+            precipitationMm = precipitationTotal.takeIf { it >= 0 }
         )
     }
 
@@ -416,7 +435,12 @@ class WeatherRepository @Inject constructor(
                     maxCelsius = obj.getInt("max"),
                     emoji = obj.getString("emoji"),
                     description = obj.getString("description"),
-                    precipitationProbabilityPercent = obj.getInt("pop")
+                    precipitationProbabilityPercent = obj.getInt("pop"),
+                    summary = obj.optString("summary", "").takeIf { it.isNotBlank() },
+                    humidityPercent = obj.optInt("humidity", -1).takeIf { it >= 0 },
+                    windSpeedKmh = obj.optInt("wind", -1).takeIf { it >= 0 },
+                    pressureHpa = obj.optInt("pressure", -1).takeIf { it >= 0 },
+                    precipitationMm = obj.optDouble("precipitation", -1.0).takeIf { it >= 0 }
                 )
             }
         }.getOrNull()
@@ -468,6 +492,11 @@ class WeatherRepository @Inject constructor(
                     .put("emoji", day.emoji)
                     .put("description", day.description)
                     .put("pop", day.precipitationProbabilityPercent)
+                    .put("summary", day.summary ?: "")
+                    .put("humidity", day.humidityPercent ?: -1)
+                    .put("wind", day.windSpeedKmh ?: -1)
+                    .put("pressure", day.pressureHpa ?: -1)
+                    .put("precipitation", day.precipitationMm ?: -1.0)
             )
         }
         cachePrefs.edit()

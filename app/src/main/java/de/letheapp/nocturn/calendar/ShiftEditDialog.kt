@@ -48,6 +48,13 @@ import de.letheapp.nocturn.data.db.ShiftEntity
 
 private val SHIFT_NAME_SUGGESTIONS = listOf("Urlaub", "Frei", "Früh", "Nacht", "Spät")
 
+/** Tippt man auf eine Schnellauswahl, werden zusätzlich zum Titel auch die typischen Start-/Endzeiten vorbelegt. */
+private val SHIFT_DEFAULT_TIMES: Map<String, IntArray> = mapOf(
+    "Früh" to intArrayOf(6, 0, 14, 0),
+    "Spät" to intArrayOf(14, 0, 22, 0),
+    "Nacht" to intArrayOf(22, 0, 6, 0)
+)
+
 /**
  * Anlegen/Bearbeiten einer Schicht als eigener Vollbild-Screen (statt Dialog) nach dem
  * Vorbild gängiger Schichtplan-Apps: Titel/Farbe-Karte, darunter "Standardwerte" mit
@@ -73,7 +80,6 @@ fun ShiftEditDialog(
     var endMinute by remember { mutableStateOf(initialEnd.second) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
-    var showTitlePicker by remember { mutableStateOf(false) }
     var earliestWakeOffsetText by remember { mutableStateOf((existing?.earliestWakeOffsetMinutes ?: 0).toString()) }
     var latestWakeupOffsetText by remember { mutableStateOf((existing?.latestWakeupOffsetMinutes ?: 0).toString()) }
     var wakeupAlarmEnabled by remember { mutableStateOf(existing?.latestWakeupHour != null) }
@@ -125,14 +131,38 @@ fun ShiftEditDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 Card(shape = RoundedCornerShape(16.dp)) {
-                    Column {
-                        ShiftFormRow(
-                            label = "Titel",
-                            value = name.ifBlank { null },
-                            onClick = { showTitlePicker = true }
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Titel") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(top = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SHIFT_NAME_SUGGESTIONS.forEach { suggestion ->
+                                AssistChip(
+                                    onClick = {
+                                        name = suggestion
+                                        SHIFT_DEFAULT_TIMES[suggestion]?.let { (sh, sm, eh, em) ->
+                                            startHour = sh
+                                            startMinute = sm
+                                            endHour = eh
+                                            endMinute = em
+                                        }
+                                    },
+                                    label = { Text(suggestion) }
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             SHIFT_COLOR_PALETTE.forEach { color ->
@@ -234,14 +264,6 @@ fun ShiftEditDialog(
         }
     }
 
-    if (showTitlePicker) {
-        ShiftTitleInputDialog(
-            initialValue = name,
-            onConfirm = { newName -> name = newName; showTitlePicker = false },
-            onDismiss = { showTitlePicker = false }
-        )
-    }
-
     if (showStartPicker) {
         NocturnTimePickerDialog(
             initialHour = startHour,
@@ -289,64 +311,6 @@ private fun ShiftFormRow(
         )
         if (showChevron) {
             Icon(Icons.Filled.ChevronRight, contentDescription = null, modifier = Modifier.padding(start = 4.dp))
-        }
-    }
-}
-
-/**
- * Titel-Eingabe als eigenes schwebendes Fenster mit Schnellauswahl-Chips für die
- * gängigsten Schichtnamen, statt jedes Mal den vollen Namen tippen zu müssen.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ShiftTitleInputDialog(
-    initialValue: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var text by remember { mutableStateOf(initialValue) }
-
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Titel") },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
-                        }
-                    }
-                )
-            },
-            bottomBar = {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SHIFT_NAME_SUGGESTIONS.forEach { suggestion ->
-                            AssistChip(onClick = { text = suggestion }, label = { Text(suggestion) })
-                        }
-                    }
-                    TextButton(
-                        onClick = { onConfirm(text.trim()) },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                    ) { Text("Fertig") }
-                }
-            }
-        ) { innerPadding ->
-            Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("Titel") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(16.dp)
-                )
-            }
         }
     }
 }

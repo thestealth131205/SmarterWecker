@@ -207,3 +207,60 @@ REMOTE_SCRIPT
 
 log "Fertig. APK deployed: ${MAIN_SERVER_IP}:${REMOTE_DEPLOY_PATH}"
 log "Download-Seite: https://letheapp.de/nocturn.php"
+
+# ---------- 9. F-Droid-Repo aktualisieren ----------
+# Nutzt dasselbe, bereits laufende F-Droid-Repo von Lethe (fdroid.letheapp.de) auf dem
+# Hauptserver statt eines eigenen Repos -- NocTurn und Lethe teilen sich Repo-Verzeichnis
+# und Signierschluessel (/root/my-fdroid-repo), damit Nutzer beide Apps aus einer Quelle
+# aktuell halten koennen. Laeuft unconditional bei jedem Release (kein Flag nötig), da
+# dieses Skript immer nur die eine NocTurn-APK baut.
+log "Aktualisiere F-Droid-Repo..."
+FDROID_PACKAGE="de.letheapp.nocturn"
+FDROID_REPO_DIR="/root/my-fdroid-repo/repo"
+FDROID_META_FILE="/root/my-fdroid-repo/metadata/${FDROID_PACKAGE}.yml"
+FDROID_APK_NAME="${FDROID_PACKAGE}_${NEW_CODE}.apk"
+
+sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
+    "cp '${REMOTE_DEPLOY_PATH}' '${FDROID_REPO_DIR}/${FDROID_APK_NAME}'" \
+    || die "Kopieren der APK ins F-Droid-Repo fehlgeschlagen"
+
+FDROID_META_EXISTS="$(sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
+    "[ -f '${FDROID_META_FILE}' ] && echo yes || echo no")"
+if [[ "$FDROID_META_EXISTS" == "no" ]]; then
+    log "Lege F-Droid-Metadata für ${FDROID_PACKAGE} an..."
+    TMP_YAML="$(mktemp)"
+    cat > "$TMP_YAML" <<YAML_EOF
+Categories:
+  - System
+License: Proprietary
+WebSite: "https://letheapp.de/nocturn.php"
+Name: NocTurn
+Summary: Wecker, Kalender & Schichtplaner
+Description: |
+  NocTurn ist ein Wecker, der dich wirklich aufstehen laesst: Aufsteh-Erkennung
+  per Sensorik und Health Connect, eskalierender Notfall-Alarm mit
+  Zuordnungs-Puzzle, dazu ein Schichtkalender mit Rotationen,
+  Schueler/Student-Stundenplan-Modus und Foto-Import per OCR.
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: '${NEW_NAME}'
+CurrentVersionCode: ${NEW_CODE}
+YAML_EOF
+    sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" "$TMP_YAML" \
+        "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${FDROID_META_FILE}" || die "Hochladen der F-Droid-Metadata fehlgeschlagen"
+    rm -f "$TMP_YAML"
+else
+    sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" "
+        sed -i \"s|^CurrentVersion:.*|CurrentVersion: '${NEW_NAME}'|\" '${FDROID_META_FILE}'
+        sed -i \"s|^CurrentVersionCode:.*|CurrentVersionCode: ${NEW_CODE}|\" '${FDROID_META_FILE}'
+    "
+fi
+
+log "Regeneriere F-Droid-Index (kann einige Minuten dauern)..."
+sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
+    "cd /root/my-fdroid-repo && fdroid update --clean" \
+    || die "fdroid update auf dem Hauptserver fehlgeschlagen"
+
+log "NocTurn im F-Droid-Repo aktualisiert: ${FDROID_APK_NAME}"
+log "F-Droid-Repo-URL (in F-Droid-Client eintragen): https://fdroid.letheapp.de/repo"

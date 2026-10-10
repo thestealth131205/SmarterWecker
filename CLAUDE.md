@@ -469,6 +469,25 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   per `scp`/`sshpass` direkt nach `/var/www/Lethe/downloads/nocturn/` auf den Hauptserver hoch
   — der `git push` nutzt dafür einen expliziten `Authorization: Basic`-Header aus `GH_TOKEN`
   statt der Standard-Credential-Erkennung, da Letztere auf diesem Pi nicht zuverlässig griff.
+- **F-Droid-Repo** (`scripts/release-deploy.sh`, Schritt 9): NocTurn wird zusätzlich ins
+  bereits bestehende, eigene F-Droid-Repo von Lethe (`https://fdroid.letheapp.de/repo`,
+  `/root/my-fdroid-repo` auf dem Hauptserver) eingetragen, statt ein eigenes Repo
+  aufzusetzen — ein Nutzer, der dort bereits Lethe bezieht, bekommt NocTurn-Updates über
+  dieselbe Quelle. Bei jedem Release (kein Opt-in-Flag nötig, da dieses Skript immer nur
+  die eine NocTurn-APK baut) wird die frisch deployte APK als `de.letheapp.nocturn_<versionCode>.apk`
+  nach `/root/my-fdroid-repo/repo/` kopiert, die Metadata-Datei
+  `/root/my-fdroid-repo/metadata/de.letheapp.nocturn.yml` angelegt bzw. per `CurrentVersion`/
+  `CurrentVersionCode` aktuell gehalten (`AutoUpdateMode`/`UpdateCheckMode` bewusst auf `None`,
+  da die APK nicht nach F-Droid-Signing-Konvention im Repo liegt — ohne das manuelle
+  Nachziehen von `CurrentVersion`/`CurrentVersionCode` würde der F-Droid-Client trotz neuer
+  APK im Index weiter die beim Erstanlegen eingetragene Version als "aktuell" anzeigen), und
+  abschließend per SSH `fdroid update --clean` ausgeführt. Älteren APKs im Repo-Ordner werden
+  dabei bewusst nicht gelöscht (gleiches Verhalten wie beim bestehenden Lethe-Media-Player-
+  Eintrag) — F-Droid-Clients können so auch ältere Versionen weiterhin installieren. Derselbe
+  Mechanismus (Helper-Funktion `fdroid_sync_metadata`) existiert gespiegelt in
+  `/opt/letheapp/push-and-deploy.sh` für den Lethe Media Player (`com.Lethe.mediaplayer`,
+  hinter dem bestehenden `--fdroid`-Flag), damit beide Begleit-Apps zuverlässig eine aktuelle
+  "Current"-Version im selben Repo zeigen.
 
 ## Wichtig
 
