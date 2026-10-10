@@ -41,6 +41,25 @@ class RotationEditorViewModel @Inject constructor(
     /** Pro Tag die Liste der an diesem Tag gleichzeitig geltenden Schichten — leer = frei. */
     val days = mutableStateListOf<List<Long>>()
 
+    /** Stand beim Laden/letzten Speichern — Grundlage für [hasUnsavedChanges]. */
+    private var savedName: String = ""
+    private var savedDays: List<List<Long>> = emptyList()
+
+    /**
+     * true, wenn Name/Tage vom zuletzt gespeicherten bzw. geladenen Stand abweichen — verhindert,
+     * dass ein Zurück-Tipp im Editor eine bereits vorgenommene Änderung (z. B. das Entfernen
+     * eines versehentlich zugewiesenen Tages) stillschweigend verwirft, ohne dass der Nutzer es
+     * merkt, siehe [RotationEditorScreen].
+     */
+    val hasUnsavedChanges: Boolean
+        get() = name.trim() != savedName || days.toList() != savedDays
+
+    /** Wie oft jede Schicht aktuell im Muster vorkommt — hilft, einen Fehltipp in der
+     *  Mehrfachauswahl eines Tages (z. B. eine versehentlich mitausgewählte Schicht) vor dem
+     *  Speichern zu erkennen, statt sie in einem großen Raster zu übersehen. */
+    val shiftUsageCounts: Map<Long, Int>
+        get() = days.flatten().groupingBy { it }.eachCount()
+
     init {
         val id = rotationId
         if (id != null) {
@@ -53,6 +72,8 @@ class RotationEditorViewModel @Inject constructor(
                 val cycleLength = rotationDays.keys.size
                 days.clear()
                 days.addAll((0 until cycleLength).map { index -> rotationDays[index].orEmpty().filterNotNull() })
+                savedName = name.trim()
+                savedDays = days.toList()
                 loaded = true
             }
         }
@@ -92,6 +113,8 @@ class RotationEditorViewModel @Inject constructor(
                 name = name.trim(),
                 dayShiftIds = days.toList()
             )
+            savedName = name.trim()
+            savedDays = days.toList()
             onDone()
         }
     }

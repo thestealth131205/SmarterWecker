@@ -193,13 +193,24 @@ class CalendarRepository @Inject constructor(
     /**
      * Alle im Muster dieser Rotation tatsächlich verwendeten Schichten (für die Chip-Auswahl
      * der Phasen-Rückfrage, siehe [resolveRotationPhase]) — `null` steht dabei für "Frei",
-     * falls das Muster freie Tage enthält.
+     * falls das Muster freie Tage enthält. Eine Schicht, die im gesamten Zyklus nur an genau
+     * einem Tag-Index vorkommt, zählt nicht als echter, wiederkehrender Teil des Musters
+     * (meist ein versehentlicher Tipp beim schnellen Aufbau des Rasters über die Schnellauswahl-
+     * Chips) und wird daher ignoriert — siehe [occurrenceCount].
      */
     suspend fun getRotationShiftOptions(rotationId: Long): List<ShiftEntity?> {
         val days = rotationDao.getDaysOnce(rotationId)
-        val shifts = days.mapNotNull { it.shiftId }.distinct().mapNotNull { shiftDao.getById(it) }
+        val daysByIndex = days.groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        val shifts = days.mapNotNull { it.shiftId }.distinct()
+            .filter { occurrenceCount(daysByIndex, cycleLength, it) > 1 }
+            .mapNotNull { shiftDao.getById(it) }
         return if (days.any { it.shiftId == null }) shifts + listOf(null) else shifts
     }
+
+    /** Wie oft [shiftId] (`null` = Frei) im gesamten Zyklus laut [daysByIndex] vorkommt. */
+    private fun occurrenceCount(daysByIndex: Map<Int, List<Long?>>, cycleLength: Int, shiftId: Long?): Int =
+        (0 until cycleLength).count { shiftMatchesDay(daysByIndex[it].orEmpty(), shiftId) }
 
     /**
      * Tag-Indizes im Rotationsmuster, die vom Wochentag her zu [startEpochDay] passen würden.
@@ -303,7 +314,9 @@ class CalendarRepository @Inject constructor(
      * verbleibenden Kandidaten-Tag-Index einen **eindeutigen** Abstand ergibt (die Nutzerantwort
      * also wirklich zwischen den Kandidaten unterscheidet) — bevorzugt die im gesamten Muster am
      * seltensten vorkommende Schicht, da gerade deren nächstes Auftreten dem Nutzer typischerweise
-     * noch im Kopf ist. Fällt auf [todayShiftId] zurück, falls keine andere Schicht eindeutig
+     * noch im Kopf ist. Schichten mit nur einem einzigen Vorkommen im gesamten Zyklus gelten nicht
+     * als echter, wiederkehrender Teil des Musters (siehe [getRotationShiftOptions]) und werden
+     * dabei ignoriert. Fällt auf [todayShiftId] zurück, falls keine andere Schicht eindeutig
      * unterscheidet.
      */
     suspend fun findDistinguishingShiftForOccurrenceQuery(
@@ -326,9 +339,13 @@ class CalendarRepository @Inject constructor(
 
         val allShiftIds: List<Long?> = daysByIndex.values.flatten().distinct()
         val distinguishing = allShiftIds.mapNotNull { shiftId ->
+            val occurrenceCount = occurrenceCount(daysByIndex, cycleLength, shiftId)
+            // Ein einzelnes Vorkommen ist meist ein versehentlicher Tipp, kein echter Teil des
+            // Musters (siehe getRotationShiftOptions) — "Frei" bleibt davon ausgenommen, da auch
+            // ein einzelner freier Tag ein legitimer Ankerpunkt im Muster ist.
+            if (shiftId != null && occurrenceCount <= 1) return@mapNotNull null
             val offsets = remaining.map { nextOccurrenceOffset(it, shiftId) }
             if (offsets.toSet().size == remaining.size) {
-                val occurrenceCount = (0 until cycleLength).count { shiftMatchesDay(daysByIndex[it].orEmpty(), shiftId) }
                 shiftId to occurrenceCount
             } else {
                 null

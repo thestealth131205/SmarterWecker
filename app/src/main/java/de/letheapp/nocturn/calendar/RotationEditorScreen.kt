@@ -1,5 +1,6 @@
 package de.letheapp.nocturn.calendar
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -65,13 +66,19 @@ fun RotationEditorScreen(
 ) {
     val shifts by viewModel.shifts.collectAsState()
     var pickerDayIndex by remember { mutableIntStateOf(-1) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    val attemptBack = {
+        if (viewModel.hasUnsavedChanges) showDiscardDialog = true else onBack()
+    }
+    BackHandler(onBack = attemptBack)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (viewModel.isNew) "Neue Rotation" else "Rotation bearbeiten") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = attemptBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
                     }
                 },
@@ -121,6 +128,34 @@ fun RotationEditorScreen(
                         dayShifts = dayShifts,
                         onClick = { pickerDayIndex = index }
                     )
+                }
+            }
+
+            val usageCounts = viewModel.shiftUsageCounts
+            if (usageCounts.isNotEmpty()) {
+                Text(
+                    text = "Verwendete Schichten in diesem Muster:",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    shifts.filter { usageCounts.containsKey(it.id) }.forEach { shift ->
+                        val count = usageCounts[shift.id] ?: 0
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("${shift.name} ×$count") },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(Color(shift.colorArgb), RoundedCornerShape(3.dp))
+                                )
+                            }
+                        )
+                    }
                 }
             }
 
@@ -183,6 +218,20 @@ fun RotationEditorScreen(
             onToggle = { shiftId -> viewModel.toggleShift(index, shiftId) },
             onClear = { viewModel.clearDay(index) },
             onDismiss = { pickerDayIndex = -1 }
+        )
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Änderungen verwerfen?") },
+            text = { Text("Du hast das Muster geändert, ohne zu speichern. Diese Änderungen gehen sonst verloren.") },
+            confirmButton = {
+                TextButton(onClick = { showDiscardDialog = false; onBack() }) { Text("Verwerfen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Weiter bearbeiten") }
+            }
         )
     }
 }
