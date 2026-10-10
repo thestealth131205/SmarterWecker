@@ -32,9 +32,15 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
-            // Noch keine veröffentlichte Version mit Bestandsdaten, daher reicht ein
-            // destruktiver Neuaufbau bei Schema-Änderungen statt echter Migrationen.
-            .fallbackToDestructiveMigration()
+            // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
+            // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
+            // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN
+            // fallbackToDestructiveMigration() mehr: jede künftige Erhöhung von
+            // NocturnDatabase.version muss eine eigene Migration(...) hier ergänzen, die das
+            // bestehende Schema per ALTER/CREATE TABLE überführt, statt die Tabellen zu
+            // verwerfen. Nur beim Downgrade (z. B. Debug-Build einer älteren Version drüber
+            // installiert) ist ein Neuaufbau unkritisch, da das kein produktiver Update-Pfad ist.
+            .fallbackToDestructiveMigrationOnDowngrade()
             .build()
 
     @Provides

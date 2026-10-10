@@ -359,6 +359,22 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Lizenzen bevorzugt, proprietäre/closed-source Komponenten möglichst vermieden.
   Spotify-/Deezer-SDKs (closed-source, Streaming-Anbieter) bleiben rein optionale
   Zusatz-Tonquellen, keine Kern-Abhängigkeit der App.
+- **Room-Datenbank-Migrationen (ab jetzt Pflicht)**: `NocturnDatabase` hat jetzt
+  reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten, Rotationen,
+  Kalendereinträge, Aufgaben, Zugangsdaten-Referenzen, ...). `DatabaseModule.kt` nutzt daher
+  bewusst **kein** `fallbackToDestructiveMigration()` mehr (das hätte bei jedem App-Update mit
+  Schema-Änderung alle Nutzdaten gelöscht — ist in früheren Entwicklungs-Sessions mehrfach
+  passiert, solange es noch keine echten Bestandsdaten gab). Stattdessen nur noch
+  `fallbackToDestructiveMigrationOnDowngrade()` (unkritisch, betrifft nur das Draufinstallieren
+  einer älteren Debug-Version). **Jede künftige Änderung an `Entities.kt` oder Erhöhung von
+  `NocturnDatabase.version` muss eine echte `Migration(alt, neu)` mit ALTER/CREATE-TABLE-SQL in
+  `DatabaseModule.kt` ergänzen**, sonst crasht die App beim nächsten Update statt die Daten zu
+  verlieren — beides vermeiden, indem die Migration gleich mitgeliefert wird. `exportSchema =
+  true` in `NocturnDatabase.kt`, Schema-Snapshots landen unter `app/schemas/` (Room-Build-Zeit-
+  Ausgabe, Grundlage für Migrationstests). SharedPreferences-basierte Einstellungen (Wetter-
+  Opt-in, manueller Ort, verschlüsselte Nextcloud-/ioBroker-/Lethe-Media-Zugangsdaten) sind
+  davon unberührt und überleben App-Updates bereits automatisch, da Android das App-
+  Datenverzeichnis bei einem Update (anders als bei Deinstallation) nicht anfasst.
 - Health Connect: offizielle Android Health Connect API.
 - Bewegungserkennung ohne Health Connect: `SensorManager` mit `TYPE_ACCELEROMETER` /
   `TYPE_GYROSCOPE`, ggf. Schrittzähler-Sensor `TYPE_STEP_COUNTER`/`TYPE_STEP_DETECTOR`.

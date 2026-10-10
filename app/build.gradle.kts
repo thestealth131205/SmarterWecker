@@ -79,6 +79,13 @@ android {
     }
 }
 
+// Room exportiert bei jedem Build einen Schema-Snapshot nach app/schemas/ — Grundlage, um
+// künftige Versionsbumps per echter Migration (statt destruktivem Neuaufbau) zu überprüfen,
+// siehe NocturnDatabase.kt und DatabaseModule.kt.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

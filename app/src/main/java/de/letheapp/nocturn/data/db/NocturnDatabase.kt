@@ -22,7 +22,11 @@ import androidx.room.RoomDatabase
         TaskEntity::class
     ],
     version = 12,
-    exportSchema = false
+    // Es existieren bereits reale Nutzdaten (Alarme, Jobs, Schichten, Rotationen, Kalender-
+    // einträge) auf installierten Geräten — Schema-Export ist jetzt an, damit künftige
+    // Versionsbumps per echter Migration (androidx.room.migration.Migration) statt eines
+    // destruktiven Neuaufbaus erfolgen können. Siehe DatabaseModule.kt.
+    exportSchema = true
 )
 abstract class NocturnDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
