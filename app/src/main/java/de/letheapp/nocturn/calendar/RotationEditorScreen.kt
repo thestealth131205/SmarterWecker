@@ -2,6 +2,7 @@ package de.letheapp.nocturn.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -26,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -121,12 +124,44 @@ fun RotationEditorScreen(
                 }
             }
 
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { viewModel.addDay() }, modifier = Modifier.weight(1f)) {
-                    Text("+ Tag")
+            Text(
+                text = "Antippen fügt sofort einen neuen Tag mit dieser Schicht an:",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AssistChip(
+                        onClick = { viewModel.addDay() },
+                        label = { Text("Frei") }
+                    )
+                    shifts.forEach { shift ->
+                        AssistChip(
+                            onClick = { viewModel.addDayWithShift(shift.id) },
+                            label = { Text(shift.name) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(Color(shift.colorArgb), RoundedCornerShape(3.dp))
+                                )
+                            }
+                        )
+                    }
                 }
-                OutlinedButton(onClick = { viewModel.removeLastDay() }, modifier = Modifier.weight(1f)) {
-                    Text("Letzten Tag entfernen")
+                IconButton(
+                    onClick = { viewModel.removeLastDay() },
+                    enabled = viewModel.days.isNotEmpty()
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Letzten Tag entfernen")
                 }
             }
 

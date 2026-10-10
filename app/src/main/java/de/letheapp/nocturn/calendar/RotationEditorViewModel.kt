@@ -62,6 +62,11 @@ class RotationEditorViewModel @Inject constructor(
         days.add(emptyList())
     }
 
+    /** Hängt einen neuen Tag mit genau dieser Schicht an — schnellerer Weg als "+ Tag" + Dialog. */
+    fun addDayWithShift(shiftId: Long) {
+        days.add(listOf(shiftId))
+    }
+
     fun removeLastDay() {
         if (days.isNotEmpty()) days.removeAt(days.lastIndex)
     }
