@@ -19,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class JobDetailViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -41,11 +42,17 @@ class JobDetailViewModel @Inject constructor(
     }
 
     fun saveShift(shift: ShiftEntity) {
-        viewModelScope.launch { calendarRepository.saveShift(shift) }
+        viewModelScope.launch {
+            calendarRepository.saveShift(shift)
+            shiftWakeupAlarmSyncer.sync()
+        }
     }
 
     fun deleteShift(shift: ShiftEntity) {
-        viewModelScope.launch { calendarRepository.deleteShift(shift) }
+        viewModelScope.launch {
+            calendarRepository.deleteShift(shift)
+            shiftWakeupAlarmSyncer.sync()
+        }
     }
 
     fun deleteRotation(rotation: RotationEntity) {

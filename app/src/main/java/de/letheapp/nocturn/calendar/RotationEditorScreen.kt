@@ -21,8 +21,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +32,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.ShiftEntity
-import java.time.LocalDate
 
 private val WEEKDAY_LABELS = listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
 
@@ -64,7 +61,6 @@ fun RotationEditorScreen(
     viewModel: RotationEditorViewModel = hiltViewModel()
 ) {
     val shifts by viewModel.shifts.collectAsState()
-    var showDatePicker by remember { mutableStateOf(false) }
     var pickerDayIndex by remember { mutableIntStateOf(-1) }
 
     Scaffold(
@@ -99,16 +95,8 @@ fun RotationEditorScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            val startDate = remember(viewModel.startDateEpochDay) { LocalDate.ofEpochDay(viewModel.startDateEpochDay) }
-            OutlinedButton(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-            ) {
-                Text("Start der Rotation: $startDate")
-            }
-
             Text(
-                text = "Tag für Tag die Schicht eintragen, bis sich das Muster wiederholen würde. Aktuelle Länge: ${viewModel.days.size} Tage.",
+                text = "Tag für Tag die Schicht(en) eintragen, bis sich das Muster wiederholen würde — pro Tag sind auch mehrere Schichten gleichzeitig möglich (z. B. Frühschicht + Kinder-Wochenende). Aktuelle Länge: ${viewModel.days.size} Tage. Der Starttag im Kalender wird später über die Kalender-Seitenleiste festgelegt.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
             )
@@ -124,11 +112,10 @@ fun RotationEditorScreen(
                 }
 
                 items(viewModel.days.size) { index ->
-                    val shiftId = viewModel.days[index]
-                    val shift = shifts.firstOrNull { it.id == shiftId }
+                    val dayShifts = viewModel.days[index].mapNotNull { id -> shifts.firstOrNull { it.id == id } }
                     DayCell(
                         dayNumber = index + 1,
-                        shift = shift,
+                        dayShifts = dayShifts,
                         onClick = { pickerDayIndex = index }
                     )
                 }
@@ -154,90 +141,104 @@ fun RotationEditorScreen(
     }
 
     if (pickerDayIndex >= 0) {
+        val index = pickerDayIndex
         ShiftPickerDialog(
             shifts = shifts,
-            onSelect = { shiftId -> viewModel.setDay(pickerDayIndex, shiftId); pickerDayIndex = -1 },
+            selectedShiftIds = viewModel.days[index].toSet(),
+            onToggle = { shiftId -> viewModel.toggleShift(index, shiftId) },
+            onClear = { viewModel.clearDay(index) },
             onDismiss = { pickerDayIndex = -1 }
         )
-    }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = viewModel.startDateEpochDay * 24 * 60 * 60 * 1000
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        viewModel.startDateEpochDay = LocalDate.ofEpochDay(0)
-                            .plusDays(millis / (24 * 60 * 60 * 1000))
-                            .toEpochDay()
-                    }
-                    showDatePicker = false
-                }) { Text("Übernehmen") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Abbrechen") }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
     }
 }
 
 @Composable
-private fun DayCell(dayNumber: Int, shift: ShiftEntity?, onClick: () -> Unit) {
-    val backgroundColor = shift?.let { Color(it.colorArgb) } ?: MaterialTheme.colorScheme.surfaceVariant
-
+private fun DayCell(dayNumber: Int, dayShifts: List<ShiftEntity>, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .aspectRatio(1f)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(backgroundColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(dayNumber.toString(), style = MaterialTheme.typography.labelSmall)
+        if (dayShifts.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(dayNumber.toString(), style = MaterialTheme.typography.labelSmall)
+                    Text(text = "frei", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+                }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Text(
-                    text = shift?.name?.take(3) ?: "frei",
+                    dayNumber.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                // Jede gleichzeitig geltende Schicht als eigener, gleich hoher Streifen untereinander.
+                Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    dayShifts.forEach { shift ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(Color(shift.colorArgb)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = shift.name.take(3),
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ShiftPickerDialog(shifts: List<ShiftEntity>, onSelect: (Long?) -> Unit, onDismiss: () -> Unit) {
+private fun ShiftPickerDialog(
+    shifts: List<ShiftEntity>,
+    selectedShiftIds: Set<Long>,
+    onToggle: (Long) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Schicht für diesen Tag") },
+        title = { Text("Schicht(en) für diesen Tag") },
         text = {
             Column {
-                TextButton(onClick = { onSelect(null) }) { Text("Frei") }
+                Text(
+                    "Mehrere Schichten können gleichzeitig gelten (z. B. Frühschicht + Kinder-Wochenende).",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                TextButton(onClick = onClear) { Text("Frei (alle abwählen)") }
                 shifts.forEach { shift ->
-                    TextButton(onClick = { onSelect(shift.id) }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .size(16.dp)
-                                    .background(Color(shift.colorArgb), RoundedCornerShape(4.dp))
-                            )
-                            Text(shift.name)
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { onToggle(shift.id) }
+                    ) {
+                        Checkbox(checked = shift.id in selectedShiftIds, onCheckedChange = { onToggle(shift.id) })
+                        Box(
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(16.dp)
+                                .background(Color(shift.colorArgb), RoundedCornerShape(4.dp))
+                        )
+                        Text(shift.name)
                     }
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Schließen") }
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fertig") }
         }
     )
 }

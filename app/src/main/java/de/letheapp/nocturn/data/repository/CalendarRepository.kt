@@ -29,10 +29,10 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /**
- * Verwaltet die Kalender-Vorlagen (Jobs, Schichten, Rotationen) und schreibt eine
- * gespeicherte Rotation automatisch für [FORECAST_YEARS] Jahre im Voraus als
- * [CalendarEntryEntity]s fort, damit der Wecker jederzeit weiß, welche Schicht an
- * welchem Tag gilt, ohne dass der Nutzer manuell nachpflegen muss.
+ * Verwaltet die Kalender-Vorlagen (Jobs, Schichten, Rotationen). Eine Rotation ist dabei
+ * reine Vorlage ohne eigenes Startdatum — erst wenn sie über die Kalender-Seitenleiste
+ * einem gewählten Starttag und Zeitraum zugewiesen wird ([applyRotationRange]), entstehen
+ * daraus [CalendarEntryEntity]s, damit der Wecker weiß, welche Schicht an welchem Tag gilt.
  */
 class CalendarRepository @Inject constructor(
     private val jobDao: JobDao,
@@ -46,8 +46,6 @@ class CalendarRepository @Inject constructor(
     private val taskDao: TaskDao
 ) {
     companion object {
-        const val FORECAST_YEARS = 5
-
         /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
         const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFF7043.toInt()
 
@@ -118,57 +116,37 @@ class CalendarRepository @Inject constructor(
 
     /**
      * Speichert eine Rotation inkl. ihres Tag-für-Tag-Musters (Zykluslänge = Anzahl der
-     * übergebenen Tage) und schreibt den Kalender daraus sofort für mehrere Jahre neu fort.
+     * übergebenen Tage) als reine Vorlage — ohne Startdatum und ohne den Kalender zu
+     * verändern. Bereits im Kalender eingetragene Vorkommen dieser Rotation bleiben
+     * unverändert; ein geändertes Muster wirkt sich erst bei der nächsten [applyRotationRange]
+     * aus. Das Zuweisen zu einem Zeitraum erfolgt separat über die Kalender-Seitenleiste.
+     *
+     * [dayShiftIds] listet pro Tag die an diesem Tag gleichzeitig geltenden Schichten (z. B.
+     * Frühschicht + ein zusätzlicher Termin wie "Kinder-Wochenende") — eine leere Liste bedeutet
+     * "frei".
      */
     suspend fun saveRotation(
         jobId: Long,
         rotationId: Long?,
         name: String,
-        startDateEpochDay: Long,
-        dayShiftIds: List<Long?>
+        dayShiftIds: List<List<Long>>
     ) {
         val savedId = if (rotationId == null) {
-            rotationDao.insert(RotationEntity(jobId = jobId, name = name, startDateEpochDay = startDateEpochDay))
+            rotationDao.insert(RotationEntity(jobId = jobId, name = name))
         } else {
-            rotationDao.update(RotationEntity(id = rotationId, jobId = jobId, name = name, startDateEpochDay = startDateEpochDay))
+            rotationDao.update(RotationEntity(id = rotationId, jobId = jobId, name = name))
             rotationId
         }
 
         rotationDao.deleteDays(savedId)
-        val days = dayShiftIds.mapIndexed { index, shiftId ->
-            RotationDayEntity(rotationId = savedId, dayIndex = index, shiftId = shiftId)
+        val days = dayShiftIds.flatMapIndexed { index, shiftIds ->
+            if (shiftIds.isEmpty()) {
+                listOf(RotationDayEntity(rotationId = savedId, dayIndex = index, shiftId = null))
+            } else {
+                shiftIds.map { shiftId -> RotationDayEntity(rotationId = savedId, dayIndex = index, shiftId = shiftId) }
+            }
         }
         rotationDao.insertDays(days)
-
-        regenerateCalendarEntries(
-            jobId = jobId,
-            rotationId = savedId,
-            startDateEpochDay = startDateEpochDay,
-            days = days
-        )
-    }
-
-    private suspend fun regenerateCalendarEntries(
-        jobId: Long,
-        rotationId: Long,
-        startDateEpochDay: Long,
-        days: List<RotationDayEntity>
-    ) {
-        calendarEntryDao.deleteForRotation(rotationId)
-        val cycleLength = days.size
-        if (cycleLength == 0) return
-
-        val sortedDays = days.sortedBy { it.dayIndex }
-        val totalDays = 365 * FORECAST_YEARS
-        val entries = (0 until totalDays).map { offset ->
-            CalendarEntryEntity(
-                jobId = jobId,
-                rotationId = rotationId,
-                dateEpochDay = startDateEpochDay + offset,
-                shiftId = sortedDays[offset % cycleLength].shiftId
-            )
-        }
-        calendarEntryDao.insertAll(entries)
     }
 
     /**
@@ -176,38 +154,196 @@ class CalendarRepository @Inject constructor(
      * (Seitenleiste in der Kalender-Monatsansicht: Rotation wählen → Starttag antippen → Dauer
      * im schwebenden Fenster festlegen). Ersetzt nur die Einträge dieser Rotation im gewählten
      * Zeitraum, lässt ihr beim Anlegen gespeichertes Standard-Fortschreibefenster unangetastet.
+     *
+     * [phaseStartIndex] ist der Tag-Index im Rotationsmuster, der [startEpochDay] entspricht
+     * (siehe [rotationPhaseCandidates]/[resolveRotationPhase]) — nicht zwingend 0, da das
+     * Muster beim Anlegen einen Montag als Tag-Index 0 annimmt, der gewählte Starttag im
+     * Kalender aber ein beliebiger Wochentag sein kann.
      */
-    suspend fun applyRotationRange(rotationId: Long, startEpochDay: Long, totalDays: Int) {
+    suspend fun applyRotationRange(rotationId: Long, startEpochDay: Long, totalDays: Int, phaseStartIndex: Int = 0) {
         val rotation = rotationDao.getById(rotationId) ?: return
-        val days = rotationDao.getDaysOnce(rotationId).sortedBy { it.dayIndex }
-        val cycleLength = days.size
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
         if (cycleLength == 0 || totalDays <= 0) return
 
         val endEpochDay = startEpochDay + totalDays - 1
         calendarEntryDao.deleteForRotationInRange(rotationId, startEpochDay, endEpochDay)
-        val entries = (0 until totalDays).map { offset ->
-            CalendarEntryEntity(
-                jobId = rotation.jobId,
-                rotationId = rotationId,
-                dateEpochDay = startEpochDay + offset,
-                shiftId = days[offset % cycleLength].shiftId
-            )
+        val entries = (0 until totalDays).flatMap { offset ->
+            val dateEpochDay = startEpochDay + offset
+            val shiftIds = daysByIndex[(phaseStartIndex + offset) % cycleLength].orEmpty().filterNotNull()
+            if (shiftIds.isEmpty()) {
+                listOf(CalendarEntryEntity(jobId = rotation.jobId, rotationId = rotationId, dateEpochDay = dateEpochDay, shiftId = null))
+            } else {
+                shiftIds.map { shiftId ->
+                    CalendarEntryEntity(jobId = rotation.jobId, rotationId = rotationId, dateEpochDay = dateEpochDay, shiftId = shiftId)
+                }
+            }
         }
         calendarEntryDao.insertAll(entries)
+    }
+
+    /**
+     * Alle im Muster dieser Rotation tatsächlich verwendeten Schichten (für die Chip-Auswahl
+     * der Phasen-Rückfrage, siehe [resolveRotationPhase]) — `null` steht dabei für "Frei",
+     * falls das Muster freie Tage enthält.
+     */
+    suspend fun getRotationShiftOptions(rotationId: Long): List<ShiftEntity?> {
+        val days = rotationDao.getDaysOnce(rotationId)
+        val shifts = days.mapNotNull { it.shiftId }.distinct().mapNotNull { shiftDao.getById(it) }
+        return if (days.any { it.shiftId == null }) shifts + listOf(null) else shifts
+    }
+
+    /**
+     * Tag-Indizes im Rotationsmuster, die vom Wochentag her zu [startEpochDay] passen würden.
+     * Das Muster wird im Editor als 7-Wochentags-Spalten-Raster angelegt (Tag-Index 0 = Montag,
+     * siehe [de.letheapp.nocturn.calendar.RotationEditorScreen]), Tag-Index mod 7 ergibt also
+     * den Wochentag. Bei Zykluslängen über einer Woche kann derselbe Wochentag mehrfach im
+     * Muster vorkommen — eine Liste mit mehr als einem Eintrag bedeutet, dass der gewählte
+     * Starttag ohne Rückfrage (siehe [resolveRotationPhase]) nicht eindeutig zuordenbar ist.
+     */
+    suspend fun rotationPhaseCandidates(rotationId: Long, startEpochDay: Long): List<Int> {
+        val cycleLength = rotationDao.getDaysOnce(rotationId).map { it.dayIndex }.distinct().size
+        if (cycleLength == 0) return emptyList()
+        val weekday = LocalDate.ofEpochDay(startEpochDay).dayOfWeek.value - 1
+        return (0 until cycleLength).filter { it % 7 == weekday }
+    }
+
+    /** Bei Tagen mit mehreren gleichzeitigen Schichten genügt es, dass die genannte Schicht
+     *  an diesem Tag-Index überhaupt vorkommt, um ihn eindeutig zu identifizieren. */
+    private fun shiftMatchesDay(shiftIds: List<Long?>, picked: Long?): Boolean =
+        if (picked == null) shiftIds.all { it == null } else shiftIds.contains(picked)
+
+    /**
+     * Wochentag-passende Kandidaten (siehe [rotationPhaseCandidates]), die zusätzlich die am
+     * Starttag genannte Schicht [todayShiftId] tatsächlich an diesem Tag-Index führen — der
+     * erste von zwei Rückfrage-Schritten, siehe [needsNextOccurrenceDateQuery].
+     */
+    suspend fun candidatesMatchingTodayShift(
+        rotationId: Long,
+        startEpochDay: Long,
+        todayShiftId: Long?
+    ): List<Int> {
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        if (cycleLength == 0) return emptyList()
+        val weekday = LocalDate.ofEpochDay(startEpochDay).dayOfWeek.value - 1
+        return (0 until cycleLength).filter {
+            it % 7 == weekday && shiftMatchesDay(daysByIndex[it].orEmpty(), todayShiftId)
+        }
+    }
+
+    /**
+     * true, wenn die am Starttag genannte Schicht [todayShiftId] allein nicht reicht (mehrere
+     * Kandidaten bleiben übrig) UND auch die Schicht am nächsten Freitag diese Kandidaten nicht
+     * zuverlässig unterscheiden würde — typisch für eine im Muster nur unregelmäßig/selten
+     * vorkommende Schicht (z. B. "Kinder-Wochenende" an wechselnden, nicht wochentaktisch
+     * wiederkehrenden Tag-Indizes). Die Wochentag-Rückfrage ("nächster Freitag") bringt in
+     * diesem Fall nichts; stattdessen muss das tatsächliche Datum der nächsten Wiederholung
+     * dieser Schicht erfragt werden, siehe [resolveRotationPhaseByNextOccurrence].
+     */
+    suspend fun needsNextOccurrenceDateQuery(rotationId: Long, startEpochDay: Long, todayShiftId: Long?): Boolean {
+        val remaining = candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
+        if (remaining.size <= 1) return false
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        val weekday = LocalDate.ofEpochDay(startEpochDay).dayOfWeek.value - 1
+        val daysUntilFriday = (4 - weekday + 7) % 7
+        val fridayOffset = if (daysUntilFriday == 0) 7 else daysUntilFriday
+        val fridaySignatures = remaining.map { idx ->
+            daysByIndex[(idx + fridayOffset) % cycleLength].orEmpty().filterNotNull().toSet()
+        }
+        return fridaySignatures.toSet().size != fridaySignatures.size
+    }
+
+    /**
+     * Ermittelt anhand der Nutzerantworten — welche Schicht gilt am Starttag, welche am
+     * nächsten Freitag — den tatsächlichen Tag-Index im Rotationsmuster für [startEpochDay],
+     * wenn [rotationPhaseCandidates] mehrdeutig war. Fällt auf den ersten wochentag-passenden
+     * Kandidaten zurück, falls keiner exakt zu beiden Antworten passt. Nur sinnvoll, wenn
+     * [needsNextOccurrenceDateQuery] für dieselbe Schicht-Antwort `false` zurückgibt.
+     */
+    suspend fun resolveRotationPhase(
+        rotationId: Long,
+        startEpochDay: Long,
+        todayShiftId: Long?,
+        nextFridayShiftId: Long?
+    ): Int {
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+        if (cycleLength == 0) return 0
+        val weekday = LocalDate.ofEpochDay(startEpochDay).dayOfWeek.value - 1
+        val candidates = (0 until cycleLength).filter { it % 7 == weekday }
+        if (candidates.isEmpty()) return 0
+        val daysUntilFriday = (4 - weekday + 7) % 7
+        val fridayOffset = if (daysUntilFriday == 0) 7 else daysUntilFriday
+
+        val exactMatch = candidates.firstOrNull { index ->
+            shiftMatchesDay(daysByIndex[index].orEmpty(), todayShiftId) &&
+                shiftMatchesDay(daysByIndex[(index + fridayOffset) % cycleLength].orEmpty(), nextFridayShiftId)
+        }
+        return exactMatch
+            ?: candidates.firstOrNull { shiftMatchesDay(daysByIndex[it].orEmpty(), todayShiftId) }
+            ?: candidates.first()
+    }
+
+    /**
+     * Ermittelt den tatsächlichen Tag-Index, wenn die Schicht am Starttag allein nicht reicht und
+     * [needsNextOccurrenceDateQuery] `true` ergab: statt eines Wochentags wird das konkrete
+     * Datum der nächsten Wiederholung dieser Schicht erfragt, und darüber unter den verbleibenden
+     * Kandidaten derjenige ausgewählt, dessen berechnete nächste Wiederholung auf
+     * [nextOccurrenceEpochDay] fällt.
+     */
+    suspend fun resolveRotationPhaseByNextOccurrence(
+        rotationId: Long,
+        startEpochDay: Long,
+        todayShiftId: Long?,
+        nextOccurrenceEpochDay: Long
+    ): Int {
+        val remaining = candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
+        if (remaining.size <= 1) return remaining.firstOrNull() ?: 0
+        val daysByIndex = rotationDao.getDaysOnce(rotationId).groupBy({ it.dayIndex }, { it.shiftId })
+        val cycleLength = daysByIndex.keys.size
+
+        fun nextOccurrenceEpochDayFor(idx: Int): Long {
+            for (offset in 1..cycleLength) {
+                if (shiftMatchesDay(daysByIndex[(idx + offset) % cycleLength].orEmpty(), todayShiftId)) {
+                    return startEpochDay + offset
+                }
+            }
+            return startEpochDay + cycleLength
+        }
+
+        return remaining.firstOrNull { nextOccurrenceEpochDayFor(it) == nextOccurrenceEpochDay }
+            ?: remaining.first()
     }
 
     fun observeCalendarEntries(fromEpochDay: Long, toEpochDay: Long): Flow<List<CalendarEntryEntity>> =
         calendarEntryDao.observeRange(fromEpochDay, toEpochDay)
 
-    suspend fun getCalendarEntryForDate(epochDay: Long): CalendarEntryEntity? = calendarEntryDao.getForDate(epochDay)
+    /**
+     * Alle Einträge einer Rotation an einem Tag — mehrere, wenn an diesem Tag laut Muster
+     * mehrere Schichten gleichzeitig gelten (siehe [RotationDayEntity]).
+     */
+    suspend fun getCalendarEntriesForDateAndRotation(rotationId: Long, epochDay: Long): List<CalendarEntryEntity> =
+        calendarEntryDao.getForDate(epochDay, rotationId)
 
     /**
      * Nächster Kalendereintrag einer Rotation ab [fromEpochDay] (inklusive), an dem laut
      * Rotationsmuster tatsächlich eine Schicht ansteht (freie Tage werden übersprungen).
      * Grundlage für Alarme, die an eine Rotation statt an eine feste Uhrzeit gekoppelt sind.
+     * Gelten an diesem Tag mehrere Schichten gleichzeitig, wird die mit dem frühesten
+     * Schichtbeginn gewählt — das ist die, für die man tatsächlich geweckt werden muss.
      */
-    suspend fun getNextCalendarEntryWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity? =
-        calendarEntryDao.getNextWithShift(rotationId, fromEpochDay)
+    suspend fun getNextCalendarEntryWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity? {
+        val candidates = calendarEntryDao.getNextWithShift(rotationId, fromEpochDay)
+        val firstDay = candidates.minOfOrNull { it.dateEpochDay } ?: return null
+        val sameDay = candidates.filter { it.dateEpochDay == firstDay }
+        if (sameDay.size == 1) return sameDay.first()
+        return sameDay.minByOrNull { entry ->
+            val shift = entry.shiftId?.let { shiftDao.getById(it) }
+            (shift?.startHour ?: 0) * 60 + (shift?.startMinute ?: 0)
+        }
+    }
 
     // Termine
 

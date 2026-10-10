@@ -21,7 +21,7 @@ import androidx.room.RoomDatabase
         IoBrokerAccountEntity::class,
         TaskEntity::class
     ],
-    version = 10,
+    version = 12,
     exportSchema = false
 )
 abstract class NocturnDatabase : RoomDatabase() {

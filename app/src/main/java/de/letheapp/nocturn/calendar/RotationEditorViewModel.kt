@@ -14,14 +14,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 /**
  * Editor für eine Rotation: Nutzer trägt Tag für Tag die geltende Schicht ein, bis sich
  * das Muster wiederholen würde. Die Zykluslänge ist schlicht die Anzahl der eingegebenen
- * Tage; beim Speichern schreibt [CalendarRepository.saveRotation] daraus den Kalender für
- * mehrere Jahre fort.
+ * Tage. Die Rotation bleibt eine reine Vorlage ohne eigenes Startdatum — wann und wie lange
+ * sie im Kalender gilt, wird erst später über die Kalender-Seitenleiste festgelegt.
  */
 @HiltViewModel
 class RotationEditorViewModel @Inject constructor(
@@ -37,10 +36,10 @@ class RotationEditorViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     var name by mutableStateOf("")
-    var startDateEpochDay by mutableStateOf(LocalDate.now().toEpochDay())
     var loaded by mutableStateOf(isNew)
 
-    val days = mutableStateListOf<Long?>()
+    /** Pro Tag die Liste der an diesem Tag gleichzeitig geltenden Schichten — leer = frei. */
+    val days = mutableStateListOf<List<Long>>()
 
     init {
         val id = rotationId
@@ -48,26 +47,35 @@ class RotationEditorViewModel @Inject constructor(
             viewModelScope.launch {
                 calendarRepository.getRotation(id)?.let { rotation ->
                     name = rotation.name
-                    startDateEpochDay = rotation.startDateEpochDay
                 }
-                val rotationDays = calendarRepository.getRotationDaysOnce(id).sortedBy { it.dayIndex }
+                val rotationDays = calendarRepository.getRotationDaysOnce(id)
+                    .groupBy({ it.dayIndex }, { it.shiftId })
+                val cycleLength = rotationDays.keys.size
                 days.clear()
-                days.addAll(rotationDays.map { it.shiftId })
+                days.addAll((0 until cycleLength).map { index -> rotationDays[index].orEmpty().filterNotNull() })
                 loaded = true
             }
         }
     }
 
     fun addDay() {
-        days.add(null)
+        days.add(emptyList())
     }
 
     fun removeLastDay() {
         if (days.isNotEmpty()) days.removeAt(days.lastIndex)
     }
 
-    fun setDay(index: Int, shiftId: Long?) {
-        if (index in days.indices) days[index] = shiftId
+    /** Schaltet eine Schicht an [index] an/aus — mehrere Schichten können gleichzeitig gewählt sein. */
+    fun toggleShift(index: Int, shiftId: Long) {
+        if (index !in days.indices) return
+        val current = days[index]
+        days[index] = if (current.contains(shiftId)) current - shiftId else current + shiftId
+    }
+
+    /** Setzt den Tag auf "frei" zurück (keine Schicht). */
+    fun clearDay(index: Int) {
+        if (index in days.indices) days[index] = emptyList()
     }
 
     fun save(onDone: () -> Unit) {
@@ -77,7 +85,6 @@ class RotationEditorViewModel @Inject constructor(
                 jobId = jobId,
                 rotationId = rotationId,
                 name = name.trim(),
-                startDateEpochDay = startDateEpochDay,
                 dayShiftIds = days.toList()
             )
             onDone()

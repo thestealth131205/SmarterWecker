@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.JobMode
@@ -217,7 +218,11 @@ private fun ShiftsTab(viewModel: JobDetailViewModel) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (shifts.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Noch keine Schichten angelegt")
+                Text(
+                    "Noch keine Schichten angelegt. Tippe auf „+“, um deine erste Schicht anzulegen.",
+                    modifier = Modifier.padding(32.dp),
+                    textAlign = TextAlign.Center
+                )
             }
         } else {
             LazyColumn(
@@ -316,8 +321,6 @@ private fun RotationsTab(viewModel: JobDetailViewModel, onOpenRotationEditor: (L
 
 @Composable
 private fun RotationCard(rotation: RotationEntity, onClick: () -> Unit, onDelete: () -> Unit) {
-    val startDate = remember(rotation.startDateEpochDay) { java.time.LocalDate.ofEpochDay(rotation.startDateEpochDay) }
-
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -327,7 +330,7 @@ private fun RotationCard(rotation: RotationEntity, onClick: () -> Unit, onDelete
             )
             Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
                 Text(rotation.name, style = MaterialTheme.typography.titleMedium)
-                Text("Start: $startDate", style = MaterialTheme.typography.bodyMedium)
+                Text("Vorlage – im Kalender einem Zeitraum zuweisen", style = MaterialTheme.typography.bodyMedium)
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Filled.Delete, contentDescription = "Rotation löschen")

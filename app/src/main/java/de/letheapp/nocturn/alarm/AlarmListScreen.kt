@@ -175,10 +175,14 @@ fun AlarmListScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(alarms, key = { it.id }) { alarm ->
+                        val isAutoShiftWakeup = alarm.autoShiftWakeupEpochDay != null
+                        val editClick: (() -> Unit)? = if (isAutoShiftWakeup) null else ({ onEditAlarm(alarm.id) })
                         AlarmCard(
                             alarm = alarm,
                             onToggle = { enabled -> viewModel.setEnabled(alarm, enabled) },
-                            onClick = { onEditAlarm(alarm.id) }
+                            // Automatisch verwaltete "Nächste Schicht"-Alarme haben keinen eigenen
+                            // Bearbeiten-Screen — Uhrzeit/Datum kommen aus der verknüpften Schicht.
+                            onClick = editClick
                         )
                     }
                 }
@@ -252,11 +256,12 @@ private fun WeekdayPickerDialog(onConfirm: (repeatDays: Int) -> Unit, onDismiss:
 }
 
 @Composable
-private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: () -> Unit) {
+private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: (() -> Unit)?) {
     val accentColor = if (alarm.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     val contentAlpha = if (alarm.enabled) 1f else 0.6f
+    val autoShiftWakeupEpochDay = alarm.autoShiftWakeupEpochDay
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = if (alarm.enabled) 2.dp else 0.dp)
     ) {
@@ -276,10 +281,16 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
                 )
                 Text(
-                    text = if (alarm.label.isNotBlank()) {
-                        "${alarm.label} · ${AlarmRepeat.describe(alarm.repeatDays)}"
-                    } else {
-                        AlarmRepeat.describe(alarm.repeatDays)
+                    text = when {
+                        autoShiftWakeupEpochDay != null -> {
+                            val date = java.time.LocalDate.ofEpochDay(autoShiftWakeupEpochDay)
+                            val dateLabel = date.format(
+                                java.time.format.DateTimeFormatter.ofPattern("EEE, d. MMM", java.util.Locale.GERMAN)
+                            )
+                            "Automatisch · ${alarm.label} · $dateLabel"
+                        }
+                        alarm.label.isNotBlank() -> "${alarm.label} · ${AlarmRepeat.describe(alarm.repeatDays)}"
+                        else -> AlarmRepeat.describe(alarm.repeatDays)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)

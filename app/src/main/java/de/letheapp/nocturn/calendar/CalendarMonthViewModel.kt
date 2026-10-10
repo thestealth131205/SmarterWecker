@@ -11,6 +11,7 @@ import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.HolidayType
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.holidays.HolidayRepository
 import kotlinx.coroutines.Dispatchers
@@ -95,7 +96,8 @@ class CalendarMonthViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val calendarRepository: CalendarRepository,
     private val holidayRepository: HolidayRepository,
-    private val contactBirthdayRepository: ContactBirthdayRepository
+    private val contactBirthdayRepository: ContactBirthdayRepository,
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer
 ) : ViewModel() {
 
     private val _month = MutableStateFlow(YearMonth.now())
@@ -265,11 +267,36 @@ class CalendarMonthViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Wendet eine über die Seitenleiste gewählte Rotation ab [startEpochDay] für [totalDays] Tage an. */
-    fun applyRotation(rotationId: Long, startEpochDay: Long, totalDays: Int) {
+    fun applyRotation(rotationId: Long, startEpochDay: Long, totalDays: Int, phaseStartIndex: Int = 0) {
         viewModelScope.launch {
-            calendarRepository.applyRotationRange(rotationId, startEpochDay, totalDays)
+            calendarRepository.applyRotationRange(rotationId, startEpochDay, totalDays, phaseStartIndex)
+            shiftWakeupAlarmSyncer.sync()
         }
     }
+
+    /** Siehe [CalendarRepository.rotationPhaseCandidates]. */
+    suspend fun rotationPhaseCandidates(rotationId: Long, startEpochDay: Long): List<Int> =
+        calendarRepository.rotationPhaseCandidates(rotationId, startEpochDay)
+
+    /** Siehe [CalendarRepository.getRotationShiftOptions]. */
+    suspend fun getRotationShiftOptions(rotationId: Long): List<ShiftEntity?> =
+        calendarRepository.getRotationShiftOptions(rotationId)
+
+    /** Siehe [CalendarRepository.resolveRotationPhase]. */
+    suspend fun resolveRotationPhase(rotationId: Long, startEpochDay: Long, todayShiftId: Long?, nextFridayShiftId: Long?): Int =
+        calendarRepository.resolveRotationPhase(rotationId, startEpochDay, todayShiftId, nextFridayShiftId)
+
+    /** Siehe [CalendarRepository.candidatesMatchingTodayShift]. */
+    suspend fun candidatesMatchingTodayShift(rotationId: Long, startEpochDay: Long, todayShiftId: Long?): List<Int> =
+        calendarRepository.candidatesMatchingTodayShift(rotationId, startEpochDay, todayShiftId)
+
+    /** Siehe [CalendarRepository.needsNextOccurrenceDateQuery]. */
+    suspend fun needsNextOccurrenceDateQuery(rotationId: Long, startEpochDay: Long, todayShiftId: Long?): Boolean =
+        calendarRepository.needsNextOccurrenceDateQuery(rotationId, startEpochDay, todayShiftId)
+
+    /** Siehe [CalendarRepository.resolveRotationPhaseByNextOccurrence]. */
+    suspend fun resolveRotationPhaseByNextOccurrence(rotationId: Long, startEpochDay: Long, todayShiftId: Long?, nextOccurrenceEpochDay: Long): Int =
+        calendarRepository.resolveRotationPhaseByNextOccurrence(rotationId, startEpochDay, todayShiftId, nextOccurrenceEpochDay)
 
     private val _shareFileUri = MutableStateFlow<Uri?>(null)
 

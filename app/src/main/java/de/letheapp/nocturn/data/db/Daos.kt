@@ -16,6 +16,10 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE id = :id")
     suspend fun getById(id: Long): AlarmEntity?
 
+    /** Der automatisch verwaltete "Nächste Schicht"-Alarm, siehe [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]. */
+    @Query("SELECT * FROM alarms WHERE autoShiftWakeupEpochDay IS NOT NULL LIMIT 1")
+    suspend fun getAutoShiftWakeupAlarm(): AlarmEntity?
+
     @Insert
     suspend fun insert(alarm: AlarmEntity): Long
 
@@ -81,6 +85,10 @@ interface ShiftDao {
     @Query("SELECT * FROM shifts WHERE id = :id")
     suspend fun getById(id: Long): ShiftEntity?
 
+    /** Schichten mit gesetzter automatischer Weck-Uhrzeit, siehe [ShiftEntity.latestWakeupHour]. */
+    @Query("SELECT * FROM shifts WHERE latestWakeupHour IS NOT NULL")
+    suspend fun getAllWithWakeupConfigured(): List<ShiftEntity>
+
     @Insert
     suspend fun insert(shift: ShiftEntity): Long
 
@@ -138,17 +146,28 @@ interface CalendarEntryDao {
     @Insert
     suspend fun insertAll(entries: List<CalendarEntryEntity>)
 
-    @Query("SELECT * FROM calendar_entries WHERE dateEpochDay = :epochDay LIMIT 1")
-    suspend fun getForDate(epochDay: Long): CalendarEntryEntity?
+    /**
+     * Alle Einträge einer Rotation an einem Tag — an einem Tag können mehrere Zeilen
+     * existieren, wenn an diesem Tag laut Muster mehrere Schichten gleichzeitig gelten
+     * (siehe [de.letheapp.nocturn.calendar.RotationEditorViewModel]).
+     */
+    @Query("SELECT * FROM calendar_entries WHERE dateEpochDay = :epochDay AND rotationId = :rotationId")
+    suspend fun getForDate(epochDay: Long, rotationId: Long): List<CalendarEntryEntity>
 
     @Query("SELECT * FROM calendar_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<CalendarEntryEntity>>
 
+    /**
+     * Nächste Einträge mit tatsächlicher Schicht ab [fromEpochDay] (chronologisch), begrenzt auf
+     * eine großzügige Obergrenze statt eines einzelnen Treffers — an einem Tag können mehrere
+     * Zeilen (mehrere gleichzeitige Schichten) existieren, der Aufrufer wählt daraus die mit dem
+     * frühesten Schichtbeginn (siehe [de.letheapp.nocturn.data.repository.CalendarRepository.getNextCalendarEntryWithShift]).
+     */
     @Query(
         "SELECT * FROM calendar_entries WHERE rotationId = :rotationId AND dateEpochDay >= :fromEpochDay " +
-            "AND shiftId IS NOT NULL ORDER BY dateEpochDay LIMIT 1"
+            "AND shiftId IS NOT NULL ORDER BY dateEpochDay LIMIT 60"
     )
-    suspend fun getNextWithShift(rotationId: Long, fromEpochDay: Long): CalendarEntryEntity?
+    suspend fun getNextWithShift(rotationId: Long, fromEpochDay: Long): List<CalendarEntryEntity>
 
     /** Alle tatsächlich besetzten Schicht-Tage (keine freien Tage) im Sync-Fenster, für den Nextcloud-Export. */
     @Query(
@@ -156,6 +175,13 @@ interface CalendarEntryDao {
             "AND shiftId IS NOT NULL"
     )
     suspend fun getRangeWithShiftOnce(fromEpochDay: Long, toEpochDay: Long): List<CalendarEntryEntity>
+
+    /** Nächste Vorkommen einer der [shiftIds] ab [fromEpochDay], für [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]. */
+    @Query(
+        "SELECT * FROM calendar_entries WHERE shiftId IN (:shiftIds) AND dateEpochDay >= :fromEpochDay " +
+            "ORDER BY dateEpochDay LIMIT 50"
+    )
+    suspend fun getUpcomingForShiftIds(shiftIds: List<Long>, fromEpochDay: Long): List<CalendarEntryEntity>
 }
 
 @Dao
@@ -207,6 +233,13 @@ interface TaskDao {
 interface ManualShiftEntryDao {
     @Query("SELECT * FROM manual_shift_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<ManualShiftEntryEntity>>
+
+    /** Nächste Vorkommen einer der [shiftIds] ab [fromEpochDay], für [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]. */
+    @Query(
+        "SELECT * FROM manual_shift_entries WHERE shiftId IN (:shiftIds) AND dateEpochDay >= :fromEpochDay " +
+            "ORDER BY dateEpochDay LIMIT 50"
+    )
+    suspend fun getUpcomingForShiftIds(shiftIds: List<Long>, fromEpochDay: Long): List<ManualShiftEntryEntity>
 
     @Insert
     suspend fun insert(entry: ManualShiftEntryEntity): Long

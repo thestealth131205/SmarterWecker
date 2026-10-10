@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.data.db.AlarmEntity
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import javax.inject.Inject
@@ -41,6 +42,14 @@ class AlarmScheduler @Inject constructor(
 
     private suspend fun nextTriggerMillis(alarm: AlarmEntity): Long? {
         val now = LocalDateTime.now(ZoneId.systemDefault())
+
+        val autoEpochDay = alarm.autoShiftWakeupEpochDay
+        if (autoEpochDay != null) {
+            // Automatisch von ShiftWakeupAlarmSyncer verwaltet: hour/minute sind bereits die
+            // Uhrzeit der konkreten Schicht an diesem Datum, keine Wiederholungslogik nötig.
+            val trigger = LocalDate.ofEpochDay(autoEpochDay).atTime(alarm.hour, alarm.minute)
+            return if (trigger.isAfter(now)) trigger.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else null
+        }
 
         if (alarm.rotationId == null && alarm.timetableJobId == null) {
             val trigger = AlarmRepeat.nextTrigger(alarm.hour, alarm.minute, alarm.repeatDays, now)

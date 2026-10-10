@@ -3,34 +3,57 @@ package de.letheapp.nocturn.calendar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import de.letheapp.nocturn.alarm.NocturnTimePickerDialog
 import de.letheapp.nocturn.data.db.ShiftEntity
 
+private val SHIFT_NAME_SUGGESTIONS = listOf("Urlaub", "Frei", "Früh", "Nacht", "Spät")
+
 /**
- * Anlegen/Bearbeiten einer Schicht: Name, Farbe (Palette), Start-/Endzeit — die
- * Dauer wird daraus berechnet (Nachtschichten über Mitternacht werden unterstützt).
+ * Anlegen/Bearbeiten einer Schicht als eigener Vollbild-Screen (statt Dialog) nach dem
+ * Vorbild gängiger Schichtplan-Apps: Titel/Farbe-Karte, darunter "Standardwerte" mit
+ * Start-/Endzeit, darunter die NocTurn-eigenen Weckzeit-Abstände.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShiftEditDialog(
     jobId: Long,
@@ -50,92 +73,174 @@ fun ShiftEditDialog(
     var endMinute by remember { mutableStateOf(initialEnd.second) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var showTitlePicker by remember { mutableStateOf(false) }
     var earliestWakeOffsetText by remember { mutableStateOf((existing?.earliestWakeOffsetMinutes ?: 0).toString()) }
     var latestWakeupOffsetText by remember { mutableStateOf((existing?.latestWakeupOffsetMinutes ?: 0).toString()) }
+    var wakeupAlarmEnabled by remember { mutableStateOf(existing?.latestWakeupHour != null) }
+    var wakeupAlarmHour by remember { mutableStateOf(existing?.latestWakeupHour ?: startHour) }
+    var wakeupAlarmMinute by remember { mutableStateOf(existing?.latestWakeupMinute ?: 0) }
+    var showWakeupAlarmPicker by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (existing == null) "Neue Schicht" else "Schicht bearbeiten") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name (z. B. Frühschicht)") },
-                    singleLine = true
+    fun save() {
+        val durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
+        val normalizedDuration = if (durationMinutes <= 0) durationMinutes + 24 * 60 else durationMinutes
+        val earliestWakeOffset = earliestWakeOffsetText.toIntOrNull() ?: 0
+        // "Spätestens aufstehen" darf nicht nach dem Wecker-Klingeln selbst liegen.
+        val latestWakeupOffset = (latestWakeupOffsetText.toIntOrNull() ?: 0).coerceAtMost(earliestWakeOffset)
+        onConfirm(
+            ShiftEntity(
+                id = existing?.id ?: 0,
+                jobId = jobId,
+                name = name.trim(),
+                colorArgb = colorArgb,
+                startHour = startHour,
+                startMinute = startMinute,
+                durationMinutes = normalizedDuration,
+                earliestWakeOffsetMinutes = earliestWakeOffset,
+                latestWakeupOffsetMinutes = latestWakeupOffset,
+                latestWakeupHour = if (wakeupAlarmEnabled) wakeupAlarmHour else null,
+                latestWakeupMinute = if (wakeupAlarmEnabled) wakeupAlarmMinute else null
+            )
+        )
+    }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Schicht", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
+                        }
+                    }
                 )
-
-                Row(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SHIFT_COLOR_PALETTE.forEach { color ->
-                        ColorSwatch(
-                            color = color,
-                            selected = color.toArgb() == colorArgb,
-                            onClick = { colorArgb = color.toArgb() }
+            }
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column {
+                        ShiftFormRow(
+                            label = "Titel",
+                            value = name.ifBlank { null },
+                            onClick = { showTitlePicker = true }
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SHIFT_COLOR_PALETTE.forEach { color ->
+                                ColorSwatch(
+                                    color = color,
+                                    selected = color.toArgb() == colorArgb,
+                                    onClick = { colorArgb = color.toArgb() }
+                                )
+                            }
+                        }
                     }
                 }
 
-                Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { showStartPicker = true }) {
-                        Text("Start %02d:%02d".format(startHour, startMinute))
-                    }
-                    OutlinedButton(onClick = { showEndPicker = true }) {
-                        Text("Ende %02d:%02d".format(endHour, endMinute))
+                Text(
+                    text = "Standardwerte",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp)
+                )
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column {
+                        ShiftFormRow(
+                            label = "Start",
+                            value = "%02d:%02d".format(startHour, startMinute),
+                            onClick = { showStartPicker = true },
+                            showChevron = false
+                        )
+                        ShiftFormRow(
+                            label = "Ende",
+                            value = "%02d:%02d".format(endHour, endMinute),
+                            onClick = { showEndPicker = true },
+                            showChevron = false
+                        )
                     }
                 }
 
                 Text(
                     text = "Weckzeit-Abstand vor Schichtbeginn (0 = genau zum Schichtbeginn)",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = earliestWakeOffsetText,
-                        onValueChange = { earliestWakeOffsetText = it.filter(Char::isDigit) },
-                        label = { Text("Frühestes Wecken (Min.)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = latestWakeupOffsetText,
-                        onValueChange = { latestWakeupOffsetText = it.filter(Char::isDigit) },
-                        label = { Text("Spätestens aufstehen (Min.)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = earliestWakeOffsetText,
+                                onValueChange = { earliestWakeOffsetText = it.filter(Char::isDigit) },
+                                label = { Text("Frühestes Wecken (Min.)") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = latestWakeupOffsetText,
+                                onValueChange = { latestWakeupOffsetText = it.filter(Char::isDigit) },
+                                label = { Text("Spätestens aufstehen (Min.)") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Automatischer Wecker im Wecker-Screen (optional)",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp)
+                )
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Zeigt immer die Weckzeit für die nächste anstehende Schicht an",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(checked = wakeupAlarmEnabled, onCheckedChange = { wakeupAlarmEnabled = it })
+                        }
+                        if (wakeupAlarmEnabled) {
+                            ShiftFormRow(
+                                label = "Spätestens aufstehen",
+                                value = "%02d:%02d".format(wakeupAlarmHour, wakeupAlarmMinute),
+                                onClick = { showWakeupAlarmPicker = true },
+                                showChevron = false
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Abbrechen") }
+                    TextButton(onClick = { save() }, enabled = name.isNotBlank()) { Text("Speichern") }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
-                    val normalizedDuration = if (durationMinutes <= 0) durationMinutes + 24 * 60 else durationMinutes
-                    val earliestWakeOffset = earliestWakeOffsetText.toIntOrNull() ?: 0
-                    // "Spätestens aufstehen" darf nicht nach dem Wecker-Klingeln selbst liegen.
-                    val latestWakeupOffset = (latestWakeupOffsetText.toIntOrNull() ?: 0).coerceAtMost(earliestWakeOffset)
-                    onConfirm(
-                        ShiftEntity(
-                            id = existing?.id ?: 0,
-                            jobId = jobId,
-                            name = name.trim(),
-                            colorArgb = colorArgb,
-                            startHour = startHour,
-                            startMinute = startMinute,
-                            durationMinutes = normalizedDuration,
-                            earliestWakeOffsetMinutes = earliestWakeOffset,
-                            latestWakeupOffsetMinutes = latestWakeupOffset
-                        )
-                    )
-                },
-                enabled = name.isNotBlank()
-            ) { Text("Speichern") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
         }
-    )
+    }
+
+    if (showTitlePicker) {
+        ShiftTitleInputDialog(
+            initialValue = name,
+            onConfirm = { newName -> name = newName; showTitlePicker = false },
+            onDismiss = { showTitlePicker = false }
+        )
+    }
 
     if (showStartPicker) {
         NocturnTimePickerDialog(
@@ -153,6 +258,96 @@ fun ShiftEditDialog(
             onConfirm = { h, m -> endHour = h; endMinute = m; showEndPicker = false },
             onDismiss = { showEndPicker = false }
         )
+    }
+
+    if (showWakeupAlarmPicker) {
+        NocturnTimePickerDialog(
+            initialHour = wakeupAlarmHour,
+            initialMinute = wakeupAlarmMinute,
+            onConfirm = { h, m -> wakeupAlarmHour = h; wakeupAlarmMinute = m; showWakeupAlarmPicker = false },
+            onDismiss = { showWakeupAlarmPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun ShiftFormRow(
+    label: String,
+    value: String?,
+    onClick: () -> Unit,
+    showChevron: Boolean = true
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(
+            text = value ?: label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (value == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+        )
+        if (showChevron) {
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, modifier = Modifier.padding(start = 4.dp))
+        }
+    }
+}
+
+/**
+ * Titel-Eingabe als eigenes schwebendes Fenster mit Schnellauswahl-Chips für die
+ * gängigsten Schichtnamen, statt jedes Mal den vollen Namen tippen zu müssen.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShiftTitleInputDialog(
+    initialValue: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf(initialValue) }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Titel") },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
+                        }
+                    }
+                )
+            },
+            bottomBar = {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SHIFT_NAME_SUGGESTIONS.forEach { suggestion ->
+                            AssistChip(onClick = { text = suggestion }, label = { Text(suggestion) })
+                        }
+                    }
+                    TextButton(
+                        onClick = { onConfirm(text.trim()) },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) { Text("Fertig") }
+                }
+            }
+        ) { innerPadding ->
+            Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Titel") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                )
+            }
+        }
     }
 }
 

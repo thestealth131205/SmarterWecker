@@ -191,7 +191,9 @@ class NextcloudSyncRepository @Inject constructor(
             val shiftId = entry.shiftId ?: continue
             val shift = shiftDao.getById(shiftId) ?: continue
             val job = jobDao.getById(entry.jobId)
-            val key = "${entry.rotationId}:${entry.dateEpochDay}"
+            // shiftId mit im Schlüssel, da an einem Tag mehrere Schichten derselben Rotation
+            // gleichzeitig gelten können (siehe CLAUDE.md "Rotationen") und sonst kollidieren würden.
+            val key = "${entry.rotationId}:${entry.dateEpochDay}:$shiftId"
             currentKeys += key
 
             val date = LocalDate.ofEpochDay(entry.dateEpochDay)
@@ -204,7 +206,7 @@ class NextcloudSyncRepository @Inject constructor(
             val existingSync = knownByKey[key]
             if (existingSync != null && existingSync.contentHash == contentHash) continue
 
-            val uid = "nocturn-shift-${entry.rotationId}-${entry.dateEpochDay}@letheapp.de"
+            val uid = "nocturn-shift-${entry.rotationId}-${entry.dateEpochDay}-$shiftId@letheapp.de"
             val href = existingSync?.href ?: "${account.calendarHref}$uid.ics"
             val ics = IcsFormat.buildEvent(
                 uid = uid,

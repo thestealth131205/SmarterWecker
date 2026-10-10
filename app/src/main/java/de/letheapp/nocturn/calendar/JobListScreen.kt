@@ -56,7 +56,7 @@ fun JobListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Kalender-Vorlagen") },
+                title = { Text("Jobs") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")

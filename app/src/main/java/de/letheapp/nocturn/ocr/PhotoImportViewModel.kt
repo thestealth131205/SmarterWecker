@@ -119,8 +119,7 @@ class PhotoImportViewModel @Inject constructor(
                     jobId = jobId,
                     rotationId = null,
                     name = "Foto-Import ${LocalDate.now()}",
-                    startDateEpochDay = LocalDate.now().toEpochDay(),
-                    dayShiftIds = shiftIds
+                    dayShiftIds = shiftIds.map { listOf(it) }
                 )
             }
             importFinished = true

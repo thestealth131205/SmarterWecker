@@ -24,7 +24,14 @@ data class AlarmEntity(
      */
     val lampDataPointId: String? = null,
     /** Anzeigename des [lampDataPointId] zum Zeitpunkt der Auswahl, fürs UI ohne erneuten Verbindungsaufbau. */
-    val lampDataPointLabel: String? = null
+    val lampDataPointLabel: String? = null,
+    /**
+     * Markiert diesen Alarm als automatisch von [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]
+     * verwaltet (siehe [ShiftEntity.latestWakeupHour]): der Tag-Index (epoch day) der Schicht, für
+     * die [hour]/[minute]/[label] aktuell stehen. Wird bei jeder Kalenderänderung neu berechnet,
+     * nicht manuell vom Nutzer gepflegt. Null = ein normaler, manuell angelegter Alarm.
+     */
+    val autoShiftWakeupEpochDay: Long? = null
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */
@@ -63,7 +70,18 @@ data class ShiftEntity(
     /** Minuten vor Schichtbeginn, zu denen der (erste) Alarm klingelt. 0 = genau zum Schichtbeginn. */
     val earliestWakeOffsetMinutes: Int = 0,
     /** Minuten vor Schichtbeginn, bis zu denen laut Aufsteh-Erkennung aufgestanden sein muss. 0 = genau zum Schichtbeginn. */
-    val latestWakeupOffsetMinutes: Int = 0
+    val latestWakeupOffsetMinutes: Int = 0,
+    /**
+     * Optionale, feste Uhrzeit (Stunde), bis zu der bei dieser Schicht spätestens aufgestanden sein
+     * muss — anders als [latestWakeupOffsetMinutes] (nur wirksam bei einem manuell angelegten und
+     * über [AlarmEntity.rotationId] verknüpften Alarm) ein bewusstes Opt-in direkt an der Schicht:
+     * Ist sie gesetzt, zeigt NocTurn automatisch, ganz ohne manuell angelegten Alarm, im Wecker-
+     * Screen einen Alarm mit dieser Uhrzeit für die nächste anstehende Schicht an (siehe
+     * [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]). Null = keine automatische Anzeige.
+     */
+    val latestWakeupHour: Int? = null,
+    /** Minute zu [latestWakeupHour], nur relevant wenn dieser gesetzt ist. */
+    val latestWakeupMinute: Int? = null
 )
 
 /**
@@ -113,10 +131,17 @@ data class LessonEntity(
 data class RotationEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val jobId: Long,
-    val name: String,
-    val startDateEpochDay: Long
+    val name: String
 )
 
+/**
+ * Eine Schicht an einem Tag-Index einer Rotation. Pro [dayIndex] kann es mehrere Zeilen geben,
+ * wenn an diesem Tag mehrere Schichten gleichzeitig gelten sollen (z. B. Frühschicht + ein
+ * zusätzlicher Termin wie "Kinder-Wochenende") — sie werden im Kalender untereinander
+ * dargestellt. Ein freier Tag ohne jede Schicht wird durch genau eine Zeile mit `shiftId = null`
+ * markiert, damit der Tag-Index auch dann erhalten bleibt (siehe
+ * [de.letheapp.nocturn.data.repository.CalendarRepository.saveRotation]).
+ */
 @Entity(
     tableName = "rotation_days",
     foreignKeys = [
@@ -144,8 +169,12 @@ data class RotationDayEntity(
 
 /**
  * Vom Wecker fortgeschriebener Kalendereintrag: welche Schicht an welchem Tag laut
- * Rotation gilt. Wird beim Speichern einer Rotation für mehrere Jahre im Voraus
- * neu berechnet (siehe CalendarRepository.regenerateCalendarEntries).
+ * Rotation gilt. Entsteht erst, wenn die Rotations-Vorlage über die Kalender-
+ * Seitenleiste einem Zeitraum zugewiesen wird (siehe CalendarRepository.applyRotationRange),
+ * nicht schon beim Speichern der Vorlage selbst. Pro (rotationId, dateEpochDay) kann es mehrere
+ * Zeilen geben, wenn an diesem Tag laut Rotationsmuster mehrere Schichten gleichzeitig gelten
+ * (siehe [RotationDayEntity]) — ein freier Tag wird durch genau eine Zeile mit `shiftId = null`
+ * dargestellt.
  */
 @Entity(
     tableName = "calendar_entries",

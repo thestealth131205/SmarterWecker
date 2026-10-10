@@ -12,6 +12,8 @@ class AlarmRepository @Inject constructor(
 
     suspend fun getById(id: Long): AlarmEntity? = alarmDao.getById(id)
 
+    suspend fun getAutoShiftWakeupAlarm(): AlarmEntity? = alarmDao.getAutoShiftWakeupAlarm()
+
     suspend fun save(alarm: AlarmEntity): Long =
         if (alarm.id == 0L) alarmDao.insert(alarm) else alarmDao.update(alarm).let { alarm.id }
 

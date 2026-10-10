@@ -82,6 +82,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      - **"spätestens aufstehen"**: späteste Zeit, zu der laut Aufsteh-Erkennung
        (Kernfunktion 1) tatsächlich aufgestanden sein muss — sonst greift dieselbe
        Stop-Weiterüberwachung/Notfall-Alarm-Logik wie in Kernfunktion 3 beschrieben.
+   - **Automatischer "Nächste Schicht"-Wecker (optionales Schicht-Feld)**: Im Schicht-
+     anlegen-Screen lässt sich zusätzlich, unabhängig vom obigen Minuten-Abstand-Paar,
+     eine feste Uhrzeit hinterlegen, bis zu der bei dieser Schicht spätestens aufgestanden
+     sein muss — ein bewusstes Opt-in per Schicht (Default: aus). Ist sie gesetzt und die
+     Schicht über eine Rotation oder manuell im Kalender eingetragen, zeigt NocTurn im
+     Wecker-Screen automatisch einen Alarm mit dieser Uhrzeit für die jeweils nächste
+     anstehende Schicht an — ganz ohne dass der Nutzer dafür wie in Kernfunktion 12 manuell
+     einen Alarm anlegen und mit einer Rotation verknüpfen muss. Der Alarm wird bei jeder
+     Kalenderänderung (Rotation zugewiesen, Schicht gespeichert/gelöscht, Einzel-Schicht
+     eingetragen) sowie beim App-Start automatisch auf die jeweils nächste passende Schicht
+     aktualisiert (`ShiftWakeupAlarmSyncer`).
 
 6. **Kalender:**
    - Eingebauter Kalender, der die Schichtrotation visualisiert. Funktionsumfang
@@ -96,11 +107,38 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        Nutzer so lange einträgt, bis sich das Muster wiederholen würde (z. B. ein
        84-Tage-Zyklus aus 4× Spät, 1× Frei, 2× Wochenende, wiederholt mit 4× Früh,
        1× Frei, 2× Wochenende usw.). Eingabe über ein Raster (Tag-Nummer × 7
-       Wochentags-Spalten), pro Tag wird eine Schicht per Farbe/Kürzel zugewiesen.
-   - Sobald eine Rotation feststeht, trägt die App das Muster **fortlaufend automatisch**
-     in den Kalender ein — nicht nur für die nächsten Wochen, sondern **mehrere Jahre im
-     Voraus**, damit der Wecker jederzeit weiß, welche Schicht (und damit Weckzeit)
-     ansteht, ohne dass der Nutzer manuell nachpflegen muss.
+       Wochentags-Spalten), pro Tag werden per Mehrfachauswahl **eine oder mehrere
+       Schichten gleichzeitig** zugewiesen (z. B. Frühschicht + ein zusätzlicher Termin
+       wie "Kinder-Wochenende") — im Kalender werden sie an diesem Tag untereinander
+       dargestellt, genau wie andere mehrfache Tageseinträge. Eine Rotation ist dabei
+       eine **reine Vorlage ohne eigenes Startdatum** — das Muster selbst sagt nur, wie
+       die Tage aufeinander folgen, nicht ab wann.
+   - Eine fertige Rotations-Vorlage wird erst über die ausklappbare Seitenleiste der
+     Kalender-Monatsansicht tatsächlich in den Kalender eingetragen: Rotation wählen →
+     Starttag im Kalender antippen → in einem schwebenden Fenster den Zeitraum festlegen
+     (1/3/6 Monate, 1/2 Jahre). Dieselbe Vorlage lässt sich so beliebig oft, an
+     unterschiedlichen Starttagen und mit unterschiedlicher Länge einfügen — z. B. um sie
+     nach einer Dienstplanänderung ab einem neuen Starttag erneut anzuwenden, ohne die
+     Vorlage selbst neu anlegen zu müssen.
+   - **Phasen-Rückfrage bei mehrdeutigem Starttag**: Das Rotations-Raster im Editor nimmt
+     Tag-Index 0 implizit als Montag an (Tag-Index mod 7 = Wochentag). Tippt der Nutzer in
+     der Seitenleiste einen Starttag an, dessen Wochentag bei einer Zykluslänge über einer
+     Woche mehrfach im Muster vorkommt (z. B. Samstag bei einem 84-Tage-Zyklus), lässt sich
+     der gemeinte Tag im Muster nicht allein aus dem Datum ableiten. In diesem Fall fragt die
+     App vor dem Zeitraum-Dialog per Chip-Auswahl (alle im Muster verwendeten Schichten +
+     „Frei") zwei Schichten ab — die am Starttag selbst und die am darauffolgenden Freitag —
+     und ermittelt daraus den tatsächlichen Tag-Index, ab dem die Rotation im gewählten
+     Zeitraum fortgeschrieben wird. Ist der Wochentag im Muster eindeutig (Zykluslänge ≤ 7
+     Tage oder nur ein Kandidat), entfällt die Rückfrage automatisch.
+   - **Fallback bei unregelmäßig/selten vorkommenden Schichten**: Reicht die Antwort zur
+     Schicht am Starttag allein nicht aus (mehrere Kandidaten bleiben übrig) UND würde auch
+     die Schicht am nächsten Freitag diese Kandidaten nicht zuverlässig unterscheiden — z. B.
+     weil eine seltene Zusatzschicht wie "Kinder-Wochenende" an nicht wochentaktisch
+     wiederkehrenden Tag-Indizes im Muster auftaucht — fragt die App statt des Freitags-Tages
+     das konkrete Kalenderdatum ab, an dem diese Schicht das nächste Mal vorkommt, und wählt
+     darüber den passenden Kandidaten. Erkennung über
+     `CalendarRepository.needsNextOccurrenceDateQuery`, Auflösung über
+     `resolveRotationPhaseByNextOccurrence`.
    - Monatsansicht zeigt pro Tag die zugeordnete(n) Schicht(en) farbig markiert;
      mehrere Einträge pro Tag möglich (z. B. Schicht + zusätzlicher Termin/Urlaub).
      Tageskacheln großzügig bemessen (mehr Platz unter der Tageszahl), zeigen bis zu

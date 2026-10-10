@@ -465,10 +465,17 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   `applyRotationRange`/`deleteForRotationInRange`). Flow: Rotation in der Seitenleiste
   antippen → Hinweis-Karte "Tippe auf den Starttag" → Starttag im Kalender antippen →
   schwebendes Dialogfenster mit Dauer-Auswahl (1/3/6 Monate, 1/2 Jahre) → Rotation wird ab
-  diesem Tag für die gewählte Dauer neu eingetragen, **ohne** das beim Anlegen der
-  Rotation gespeicherte Standard-Fortschreibefenster (5 Jahre ab ursprünglichem
-  Startdatum) zu löschen — nur der neu gewählte Zeitraum wird für diese Rotation
-  überschrieben.
+  diesem Tag für die gewählte Dauer neu eingetragen.
+- **Rotation hat kein eigenes Startdatum mehr** (Nutzer-Feedback 2026-10-10: "das muss
+  raus, es ist ja eine Vorlage"): `RotationEntity.startDateEpochDay` entfernt
+  (DB-Version 10 → 11, destruktive Migration), `RotationEditorScreen` zeigt keinen
+  Datums-Picker mehr. `CalendarRepository.saveRotation` speichert nur noch Name +
+  Tag-für-Tag-Muster und schreibt dabei **nichts mehr automatisch in den Kalender** —
+  das vorherige sofortige 5-Jahre-Fortschreiben beim Speichern (`regenerateCalendarEntries`,
+  `FORECAST_YEARS`) ist komplett entfallen. Einziger Weg, eine Rotation tatsächlich in den
+  Kalender einzutragen, ist jetzt die oben beschriebene Seitenleiste
+  (`applyRotationRange`) — dieselbe Vorlage lässt sich dadurch beliebig oft an
+  unterschiedlichen Starttagen/Zeiträumen neu einfügen, ohne sie neu anlegen zu müssen.
 - **Verifikation**: Für diese Session wurde erstmals versucht, ein lokales Android-SDK
   samt Build-Tools 34 neu aufzusetzen (JDK 17 per `apt`, SDK per `sdkmanager`) — `aapt2`
   bleibt aber weiterhin ein reines x86_64-Binary (auch in Build-Tools bis 37 noch keine

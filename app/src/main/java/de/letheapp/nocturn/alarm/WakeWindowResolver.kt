@@ -68,11 +68,15 @@ class WakeWindowResolver @Inject constructor(
         return null
     }
 
+    /**
+     * Gelten an diesem Tag mehrere Schichten gleichzeitig (siehe CLAUDE.md "Rotationen"), zählt
+     * für die Weck-/Aufsteh-Deadline die mit dem frühesten Schichtbeginn — das ist die, für die
+     * man tatsächlich aufstehen muss.
+     */
     private suspend fun occurrenceFromRotationDate(rotationId: Long, date: LocalDate): WakeOccurrence? {
-        val entry = calendarRepository.getCalendarEntryForDate(date.toEpochDay())
-            ?.takeIf { it.rotationId == rotationId }
-            ?: return null
-        val shift = entry.shiftId?.let { calendarRepository.getShift(it) } ?: return null
+        val entries = calendarRepository.getCalendarEntriesForDateAndRotation(rotationId, date.toEpochDay())
+        val shifts = entries.mapNotNull { it.shiftId }.mapNotNull { calendarRepository.getShift(it) }
+        val shift = shifts.minByOrNull { it.startHour * 60 + it.startMinute } ?: return null
         return WakeOccurrence(
             start = date.atTime(shift.startHour, shift.startMinute),
             earliestWakeOffsetMinutes = shift.earliestWakeOffsetMinutes,

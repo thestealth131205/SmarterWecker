@@ -4,6 +4,8 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,11 +37,14 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +61,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,11 +83,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.ui.NocturnBottomBar
 import de.letheapp.nocturn.ui.NocturnTab
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -123,10 +132,15 @@ fun CalendarMonthScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showRotationPicker by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showNoJobTip by remember { mutableStateOf(false) }
     var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
-    var durationDialogFor by remember { mutableStateOf<Pair<RotationOption, LocalDate>?>(null) }
+    var durationDialogFor by remember { mutableStateOf<RotationApplyRequest?>(null) }
+    var phaseQueryFor by remember { mutableStateOf<RotationTodayShiftQueryState?>(null) }
+    var fridayQueryFor by remember { mutableStateOf<RotationFridayQueryState?>(null) }
+    var nextOccurrenceQueryFor by remember { mutableStateOf<RotationNextOccurrenceQueryState?>(null) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     BackHandler(enabled = drawerState.isOpen) {
@@ -253,11 +267,15 @@ fun CalendarMonthScreen(
                         }
                         DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Kalender-Vorlagen") },
+                                text = { Text("Schichten") },
                                 leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
                                 onClick = {
                                     showOverflowMenu = false
-                                    onOpenCalendarTemplates()
+                                    when {
+                                        jobs.isEmpty() -> showNoJobTip = true
+                                        jobs.size == 1 -> onOpenJobTimetable(jobs.first().id, jobs.first().name)
+                                        else -> onOpenCalendarTemplates()
+                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -363,8 +381,17 @@ fun CalendarMonthScreen(
                                     onClick = {
                                         val rotation = pendingRotation
                                         if (rotation != null) {
-                                            durationDialogFor = rotation to date
                                             pendingRotation = null
+                                            scope.launch {
+                                                val startEpochDay = date.toEpochDay()
+                                                val candidates = viewModel.rotationPhaseCandidates(rotation.id, startEpochDay)
+                                                if (candidates.size <= 1) {
+                                                    durationDialogFor = RotationApplyRequest(rotation, date, candidates.firstOrNull() ?: 0)
+                                                } else {
+                                                    val shiftOptions = viewModel.getRotationShiftOptions(rotation.id)
+                                                    phaseQueryFor = RotationTodayShiftQueryState(rotation, date, shiftOptions)
+                                                }
+                                            }
                                         } else {
                                             selectedDay = date
                                             if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
@@ -378,6 +405,22 @@ fun CalendarMonthScreen(
                     }
                 }
             }
+        }
+
+        if (showNoJobTip) {
+            AlertDialog(
+                onDismissRequest = { showNoJobTip = false },
+                title = { Text("Noch kein Job angelegt") },
+                text = { Text("Lege zuerst einen Job an und dann deine Schichten.") },
+                confirmButton = {
+                    TextButton(onClick = { showNoJobTip = false; onOpenCalendarTemplates() }) {
+                        Text("Job anlegen")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNoJobTip = false }) { Text("Abbrechen") }
+                }
+            )
         }
 
         if (showAddDialog) {
@@ -427,13 +470,77 @@ fun CalendarMonthScreen(
             )
         }
 
-        durationDialogFor?.let { (rotation, startDate) ->
+        phaseQueryFor?.let { queryState ->
+            RotationTodayShiftQueryDialog(
+                state = queryState,
+                onConfirm = { todayShiftId ->
+                    phaseQueryFor = null
+                    scope.launch {
+                        val startEpochDay = queryState.startDate.toEpochDay()
+                        val remaining = viewModel.candidatesMatchingTodayShift(queryState.rotation.id, startEpochDay, todayShiftId)
+                        when {
+                            remaining.size <= 1 -> {
+                                durationDialogFor = RotationApplyRequest(queryState.rotation, queryState.startDate, remaining.firstOrNull() ?: 0)
+                            }
+                            viewModel.needsNextOccurrenceDateQuery(queryState.rotation.id, startEpochDay, todayShiftId) -> {
+                                val label = queryState.shiftOptions.firstOrNull { it?.id == todayShiftId }?.name ?: "Frei"
+                                nextOccurrenceQueryFor = RotationNextOccurrenceQueryState(queryState.rotation, queryState.startDate, todayShiftId, label)
+                            }
+                            else -> {
+                                fridayQueryFor = RotationFridayQueryState(queryState.rotation, queryState.startDate, todayShiftId, queryState.shiftOptions)
+                            }
+                        }
+                    }
+                },
+                onDismiss = { phaseQueryFor = null }
+            )
+        }
+
+        fridayQueryFor?.let { queryState ->
+            RotationFridayQueryDialog(
+                state = queryState,
+                onConfirm = { nextFridayShiftId ->
+                    fridayQueryFor = null
+                    scope.launch {
+                        val phaseStartIndex = viewModel.resolveRotationPhase(
+                            queryState.rotation.id,
+                            queryState.startDate.toEpochDay(),
+                            queryState.todayShiftId,
+                            nextFridayShiftId
+                        )
+                        durationDialogFor = RotationApplyRequest(queryState.rotation, queryState.startDate, phaseStartIndex)
+                    }
+                },
+                onDismiss = { fridayQueryFor = null }
+            )
+        }
+
+        nextOccurrenceQueryFor?.let { queryState ->
+            RotationNextOccurrenceDateDialog(
+                state = queryState,
+                onConfirm = { nextOccurrenceDate ->
+                    nextOccurrenceQueryFor = null
+                    scope.launch {
+                        val phaseStartIndex = viewModel.resolveRotationPhaseByNextOccurrence(
+                            queryState.rotation.id,
+                            queryState.startDate.toEpochDay(),
+                            queryState.todayShiftId,
+                            nextOccurrenceDate.toEpochDay()
+                        )
+                        durationDialogFor = RotationApplyRequest(queryState.rotation, queryState.startDate, phaseStartIndex)
+                    }
+                },
+                onDismiss = { nextOccurrenceQueryFor = null }
+            )
+        }
+
+        durationDialogFor?.let { request ->
             RotationDurationDialog(
-                rotationName = rotation.name,
-                startDate = startDate,
+                rotationName = request.rotation.name,
+                startDate = request.startDate,
                 onPickMonths = { months ->
-                    val totalDays = (startDate.plusMonths(months.toLong()).toEpochDay() - startDate.toEpochDay()).toInt()
-                    viewModel.applyRotation(rotation.id, startDate.toEpochDay(), totalDays)
+                    val totalDays = (request.startDate.plusMonths(months.toLong()).toEpochDay() - request.startDate.toEpochDay()).toInt()
+                    viewModel.applyRotation(request.rotation.id, request.startDate.toEpochDay(), totalDays, request.phaseStartIndex)
                     durationDialogFor = null
                 },
                 onDismiss = { durationDialogFor = null }
@@ -441,6 +548,20 @@ fun CalendarMonthScreen(
         }
     }
 }
+
+/** Starttag + aufgelöster Tag-Index im Rotationsmuster, bereit für [RotationDurationDialog]. */
+private data class RotationApplyRequest(val rotation: RotationOption, val startDate: LocalDate, val phaseStartIndex: Int)
+
+/** Zustand des ersten Rückfrage-Schritts, wenn derselbe Wochentag mehrfach im Rotationsmuster vorkommt. */
+private data class RotationTodayShiftQueryState(val rotation: RotationOption, val startDate: LocalDate, val shiftOptions: List<ShiftEntity?>)
+
+/** Zustand des zweiten Rückfrage-Schritts (Schicht am nächsten Freitag), falls die Schicht am
+ *  Starttag allein nicht reicht und die Freitags-Frage zuverlässig weiterhilft. */
+private data class RotationFridayQueryState(val rotation: RotationOption, val startDate: LocalDate, val todayShiftId: Long?, val shiftOptions: List<ShiftEntity?>)
+
+/** Zustand der Datums-Rückfrage für eine im Muster unregelmäßig/selten vorkommende Schicht,
+ *  siehe [de.letheapp.nocturn.data.repository.CalendarRepository.needsNextOccurrenceDateQuery]. */
+private data class RotationNextOccurrenceQueryState(val rotation: RotationOption, val startDate: LocalDate, val todayShiftId: Long?, val shiftLabel: String)
 
 private val ROTATION_DURATION_OPTIONS = listOf(
     "1 Monat" to 1,
@@ -482,6 +603,170 @@ private fun RotationDurationDialog(
             TextButton(onClick = onDismiss) { Text("Abbrechen") }
         }
     )
+}
+
+/** Nächster Freitag nach [date] — fällt [date] selbst auf einen Freitag, ist der übernächste gemeint. */
+private fun nextFriday(date: LocalDate): LocalDate {
+    val weekday = date.dayOfWeek.value - 1 // 0 = Montag .. 6 = Sonntag
+    val daysUntilFriday = (4 - weekday + 7) % 7
+    return date.plusDays((if (daysUntilFriday == 0) 7 else daysUntilFriday).toLong())
+}
+
+/**
+ * Erster Rückfrage-Schritt, wenn derselbe Wochentag mehrfach im Rotationsmuster vorkommt
+ * (Zykluslänge über eine Woche): welche Schicht gilt am Starttag selbst. Je nach Ergebnis
+ * entscheidet die Aufruferin, ob das schon reicht, eine Freitags-Rückfrage ([RotationFridayQueryDialog])
+ * oder — bei einer unregelmäßig/selten vorkommenden Schicht — eine Datums-Rückfrage
+ * ([RotationNextOccurrenceDateDialog]) nötig ist.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RotationTodayShiftQueryDialog(
+    state: RotationTodayShiftQueryState,
+    onConfirm: (todayShiftId: Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember { mutableStateOf(false) }
+    var shiftId by remember { mutableStateOf<Long?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Wo stehst du in „${state.rotation.name}“?") },
+        text = {
+            Column {
+                Text(
+                    "Diese Rotation wiederholt sich über mehr als eine Woche — damit sie ab ${state.startDate} richtig weiterläuft, sag uns kurz, welche Schicht an diesem Tag gilt.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text("Welche Schicht hast du am ${state.startDate}?", style = MaterialTheme.typography.labelLarge)
+                ShiftChipRow(
+                    options = state.shiftOptions,
+                    selectedShiftId = shiftId,
+                    hasSelection = selected,
+                    onSelect = { selected = true; shiftId = it }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(shiftId) }, enabled = selected) { Text("Weiter") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
+}
+
+/**
+ * Zweiter Rückfrage-Schritt: welche Schicht gilt am nächsten Freitag — wird nur angezeigt, wenn
+ * die Schicht am Starttag allein nicht reicht, die Freitags-Antwort die verbleibenden
+ * Kandidaten aber zuverlässig unterscheiden kann (siehe
+ * [de.letheapp.nocturn.data.repository.CalendarRepository.needsNextOccurrenceDateQuery]).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RotationFridayQueryDialog(
+    state: RotationFridayQueryState,
+    onConfirm: (nextFridayShiftId: Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember { mutableStateOf(false) }
+    var shiftId by remember { mutableStateOf<Long?>(null) }
+    val fridayDate = remember(state.startDate) { nextFriday(state.startDate) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Noch eine Schicht zur Sicherheit") },
+        text = {
+            Column {
+                Text(
+                    "Mehrere Stellen im Muster passen noch zu deiner Antwort. Welche Schicht hast du am $fridayDate?",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                ShiftChipRow(
+                    options = state.shiftOptions,
+                    selectedShiftId = shiftId,
+                    hasSelection = selected,
+                    onSelect = { selected = true; shiftId = it }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(shiftId) }, enabled = selected) { Text("Weiter") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
+}
+
+/**
+ * Rückfrage für eine im Muster unregelmäßig/selten vorkommende Schicht: der Wochentag allein
+ * (auch der des nächsten Freitags) reicht nicht, um zwischen den verbleibenden Kandidaten zu
+ * unterscheiden — z. B. weil dieselbe seltene Schicht an mehreren, nicht wochentaktisch
+ * zusammenhängenden Stellen im Muster vorkommt. Statt eines Wochentags wird deshalb das
+ * konkrete Kalenderdatum der nächsten Wiederholung dieser Schicht erfragt (siehe
+ * [de.letheapp.nocturn.data.repository.CalendarRepository.resolveRotationPhaseByNextOccurrence]).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RotationNextOccurrenceDateDialog(
+    state: RotationNextOccurrenceQueryState,
+    onConfirm: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val utc = remember { ZoneId.of("UTC") }
+    val initialDate = remember(state.startDate) { state.startDate.plusDays(1) }
+    val initialMillis = remember(initialDate) { initialDate.atStartOfDay(utc).toInstant().toEpochMilli() }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val millis = datePickerState.selectedDateMillis ?: initialMillis
+                onConfirm(Instant.ofEpochMilli(millis).atZone(utc).toLocalDate())
+            }) { Text("Übernehmen") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+            Text(
+                "„${state.shiftLabel}“ kommt in „${state.rotation.name}“ nur unregelmäßig vor — der Wochentag allein reicht hier nicht aus. Wann hast du diese Schicht das nächste Mal?",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        DatePicker(state = datePickerState)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShiftChipRow(
+    options: List<ShiftEntity?>,
+    selectedShiftId: Long?,
+    hasSelection: Boolean,
+    onSelect: (Long?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { shift ->
+            FilterChip(
+                selected = hasSelection && selectedShiftId == shift?.id,
+                onClick = { onSelect(shift?.id) },
+                label = { Text(shift?.name ?: "Frei") }
+            )
+        }
+    }
 }
 
 @Composable

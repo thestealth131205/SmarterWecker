@@ -18,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddShiftEntryViewModel @Inject constructor(
-    private val calendarRepository: CalendarRepository
+    private val calendarRepository: CalendarRepository,
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer
 ) : ViewModel() {
 
     val jobs: StateFlow<List<JobEntity>> = calendarRepository.observeJobs()
@@ -39,6 +40,7 @@ class AddShiftEntryViewModel @Inject constructor(
     fun save(jobId: Long, shiftId: Long, epochDay: Long, onSaved: () -> Unit) {
         viewModelScope.launch {
             calendarRepository.saveManualShiftEntry(jobId, shiftId, epochDay)
+            shiftWakeupAlarmSyncer.sync()
             onSaved()
         }
     }

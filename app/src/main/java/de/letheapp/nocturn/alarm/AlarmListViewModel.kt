@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
@@ -39,8 +40,16 @@ class AlarmListViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val ioBrokerRepository: IoBrokerRepository,
     private val weatherRepository: WeatherRepository,
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
     appPreferences: AppPreferences
 ) : ViewModel() {
+
+    init {
+        // Fängt Fälle ab, in denen sich der Kalender geändert hat, ohne dass ein hier bekannter
+        // Call-Pfad das selbst ausgelöst hat (z. B. Foto-Import, Nextcloud-Sync) — stellt sicher,
+        // dass der "Nächste Schicht"-Alarm beim Öffnen des Wecker-Screens nie veraltet ist.
+        viewModelScope.launch { shiftWakeupAlarmSyncer.sync() }
+    }
 
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
