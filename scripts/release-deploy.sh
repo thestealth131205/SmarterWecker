@@ -50,6 +50,7 @@ set_phase() {
         [[ -n "${NEW_CODE:-}" ]] && printf 'NEW_CODE=%q\n' "$NEW_CODE"
         [[ -n "${HEAD_SHA:-}" ]] && printf 'HEAD_SHA=%q\n' "$HEAD_SHA"
         [[ -n "${RUN_ID:-}" ]] && printf 'RUN_ID=%q\n' "$RUN_ID"
+        true
     } > "$STATE_FILE"
 }
 
