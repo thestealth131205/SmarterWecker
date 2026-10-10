@@ -120,6 +120,14 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      unterschiedlichen Starttagen und mit unterschiedlicher Länge einfügen — z. B. um sie
      nach einer Dienstplanänderung ab einem neuen Starttag erneut anzuwenden, ohne die
      Vorlage selbst neu anlegen zu müssen.
+   - **Rotation wieder aus dem Kalender entfernen**: Dieselbe Seitenleiste bietet zusätzlich
+     einen eigenen Abschnitt "Rotation aus Kalender entfernen" — Auswahl einer Rotation löscht
+     dort (nach Bestätigungsdialog) **alle** ihre bisher eingetragenen Kalendertage, unabhängig
+     davon, über wie viele einzelne Zuweisungen/Zeiträume sie entstanden sind (es gibt kein
+     Tracking einzelner Zuweisungen, nur die `rotationId` an jedem Kalendereintrag). Die
+     Rotations-**Vorlage** selbst bleibt dabei erhalten und lässt sich danach erneut zuweisen —
+     anders als das Löschen der Vorlage selbst (löscht über Kaskade automatisch auch alle
+     zugehörigen Kalendereinträge).
    - **Phasen-Rückfrage bei mehrdeutigem Starttag**: Das Rotations-Raster im Editor nimmt
      Tag-Index 0 implizit als Montag an (Tag-Index mod 7 = Wochentag). Tippt der Nutzer in
      der Seitenleiste einen Starttag an, dessen Wochentag bei einer Zykluslänge über einer

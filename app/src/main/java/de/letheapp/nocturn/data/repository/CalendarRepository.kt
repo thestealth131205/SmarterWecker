@@ -115,6 +115,14 @@ class CalendarRepository @Inject constructor(
     suspend fun deleteRotation(rotation: RotationEntity) = rotationDao.delete(rotation)
 
     /**
+     * Entfernt alle bereits im Kalender eingetragenen Vorkommen dieser Rotation (jeder Zeitraum,
+     * mit dem sie je über die Seitenleiste zugewiesen wurde), lässt die Rotations-**Vorlage**
+     * selbst aber unverändert bestehen — anders als [deleteRotation], das die Vorlage komplett
+     * löscht (und über die FK-`CASCADE` ebenfalls alle Kalendereinträge mitreißt).
+     */
+    suspend fun removeRotationEntries(rotationId: Long) = calendarEntryDao.deleteForRotation(rotationId)
+
+    /**
      * Speichert eine Rotation inkl. ihres Tag-für-Tag-Musters (Zykluslänge = Anzahl der
      * übergebenen Tage) als reine Vorlage — ohne Startdatum und ohne den Kalender zu
      * verändern. Bereits im Kalender eingetragene Vorkommen dieser Rotation bleiben

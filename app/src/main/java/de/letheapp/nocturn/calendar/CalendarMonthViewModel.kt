@@ -274,6 +274,16 @@ class CalendarMonthViewModel @Inject constructor(
         }
     }
 
+    /** Entfernt alle im Kalender eingetragenen Vorkommen dieser Rotation wieder (Vorlage bleibt
+     *  erhalten, siehe [CalendarRepository.removeRotationEntries]) und zieht den automatischen
+     *  "Nächste Schicht"-Wecker nach, damit er nicht auf eine inzwischen entfernte Schicht zeigt. */
+    fun removeRotationEntries(rotationId: Long) {
+        viewModelScope.launch {
+            calendarRepository.removeRotationEntries(rotationId)
+            shiftWakeupAlarmSyncer.sync()
+        }
+    }
+
     /** Siehe [CalendarRepository.rotationPhaseCandidates]. */
     suspend fun rotationPhaseCandidates(rotationId: Long, startEpochDay: Long): List<Int> =
         calendarRepository.rotationPhaseCandidates(rotationId, startEpochDay)

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -134,6 +135,7 @@ fun CalendarMonthScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showNoJobTip by remember { mutableStateOf(false) }
     var pendingRotation by remember { mutableStateOf<RotationOption?>(null) }
+    var pendingDeleteRotation by remember { mutableStateOf<RotationOption?>(null) }
     var durationDialogFor by remember { mutableStateOf<RotationApplyRequest?>(null) }
     var phaseQueryFor by remember { mutableStateOf<RotationTodayShiftQueryState?>(null) }
     var fridayQueryFor by remember { mutableStateOf<RotationFridayQueryState?>(null) }
@@ -208,6 +210,36 @@ fun CalendarMonthScreen(
                             selected = pendingRotation?.id == rotation.id,
                             onClick = {
                                 pendingRotation = rotation
+                                drawerScope.launch { drawerState.close() }
+                            },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "Rotation aus Kalender entfernen",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                if (rotations.isEmpty()) {
+                    Text(
+                        "Noch keine Rotationen angelegt.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                } else {
+                    rotations.forEach { rotation ->
+                        NavigationDrawerItem(
+                            label = {
+                                Text(if (rotation.jobName.isNotBlank()) "${rotation.name} · ${rotation.jobName}" else rotation.name)
+                            },
+                            icon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null) },
+                            selected = false,
+                            onClick = {
+                                pendingDeleteRotation = rotation
                                 drawerScope.launch { drawerState.close() }
                             },
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -544,6 +576,29 @@ fun CalendarMonthScreen(
                     durationDialogFor = null
                 },
                 onDismiss = { durationDialogFor = null }
+            )
+        }
+
+        pendingDeleteRotation?.let { rotation ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteRotation = null },
+                title = { Text("„${rotation.name}“ aus dem Kalender entfernen?") },
+                text = {
+                    Text(
+                        "Alle bisher eingetragenen Tage dieser Rotation werden aus dem Kalender gelöscht, egal für welchen Zeitraum sie zugewiesen wurden. Die Rotation selbst bleibt als Vorlage erhalten und kann danach erneut zugewiesen werden."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.removeRotationEntries(rotation.id)
+                        pendingDeleteRotation = null
+                    }) {
+                        Text("Entfernen")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteRotation = null }) { Text("Abbrechen") }
+                }
             )
         }
     }
