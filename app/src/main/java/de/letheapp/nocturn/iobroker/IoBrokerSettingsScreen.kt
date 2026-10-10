@@ -30,9 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -114,7 +111,7 @@ private fun ConnectForm(
         onValueChange = { username = it },
         label = { Text("Benutzername (optional)") },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { contentType = ContentType.Username }
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     )
     OutlinedTextField(
         value = password,
@@ -123,7 +120,7 @@ private fun ConnectForm(
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { contentType = ContentType.Password }
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     )
 
     when (connectState) {
