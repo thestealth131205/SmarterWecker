@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # Erhöht die Versionsnummer, committet, pusht, wartet auf den GitHub-Actions-Build
-# und deployt die signierte Release-APK auf letheapp.de (/nocturn.php).
+# und deployt die signierte Release-APK auf letheapp.de sowie ins F-Droid-Repo.
 #
 # Aufruf:
 #   scripts/release-deploy.sh                 # Minor-Bump (0.6.0 -> 0.7.0), Standardfall
 #   scripts/release-deploy.sh patch           # Patch-Bump (0.6.0 -> 0.6.1)
 #   scripts/release-deploy.sh major           # Major-Bump (0.6.0 -> 1.0.0)
 #   scripts/release-deploy.sh 1.2.3           # explizite Versionsnummer
+#   scripts/release-deploy.sh resume          # nach Abbruch fortsetzen, OHNE neue Version zu ziehen
+#   scripts/release-deploy.sh status          # nur den Fortschritt des laufenden/letzten Laufs anzeigen
+#
+# Das Skript klinkt sich beim ersten Aufruf per setsid/nohup komplett vom aufrufenden
+# Terminal/Prozess ab (siehe "Selbst-Daemonisierung" unten) und läuft danach auf dem
+# Pi unabhängig weiter -- auch wenn die aufrufende Claude-Code-Session/Shell beendet
+# wird (Session-Limit, Neustart, Verbindungsabbruch). Fortschritt + Ergebnis stehen in
+# $STATE_FILE bzw. $LOG_FILE und lassen sich jederzeit mit "status" abfragen.
 #
 # Voraussetzungen: GitHub-Token mit Repo-Zugriff unter /opt/githubtok3n.txt,
 # Zugangsdaten zum Lethe-Hauptserver in .server-credentials (gitignored, siehe dort).
@@ -21,9 +29,69 @@ GH_REPO="thestealth131205/SmarterWecker"
 WORKFLOW_FILE="build-apk.yml"
 POLL_INTERVAL=15
 POLL_TIMEOUT=1800   # 30 Minuten
+STATE_FILE="/tmp/nocturn-release-deploy.state"
+LOG_FILE="/tmp/nocturn-release-deploy.log"
+LOCK_FILE="/tmp/nocturn-release-deploy.lock"
 
-log() { echo "[release-deploy] $*"; }
-die() { echo "[release-deploy] FEHLER: $*" >&2; exit 1; }
+log() { echo "[release-deploy] $(date '+%Y-%m-%d %H:%M:%S') $*"; }
+die() { echo "[release-deploy] $(date '+%Y-%m-%d %H:%M:%S') FEHLER: $*" >&2; set_phase "FAILED: $*"; exit 1; }
+
+set_phase() {
+    # Schreibt den aktuellen Fortschritt in die Statusdatei, damit "status" und künftige
+    # Läufe (nach einem Abbruch) wissen, wo wir stehen -- ohne das ganze Skript zu parsen.
+    local phase="$1"
+    # %q quotet den Wert shell-sicher -- wichtig, da "resume" diese Datei per "source"
+    # wieder einliest: eine ungequotete Fehlermeldung mit Leerzeichen/Sonderzeichen in
+    # PHASE würde sonst als Befehl ausgeführt statt als reine Variablenzuweisung gelesen.
+    {
+        printf 'PHASE=%q\n' "$phase"
+        printf 'TIMESTAMP=%q\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+        [[ -n "${NEW_NAME:-}" ]] && printf 'NEW_NAME=%q\n' "$NEW_NAME"
+        [[ -n "${NEW_CODE:-}" ]] && printf 'NEW_CODE=%q\n' "$NEW_CODE"
+        [[ -n "${HEAD_SHA:-}" ]] && printf 'HEAD_SHA=%q\n' "$HEAD_SHA"
+        [[ -n "${RUN_ID:-}" ]] && printf 'RUN_ID=%q\n' "$RUN_ID"
+    } > "$STATE_FILE"
+}
+
+# ---------- Modus "status": nur Fortschritt zeigen, nichts tun ----------
+if [[ "${1:-}" == "status" ]]; then
+    if [[ -f "$STATE_FILE" ]]; then
+        cat "$STATE_FILE"
+    else
+        echo "Kein Deploy-Lauf bekannt (keine $STATE_FILE vorhanden)."
+    fi
+    echo "---- letzte Log-Zeilen ($LOG_FILE) ----"
+    tail -n 40 "$LOG_FILE" 2>/dev/null || echo "(kein Log vorhanden)"
+    exit 0
+fi
+
+# ---------- Selbst-Daemonisierung ----------
+# Beim allerersten (nicht-daemonisierten) Aufruf startet sich das Skript selbst per
+# setsid+nohup komplett losgelöst vom aufrufenden Prozessbaum neu und beendet sich dann
+# sofort -- der eigentliche Deploy läuft danach als eigene Session weiter, unabhängig
+# davon, ob die aufrufende Shell/Claude-Code-Session später beendet wird.
+if [[ "${NOCTURN_DEPLOY_DAEMONIZED:-}" != "1" ]]; then
+    # Vor dem Daemonisieren prüfen, ob schon ein Lauf aktiv ist -- sonst würde das Log
+    # eines noch laufenden Deploys hier einfach überschrieben, bevor der eigentliche
+    # flock-Check im Kind-Prozess überhaupt zum Zug kommt.
+    if command -v flock >/dev/null && ! flock -n "$LOCK_FILE" true 2>/dev/null; then
+        echo "[release-deploy] Es läuft bereits ein Deploy-Vorgang. Status: ${BASH_SOURCE[0]} status"
+        exit 1
+    fi
+    : > "$LOG_FILE"
+    NOCTURN_DEPLOY_DAEMONIZED=1 setsid nohup "${BASH_SOURCE[0]}" "$@" >> "$LOG_FILE" 2>&1 < /dev/null &
+    DAEMON_PID=$!
+    disown
+    echo "[release-deploy] Gestartet als eigenständiger Hintergrundprozess (PID $DAEMON_PID)."
+    echo "[release-deploy] Läuft unabhängig von dieser Shell/Session weiter."
+    echo "[release-deploy] Fortschritt prüfen mit: ${BASH_SOURCE[0]} status"
+    echo "[release-deploy] Live mitlesen mit:      tail -f $LOG_FILE"
+    exit 0
+fi
+
+# Ab hier laeuft der eigentliche, daemonisierte Deploy-Prozess.
+exec 9>"$LOCK_FILE"
+flock -n 9 || die "Es läuft bereits ein anderer Deploy-Vorgang (siehe $LOCK_FILE)."
 
 [[ -f "$TOKEN_FILE" ]] || die "GitHub-Token nicht gefunden unter $TOKEN_FILE"
 GH_TOKEN="$(tr -d '[:space:]' < "$TOKEN_FILE")"
@@ -35,9 +103,33 @@ source "$CREDENTIALS_FILE"
 [[ -n "${MAIN_SERVER_IP:-}" && -n "${MAIN_SERVER_USER:-}" && -n "${MAIN_SERVER_PASSWORD:-}" && -n "${MAIN_SERVER_DEPLOY_DIR:-}" ]] \
     || die "Server-Zugangsdaten in $CREDENTIALS_FILE unvollständig"
 command -v sshpass >/dev/null || die "sshpass ist nicht installiert"
+command -v flock >/dev/null || die "flock ist nicht installiert"
 
 cd "$REPO_DIR"
 [[ -d .git ]] || die "$REPO_DIR ist kein Git-Repository"
+
+COMMON_SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=6)
+SSH_PORT_OPT=(-p "${MAIN_SERVER_PORT:-22}")
+SCP_PORT_OPT=(-P "${MAIN_SERVER_PORT:-22}")
+
+ssh_remote() { sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" "$@"; }
+scp_to_remote() { sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" "$@"; }
+
+retry() {
+    # retry <Versuche> <Wartezeit-Sekunden> -- <Befehl...>
+    # Für Netzwerk-Operationen (ssh/scp), die bei einer wackeligen Verbindung
+    # (z.B. WLAN auf dem Pi) auch mal transient fehlschlagen können.
+    local attempts="$1" wait_s="$2"; shift 2
+    [[ "$1" == "--" ]] && shift
+    local n=1
+    while true; do
+        if "$@"; then return 0; fi
+        if (( n >= attempts )); then return 1; fi
+        log "Versuch $n/$attempts fehlgeschlagen, erneuter Versuch in ${wait_s}s..."
+        sleep "$wait_s"
+        n=$((n + 1))
+    done
+}
 
 gh_api() {
     # $1 = Pfad ab https://api.github.com, weitere Args werden an curl durchgereicht
@@ -66,56 +158,79 @@ print(cur if cur is not None else '')
 " "$1"
 }
 
-# ---------- 1. Aktuelle Version auslesen ----------
-CURRENT_CODE="$(grep -oP 'versionCode\s*=\s*\K[0-9]+' "$GRADLE_FILE")"
-CURRENT_NAME="$(grep -oP 'versionName\s*=\s*"\K[^"]+' "$GRADLE_FILE")"
-[[ -n "$CURRENT_CODE" && -n "$CURRENT_NAME" ]] || die "Konnte versionCode/versionName nicht aus $GRADLE_FILE lesen"
+RESUME=0
+if [[ "${1:-}" == "resume" ]]; then
+    RESUME=1
+fi
 
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_NAME"
-BUMP="${1:-minor}"
-
-if [[ "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    NEW_NAME="$BUMP"
+if [[ "$RESUME" == "1" ]]; then
+    [[ -f "$STATE_FILE" ]] || die "Kein vorheriger Lauf gefunden ($STATE_FILE fehlt) -- resume nicht möglich."
+    # shellcheck source=/dev/null
+    source "$STATE_FILE"
+    [[ -n "${NEW_NAME:-}" && -n "${NEW_CODE:-}" && -n "${HEAD_SHA:-}" ]] \
+        || die "Statusdatei $STATE_FILE ist unvollständig -- resume nicht möglich."
+    CURRENT_HEAD="$(git rev-parse HEAD)"
+    [[ "$CURRENT_HEAD" == "$HEAD_SHA" ]] \
+        || die "HEAD hat sich seit dem letzten Lauf geändert (war $HEAD_SHA, ist jetzt $CURRENT_HEAD) -- resume nicht sinnvoll, bitte neu starten."
+    log "Setze vorherigen Lauf fort: Version $NEW_NAME (Code $NEW_CODE), Commit $HEAD_SHA"
+    set_phase "resumed"
 else
-    case "$BUMP" in
-        major) NEW_NAME="$((MAJOR + 1)).0.0" ;;
-        minor) NEW_NAME="${MAJOR}.$((MINOR + 1)).0" ;;
-        patch) NEW_NAME="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
-        *) die "Unbekannter Bump-Typ '$BUMP' (erwartet: major|minor|patch|X.Y.Z)" ;;
-    esac
-fi
-NEW_CODE=$((CURRENT_CODE + 1))
+    # ---------- 1. Aktuelle Version auslesen ----------
+    CURRENT_CODE="$(grep -oP 'versionCode\s*=\s*\K[0-9]+' "$GRADLE_FILE")"
+    CURRENT_NAME="$(grep -oP 'versionName\s*=\s*"\K[^"]+' "$GRADLE_FILE")"
+    [[ -n "$CURRENT_CODE" && -n "$CURRENT_NAME" ]] || die "Konnte versionCode/versionName nicht aus $GRADLE_FILE lesen"
 
-log "Version $CURRENT_NAME (Code $CURRENT_CODE) -> $NEW_NAME (Code $NEW_CODE)"
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_NAME"
+    BUMP="${1:-minor}"
 
-# ---------- 2. Gradle-Datei anpassen (nur der jeweils erste Treffer in der Datei) ----------
-sed -i "0,/versionCode = [0-9]\+/s//versionCode = $NEW_CODE/" "$GRADLE_FILE"
-sed -i "0,/versionName = \"[0-9.]\+\"/s//versionName = \"$NEW_NAME\"/" "$GRADLE_FILE"
-grep -q "versionCode = $NEW_CODE" "$GRADLE_FILE" || die "versionCode-Ersetzung fehlgeschlagen"
-grep -q "versionName = \"$NEW_NAME\"" "$GRADLE_FILE" || die "versionName-Ersetzung fehlgeschlagen"
+    if [[ "$BUMP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        NEW_NAME="$BUMP"
+    else
+        case "$BUMP" in
+            major) NEW_NAME="$((MAJOR + 1)).0.0" ;;
+            minor) NEW_NAME="${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) NEW_NAME="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+            *) die "Unbekannter Bump-Typ '$BUMP' (erwartet: major|minor|patch|X.Y.Z|resume|status)" ;;
+        esac
+    fi
+    NEW_CODE=$((CURRENT_CODE + 1))
 
-# ---------- 3. Commit + Push ----------
-git add -A
-if git diff --cached --quiet; then
-    die "Keine Änderungen zum Committen (versionCode/versionName wurden nicht angepasst?)"
-fi
+    log "Version $CURRENT_NAME (Code $CURRENT_CODE) -> $NEW_NAME (Code $NEW_CODE)"
+    set_phase "bumping_version"
 
-COMMIT_MSG="Version ${NEW_NAME}: Release-Deploy
+    # ---------- 2. Gradle-Datei anpassen (nur der jeweils erste Treffer in der Datei) ----------
+    sed -i "0,/versionCode = [0-9]\+/s//versionCode = $NEW_CODE/" "$GRADLE_FILE"
+    sed -i "0,/versionName = \"[0-9.]\+\"/s//versionName = \"$NEW_NAME\"/" "$GRADLE_FILE"
+    grep -q "versionCode = $NEW_CODE" "$GRADLE_FILE" || die "versionCode-Ersetzung fehlgeschlagen"
+    grep -q "versionName = \"$NEW_NAME\"" "$GRADLE_FILE" || die "versionName-Ersetzung fehlgeschlagen"
+
+    # ---------- 3. Commit + Push ----------
+    git add -A
+    if git diff --cached --quiet; then
+        die "Keine Änderungen zum Committen (versionCode/versionName wurden nicht angepasst?)"
+    fi
+
+    COMMIT_MSG="Version ${NEW_NAME}: Release-Deploy
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
-git commit -m "$COMMIT_MSG"
-HEAD_SHA="$(git rev-parse HEAD)"
-log "Commit $HEAD_SHA erstellt, pushe nach main..."
-GH_AUTH_B64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-git -c http.extraheader="Authorization: Basic ${GH_AUTH_B64}" push origin main
+    git commit -m "$COMMIT_MSG"
+    HEAD_SHA="$(git rev-parse HEAD)"
+    log "Commit $HEAD_SHA erstellt, pushe nach main..."
+    set_phase "pushing"
+    GH_AUTH_B64="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+    retry 3 10 -- git -c http.extraheader="Authorization: Basic ${GH_AUTH_B64}" push origin main \
+        || die "git push nach main fehlgeschlagen"
+    set_phase "pushed"
+fi
 
 # ---------- 4. Auf den passenden Workflow-Run warten ----------
 log "Warte auf den Start des GitHub-Actions-Runs für $HEAD_SHA..."
+set_phase "waiting_for_run_start"
 RUN_ID=""
 START_TIME=$(date +%s)
 while [[ -z "$RUN_ID" ]]; do
     (( $(date +%s) - START_TIME > POLL_TIMEOUT )) && die "Timeout beim Warten auf den Workflow-Start"
-    RESPONSE="$(gh_api "/actions/workflows/$WORKFLOW_FILE/runs?branch=main&event=push&per_page=10")"
+    RESPONSE="$(gh_api "/actions/workflows/$WORKFLOW_FILE/runs?branch=main&event=push&per_page=10" || true)"
     RUN_ID="$(python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -128,27 +243,29 @@ for run in data.get('workflow_runs', []):
     [[ -n "$RUN_ID" ]] || sleep "$POLL_INTERVAL"
 done
 log "Workflow-Run gefunden: https://github.com/$GH_REPO/actions/runs/$RUN_ID"
+set_phase "run_found"
 
 # ---------- 5. Auf Abschluss des Runs warten ----------
 STATUS=""
 START_TIME=$(date +%s)
 while [[ "$STATUS" != "completed" ]]; do
     (( $(date +%s) - START_TIME > POLL_TIMEOUT )) && die "Timeout beim Warten auf den Build-Abschluss"
-    RUN_JSON="$(gh_api "/actions/runs/$RUN_ID")"
-    STATUS="$(echo "$RUN_JSON" | json_get ".status")"
+    RUN_JSON="$(gh_api "/actions/runs/$RUN_ID" || true)"
+    STATUS="$(echo "$RUN_JSON" | json_get ".status" 2>/dev/null || true)"
     [[ "$STATUS" == "completed" ]] || sleep "$POLL_INTERVAL"
 done
 CONCLUSION="$(echo "$RUN_JSON" | json_get ".conclusion")"
 [[ "$CONCLUSION" == "success" ]] || die "Build abgeschlossen mit Ergebnis '$CONCLUSION' - kein Deploy. Siehe https://github.com/$GH_REPO/actions/runs/$RUN_ID"
 log "Build erfolgreich."
+set_phase "build_success"
 
 # ---------- 6. Release + APK-Asset finden ----------
 log "Suche GitHub Release für Version $NEW_NAME..."
 RELEASE_JSON=""
 START_TIME=$(date +%s)
 while [[ -z "$RELEASE_JSON" ]]; do
-    (( $(date +%s) - START_TIME > 300 )) && die "Timeout beim Warten auf das GitHub Release"
-    RELEASES="$(gh_api "/releases?per_page=10")"
+    (( $(date +%s) - START_TIME > 600 )) && die "Timeout beim Warten auf das GitHub Release"
+    RELEASES="$(gh_api "/releases?per_page=10" || true)"
     RELEASE_JSON="$(python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -160,53 +277,63 @@ for rel in data:
 " "$RELEASES" "v${NEW_NAME}-" 2>/dev/null || true)"
     [[ -n "$RELEASE_JSON" ]] || sleep 10
 done
+set_phase "release_found"
 
-ASSET_ID="$(echo "$RELEASE_JSON" | python3 -c "
+ASSET_ID=""
+START_TIME=$(date +%s)
+while [[ -z "$ASSET_ID" ]]; do
+    (( $(date +%s) - START_TIME > 300 )) && die "Kein APK-Asset im Release gefunden (Timeout)"
+    ASSET_ID="$(echo "$RELEASE_JSON" | python3 -c "
 import sys, json
 rel = json.load(sys.stdin)
 for a in rel['assets']:
     if a['name'].endswith('.apk'):
         print(a['id'])
         break
-")"
-[[ -n "$ASSET_ID" ]] || die "Kein APK-Asset im Release gefunden"
+" 2>/dev/null || true)"
+    if [[ -z "$ASSET_ID" ]]; then
+        sleep 10
+        RELEASE_JSON="$(gh_api "/releases/$(echo "$RELEASE_JSON" | json_get '.id')" || true)"
+    fi
+done
 log "APK-Asset gefunden (ID $ASSET_ID), lade herunter..."
+set_phase "asset_found"
 
 # ---------- 7. APK herunterladen ----------
 TMP_APK="$(mktemp --suffix=.apk)"
-HTTP_CODE="$(curl -sS -L -w '%{http_code}' -o "$TMP_APK" \
-    -H "Authorization: Bearer $GH_TOKEN" \
-    -H "Accept: application/octet-stream" \
-    "https://api.github.com/repos/$GH_REPO/releases/assets/$ASSET_ID")"
-[[ "$HTTP_CODE" == "200" ]] || die "APK-Download fehlgeschlagen (HTTP $HTTP_CODE)"
-[[ -s "$TMP_APK" ]] || die "Heruntergeladene APK ist leer"
+download_apk() {
+    local http_code
+    http_code="$(curl -sS -L -w '%{http_code}' -o "$TMP_APK" \
+        -H "Authorization: Bearer $GH_TOKEN" \
+        -H "Accept: application/octet-stream" \
+        "https://api.github.com/repos/$GH_REPO/releases/assets/$ASSET_ID")"
+    [[ "$http_code" == "200" ]] && [[ -s "$TMP_APK" ]]
+}
+retry 5 15 -- download_apk || die "APK-Download fehlgeschlagen"
+set_phase "apk_downloaded"
 
 # ---------- 8. Auf den Hauptserver hochladen ----------
 REMOTE_APK_NAME="NocTurn-${NEW_NAME}.apk"
 REMOTE_TMP_PATH="/tmp/${REMOTE_APK_NAME}"
 REMOTE_DEPLOY_PATH="${MAIN_SERVER_DEPLOY_DIR}/${REMOTE_APK_NAME}"
-COMMON_SSH_OPTS=(-o StrictHostKeyChecking=no -o ConnectTimeout=10)
-SSH_PORT_OPT=(-p "${MAIN_SERVER_PORT:-22}")
-SCP_PORT_OPT=(-P "${MAIN_SERVER_PORT:-22}")
 
 log "Lade APK zum Hauptserver hoch ($MAIN_SERVER_IP:$REMOTE_DEPLOY_PATH)..."
-sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" \
-    "$TMP_APK" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${REMOTE_TMP_PATH}" \
-    || die "scp-Upload zum Hauptserver fehlgeschlagen"
+retry 5 20 -- scp_to_remote "$TMP_APK" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${REMOTE_TMP_PATH}" \
+    || die "scp-Upload zum Hauptserver fehlgeschlagen (auch nach mehreren Versuchen)"
 rm -f "$TMP_APK"
+set_phase "apk_uploaded"
 
-sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" bash -s <<REMOTE_SCRIPT || die "Deploy-Befehl auf dem Hauptserver fehlgeschlagen"
-set -euo pipefail
-mkdir -p "$MAIN_SERVER_DEPLOY_DIR"
-mv "$REMOTE_TMP_PATH" "$REMOTE_DEPLOY_PATH"
-chmod 644 "$REMOTE_DEPLOY_PATH"
-# Alte APKs aufräumen, die letzten 3 Versionen als Backup behalten
-cd "$MAIN_SERVER_DEPLOY_DIR"
-ls -t ./*.apk 2>/dev/null | tail -n +4 | xargs -r rm -f
-REMOTE_SCRIPT
+# Als einzelner Kommando-String statt Heredoc, damit "retry" das bei einem abgerissenen
+# Versuch gefahrlos nochmal ausführen kann (ein Heredoc würde beim zweiten Versuch mit
+# bereits leerem Stdin ankommen). "if [ -f ... ]" macht den mv-Schritt idempotent, falls
+# der vorherige Versuch die Datei schon verschoben, die Verbindung aber danach abgerissen
+# hatte.
+REMOTE_DEPLOY_CMD="set -e; mkdir -p '${MAIN_SERVER_DEPLOY_DIR}'; if [ -f '${REMOTE_TMP_PATH}' ]; then mv '${REMOTE_TMP_PATH}' '${REMOTE_DEPLOY_PATH}'; fi; chmod 644 '${REMOTE_DEPLOY_PATH}'; cd '${MAIN_SERVER_DEPLOY_DIR}' && ls -t ./*.apk 2>/dev/null | tail -n +4 | xargs -r rm -f"
+retry 3 10 -- ssh_remote "$REMOTE_DEPLOY_CMD" || die "Deploy-Befehl auf dem Hauptserver fehlgeschlagen"
 
 log "Fertig. APK deployed: ${MAIN_SERVER_IP}:${REMOTE_DEPLOY_PATH}"
 log "Download-Seite: https://letheapp.de/nocturn.php"
+set_phase "website_deployed"
 
 # ---------- 9. F-Droid-Repo aktualisieren ----------
 # Nutzt dasselbe, bereits laufende F-Droid-Repo von Lethe (fdroid.letheapp.de) auf dem
@@ -220,12 +347,11 @@ FDROID_REPO_DIR="/root/my-fdroid-repo/repo"
 FDROID_META_FILE="/root/my-fdroid-repo/metadata/${FDROID_PACKAGE}.yml"
 FDROID_APK_NAME="${FDROID_PACKAGE}_${NEW_CODE}.apk"
 
-sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
-    "cp '${REMOTE_DEPLOY_PATH}' '${FDROID_REPO_DIR}/${FDROID_APK_NAME}'" \
+retry 5 15 -- ssh_remote "cp '${REMOTE_DEPLOY_PATH}' '${FDROID_REPO_DIR}/${FDROID_APK_NAME}'" \
     || die "Kopieren der APK ins F-Droid-Repo fehlgeschlagen"
+set_phase "fdroid_apk_copied"
 
-FDROID_META_EXISTS="$(sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
-    "[ -f '${FDROID_META_FILE}' ] && echo yes || echo no")"
+FDROID_META_EXISTS="$(retry 3 10 -- ssh_remote "[ -f '${FDROID_META_FILE}' ] && echo yes || echo no")"
 if [[ "$FDROID_META_EXISTS" == "no" ]]; then
     log "Lege F-Droid-Metadata für ${FDROID_PACKAGE} an..."
     TMP_YAML="$(mktemp)"
@@ -247,20 +373,41 @@ UpdateCheckMode: None
 CurrentVersion: '${NEW_NAME}'
 CurrentVersionCode: ${NEW_CODE}
 YAML_EOF
-    sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" "$TMP_YAML" \
-        "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${FDROID_META_FILE}" || die "Hochladen der F-Droid-Metadata fehlgeschlagen"
+    retry 5 15 -- scp_to_remote "$TMP_YAML" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}:${FDROID_META_FILE}" \
+        || die "Hochladen der F-Droid-Metadata fehlgeschlagen"
     rm -f "$TMP_YAML"
 else
-    sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" "
+    retry 3 10 -- ssh_remote "
         sed -i \"s|^CurrentVersion:.*|CurrentVersion: '${NEW_NAME}'|\" '${FDROID_META_FILE}'
         sed -i \"s|^CurrentVersionCode:.*|CurrentVersionCode: ${NEW_CODE}|\" '${FDROID_META_FILE}'
-    "
+    " || die "Aktualisieren der F-Droid-Metadata fehlgeschlagen"
 fi
+set_phase "fdroid_metadata_updated"
 
-log "Regeneriere F-Droid-Index (kann einige Minuten dauern)..."
-sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" \
-    "cd /root/my-fdroid-repo && fdroid update --clean" \
-    || die "fdroid update auf dem Hauptserver fehlgeschlagen"
+# "fdroid update --clean" kann bei >300 APKs im Repo viele Minuten dauern. Statt die ganze
+# Zeit eine einzelne SSH-Verbindung offen zu halten (die bei einer wackeligen Pi-Verbindung
+# zwischendurch abreissen kann und den Rebuild dann abbricht), wird der Lauf auf dem Server
+# selbst per nohup im Hintergrund gestartet und von hier aus nur noch per kurzen,
+# unabhaengigen SSH-Befehlen abgefragt -- ein einzelner Verbindungsabbruch beim Poll killt
+# den Rebuild dann nicht mehr.
+log "Starte F-Droid-Index-Rebuild auf dem Server (läuft dort unabhängig im Hintergrund)..."
+# pgrep-Check macht den Start resume-sicher: läuft (z.B. nach einem Abbruch und "resume")
+# bereits ein Rebuild auf dem Server, wird kein zweiter, konkurrierender Lauf gestartet.
+FDROID_START_CMD="cd /root/my-fdroid-repo && if pgrep -f 'fdroid update' >/dev/null 2>&1; then echo already_running; else rm -f fdroid_update.exit; nohup bash -c 'fdroid update --clean; echo \$? > fdroid_update.exit' > fdroid_update.log 2>&1 < /dev/null & disown; sleep 1; echo started; fi"
+retry 3 10 -- ssh_remote "$FDROID_START_CMD" \
+    || die "Konnte F-Droid-Index-Rebuild auf dem Server nicht starten"
+set_phase "fdroid_update_started"
+
+FDROID_TIMEOUT=1800
+START_TIME=$(date +%s)
+FDROID_EXIT=""
+while [[ -z "$FDROID_EXIT" ]]; do
+    (( $(date +%s) - START_TIME > FDROID_TIMEOUT )) && die "Timeout beim Warten auf den F-Droid-Index-Rebuild (läuft ggf. noch auf dem Server, siehe /root/my-fdroid-repo/fdroid_update.log)"
+    FDROID_EXIT="$(retry 5 15 -- ssh_remote "[ -f /root/my-fdroid-repo/fdroid_update.exit ] && cat /root/my-fdroid-repo/fdroid_update.exit || true" || true)"
+    [[ -n "$FDROID_EXIT" ]] || sleep 20
+done
+[[ "$FDROID_EXIT" == "0" ]] || die "fdroid update --clean ist mit Exit-Code $FDROID_EXIT fehlgeschlagen (siehe /root/my-fdroid-repo/fdroid_update.log auf dem Server)"
 
 log "NocTurn im F-Droid-Repo aktualisiert: ${FDROID_APK_NAME}"
 log "F-Droid-Repo-URL (in F-Droid-Client eintragen): https://fdroid.letheapp.de/repo"
+set_phase "SUCCESS"
