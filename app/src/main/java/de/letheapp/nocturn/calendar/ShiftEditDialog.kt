@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,7 +90,19 @@ fun ShiftEditDialog(
     var wakeupAlarmEnabled by remember { mutableStateOf(existing?.latestWakeupHour != null) }
     var wakeupAlarmHour by remember { mutableStateOf(existing?.latestWakeupHour ?: startHour) }
     var wakeupAlarmMinute by remember { mutableStateOf(existing?.latestWakeupMinute ?: 0) }
+    var wakeupAlarmCustomized by remember { mutableStateOf(existing?.latestWakeupHour != null) }
     var showWakeupAlarmPicker by remember { mutableStateOf(false) }
+
+    // Solange der Nutzer die Weckzeit nicht selbst über den Zeit-Dialog festgelegt hat, folgt sie
+    // der Start-Zeit (auch wenn diese erst später über einen Schnellauswahl-Chip wie "Spät" gesetzt
+    // wird) – sonst bliebe sie beim anfänglichen Default (6 Uhr) hängen, während die Schicht z. B.
+    // auf 14 Uhr umgestellt wird.
+    LaunchedEffect(startHour, startMinute) {
+        if (!wakeupAlarmCustomized) {
+            wakeupAlarmHour = startHour
+            wakeupAlarmMinute = startMinute
+        }
+    }
 
     fun save() {
         val durationMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute)
@@ -292,7 +305,7 @@ fun ShiftEditDialog(
         NocturnTimePickerDialog(
             initialHour = wakeupAlarmHour,
             initialMinute = wakeupAlarmMinute,
-            onConfirm = { h, m -> wakeupAlarmHour = h; wakeupAlarmMinute = m; showWakeupAlarmPicker = false },
+            onConfirm = { h, m -> wakeupAlarmHour = h; wakeupAlarmMinute = m; wakeupAlarmCustomized = true; showWakeupAlarmPicker = false },
             onDismiss = { showWakeupAlarmPicker = false }
         )
     }
