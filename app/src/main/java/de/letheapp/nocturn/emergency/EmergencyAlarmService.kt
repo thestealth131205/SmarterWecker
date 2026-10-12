@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.media.audiofx.LoudnessEnhancer
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -16,6 +17,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler
+import de.letheapp.nocturn.sound.LoudnessBooster
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -28,6 +31,13 @@ import javax.inject.Inject
 const val ACTION_EMERGENCY_SOLVED = "de.letheapp.nocturn.action.EMERGENCY_SOLVED"
 /** Broadcast an [EmergencyAlarmActivity]: Bewegung wurde erkannt, Screen kann sich ohne gelöstes Puzzle schließen. */
 const val ACTION_EMERGENCY_AUTO_RESOLVED = "de.letheapp.nocturn.action.EMERGENCY_AUTO_RESOLVED"
+/**
+ * Extra zu [ACTION_EMERGENCY_SOLVED]: true, wenn die Auflösung von erkannter Bewegung kam (siehe
+ * [de.letheapp.nocturn.monitoring.PostAlarmMonitoringService]), false/fehlend bei einem tatsächlich
+ * gelösten Puzzle ohne bestätigte Bewegung. Entscheidet, ob für einen automatischen Schicht-Wecker
+ * ein Wieder-Klingeln geplant wird, siehe [AutomaticShiftRetryScheduler].
+ */
+const val EXTRA_RESOLVED_VIA_MOVEMENT = "extra_resolved_via_movement"
 const val CHANNEL_EMERGENCY = "emergency_alarm"
 const val NOTIFICATION_ID_EMERGENCY = 1003
 private const val ESCALATION_STEP_MILLIS = 30_000L
@@ -43,10 +53,12 @@ class EmergencyAlarmService : Service() {
     @Inject lateinit var soundRepository: SoundRepository
     @Inject lateinit var alarmRepository: AlarmRepository
     @Inject lateinit var ioBrokerRepository: IoBrokerRepository
+    @Inject lateinit var automaticShiftRetryScheduler: AutomaticShiftRetryScheduler
 
     private val scope = CoroutineScope(SupervisorJob())
     private var escalationJob: Job? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var alarmId: Long = -1
     private var isRinging = false
@@ -55,7 +67,17 @@ class EmergencyAlarmService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_EMERGENCY_SOLVED) {
-            stopRinging()
+            val resolvedViaMovement = intent.getBooleanExtra(EXTRA_RESOLVED_VIA_MOVEMENT, false)
+            val solvedAlarmId = alarmId
+            // Erst das ggf. nötige Wieder-Klingeln verbindlich einplanen, DANACH stopRinging()
+            // (stoppt diesen Dienst via stopSelf()) – sonst könnte scope abgebrochen werden,
+            // bevor die DB-Abfrage/AlarmManager-Planung abgeschlossen ist.
+            scope.launch {
+                if (!resolvedViaMovement) {
+                    automaticShiftRetryScheduler.scheduleRetryIfApplicable(solvedAlarmId)
+                }
+                stopRinging()
+            }
             return START_NOT_STICKY
         }
 
@@ -85,18 +107,32 @@ class EmergencyAlarmService : Service() {
 
     private fun playSound() {
         mediaPlayer?.release()
-        mediaPlayer = MediaPlayer().apply {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+        val uri = soundRepository.defaultAlarmSoundUri()
+        val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
-            setDataSource(this@EmergencyAlarmService, soundRepository.defaultAlarmSoundUri())
+            setDataSource(this@EmergencyAlarmService, uri)
             isLooping = true
             setVolume(0.7f, 0.7f)
             prepare()
             start()
+        }
+        mediaPlayer = player
+        // Lautheits-Analyse dekodiert kurz Audio (blockierend) – nicht direkt hier, da playSound()
+        // aus onStartCommand() (Main-Thread) aufgerufen wird; stattdessen im Hintergrund nachziehen.
+        scope.launch {
+            val enhancer = LoudnessBooster.attach(this@EmergencyAlarmService, uri, player.audioSessionId)
+            if (mediaPlayer === player) {
+                loudnessEnhancer = enhancer
+            } else {
+                enhancer?.release()
+            }
         }
     }
 
@@ -122,6 +158,8 @@ class EmergencyAlarmService : Service() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
         wakeLock?.takeIf { it.isHeld }?.release()
         stopForegroundCompat()
         stopSelf()

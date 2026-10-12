@@ -93,6 +93,26 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Kalenderänderung (Rotation zugewiesen, Schicht gespeichert/gelöscht, Einzel-Schicht
      eingetragen) sowie beim App-Start automatisch auf die jeweils nächste passende Schicht
      aktualisiert (`ShiftWakeupAlarmSyncer`).
+   - **Vorprüfung vor dem automatischen Klingeln**: `AlarmScheduler` plant für einen solchen
+     automatischen Schicht-Wecker zusätzlich 2 Minuten vor der Weckzeit einen
+     `PreAlarmMovementCheckService` (Foreground Service, gestartet über `PreAlarmCheckReceiver`),
+     der alle 20 Sekunden für 3 Sekunden per Gyroskop/Beschleunigungssensor prüft, ob der Nutzer
+     bereits aufgestanden ist (kürzere Sustained-Schwelle als beim Stop-Tasten-Check, da das
+     Prüffenster selbst nur 3 s lang ist). Wird Bewegung bestätigt, sagt er den eigentlichen Alarm
+     ab (`AlarmScheduler.cancel`) und zeigt statt des Klingelns eine "Wecken geskippt"-
+     Benachrichtigung; bleibt es bis zur Weckzeit ohne Bewegung, klingelt der Alarm normal.
+   - **Kein Freifahrtschein durch bloßes Lösen des Notfall-Puzzles**: Wird bei einem solchen
+     automatischen Schicht-Wecker das Notfall-Puzzle gelöst, OHNE dass `PostAlarmMonitoringService`
+     zuvor echte Bewegung bestätigt hat, plant `AutomaticShiftRetryScheduler` ein Wieder-Klingeln zu
+     einem zufälligen späteren Zeitpunkt innerhalb des an der Schicht konfigurierten Fensters
+     ("Frühestes Wecken" bis "Spätestens aufstehen", spätestens aber der Schichtbeginn selbst).
+     `AutoShiftRetryService` (ausgelöst über `AutoShiftRetryReceiver`) prüft davor noch einmal kurz
+     per Sensorik, ob der Nutzer inzwischen doch aufgestanden ist — falls ja, nur eine
+     Benachrichtigung statt erneutem Klingeln, falls nein klingelt derselbe Alarm erneut, als wäre
+     es das erste Mal (inkl. eigener Stop-Bewegungsprüfung und ggf. erneutem Notfall-Alarm). Ist das
+     Fenster bereits vorbei, entfällt das Wieder-Klingeln und das gelöste Puzzle beendet den Alarm
+     wie gewohnt endgültig. Dafür merkt sich `AlarmEntity.autoShiftWakeupShiftId` die Quell-Schicht
+     des automatischen Weckers (Schema-Version 13, echte Migration in `DatabaseModule.kt`).
 
 6. **Kalender:**
    - Eingebauter Kalender, der die Schichtrotation visualisiert. Funktionsumfang
@@ -435,6 +455,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `TYPE_GYROSCOPE`, ggf. Schrittzähler-Sensor `TYPE_STEP_COUNTER`/`TYPE_STEP_DETECTOR`.
 - Alarm-Zuverlässigkeit: `AlarmManager` (exact alarms) + Foreground Service während der
   Überwachungsphase (Sensorik darf nicht durch Doze/Battery-Optimizations gekillt werden).
+- **Lautstärke-Boost für leise Wecktöne** (Package `sound`, `LoudnessBooster`): `MediaPlayer.setVolume()`
+  kann einen leise aufgenommenen Ton nur bis zum Aufnahmepegel abschwächen, nie darüber hinaus
+  verstärken — ein leiser Ton bliebe also auch bei voller Lautstärke zu leise zum Aufwecken. Pro
+  Weckton-URI wird daher einmalig grob die durchschnittliche Lautheit geschätzt (RMS über die
+  ersten ~3 Sekunden dekodierter PCM-Samples via `MediaExtractor`/`MediaCodec`, keine echte
+  LUFS-Messung, aber für die Boost-Entscheidung ausreichend, Ergebnis pro URI gecacht). Liegt sie
+  unter einem Schwellwert, wird ein `android.media.audiofx.LoudnessEnhancer` auf die Audio-Session
+  von `AlarmRingingService`/`EmergencyAlarmService` gelegt, mit mind. 3 dB und max. 15 dB Boost
+  (Deckel gegen Verzerrung/Rauschen bei nahezu stillen Clips).
 - Kalendersync: Google Calendar API (OAuth, geplant) + eigener, schlanker CalDAV-Client für
   Nextcloud (umgesetzt, Package `sync`) — bewusst ohne dav4jvm/biweekly o. Ä., sondern mit
   OkHttp (WebDAV PROPFIND/REPORT/PUT/DELETE) und handgerolltem ICS-Reader/Writer (RFC-5545-

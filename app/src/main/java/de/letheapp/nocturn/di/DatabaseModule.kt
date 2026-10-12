@@ -2,6 +2,8 @@ package de.letheapp.nocturn.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,10 +30,22 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    /**
+     * Ergänzt [de.letheapp.nocturn.data.db.AlarmEntity.autoShiftWakeupShiftId] (siehe
+     * [de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler]) — eine reine
+     * Spalten-Erweiterung, bestehende Zeilen bekommen NULL.
+     */
+    private val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE alarms ADD COLUMN autoShiftWakeupShiftId INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
+            .addMigrations(MIGRATION_12_13)
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
             // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN

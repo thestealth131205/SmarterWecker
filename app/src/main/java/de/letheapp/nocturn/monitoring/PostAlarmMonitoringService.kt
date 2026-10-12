@@ -13,6 +13,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.emergency.ACTION_EMERGENCY_AUTO_RESOLVED
 import de.letheapp.nocturn.emergency.ACTION_EMERGENCY_SOLVED
+import de.letheapp.nocturn.emergency.EXTRA_RESOLVED_VIA_MOVEMENT
 import de.letheapp.nocturn.emergency.EmergencyAlarmActivity
 import de.letheapp.nocturn.emergency.EmergencyAlarmService
 import kotlinx.coroutines.CoroutineScope
@@ -60,7 +61,9 @@ class PostAlarmMonitoringService : Service() {
 
     private fun onMovementConfirmed() {
         startService(
-            Intent(this, EmergencyAlarmService::class.java).setAction(ACTION_EMERGENCY_SOLVED)
+            Intent(this, EmergencyAlarmService::class.java)
+                .setAction(ACTION_EMERGENCY_SOLVED)
+                .putExtra(EXTRA_RESOLVED_VIA_MOVEMENT, true)
         )
         sendBroadcast(Intent(ACTION_EMERGENCY_AUTO_RESOLVED).setPackage(packageName))
         stopSelfCleanly()

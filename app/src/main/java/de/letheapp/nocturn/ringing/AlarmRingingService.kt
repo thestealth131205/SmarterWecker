@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.IBinder
 import android.os.PowerManager
@@ -22,6 +23,8 @@ import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.emergency.EmergencyAlarmService
 import de.letheapp.nocturn.monitoring.PostAlarmMonitoringService
 import de.letheapp.nocturn.monitoring.SensorMovementMonitorFactory
+import de.letheapp.nocturn.monitoring.quickCheck
+import de.letheapp.nocturn.sound.LoudnessBooster
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +33,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -64,6 +66,7 @@ class AlarmRingingService : Service() {
     private val scope = CoroutineScope(SupervisorJob())
     private var escalationJob: Job? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarmId: Long = -1
     private var currentVolume = 0.4f
@@ -103,7 +106,9 @@ class AlarmRingingService : Service() {
 
     private fun playSound(uri: Uri) {
         mediaPlayer?.release()
-        mediaPlayer = MediaPlayer().apply {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+        val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ALARM)
@@ -116,6 +121,8 @@ class AlarmRingingService : Service() {
             prepare()
             start()
         }
+        mediaPlayer = player
+        loudnessEnhancer = LoudnessBooster.attach(this, uri, player.audioSessionId)
     }
 
     /**
@@ -215,27 +222,7 @@ class AlarmRingingService : Service() {
         mediaPlayer?.setVolume(0.05f, 0.05f)
         delay(Random.nextLong(STOP_PAUSE_MIN_MILLIS, STOP_PAUSE_MAX_MILLIS + 1))
         mediaPlayer?.setVolume(currentVolume, currentVolume)
-
-        return suspendCancellableCoroutine { cont ->
-            val monitor = sensorMovementMonitorFactory.create()
-            var finished = false
-            fun finish(result: Boolean) {
-                if (finished) return
-                finished = true
-                monitor.stop()
-                if (cont.isActive) cont.resumeWith(Result.success(result))
-            }
-
-            monitor.start { finish(true) }
-            val timeoutJob = scope.launch(Dispatchers.Main) {
-                delay(STOP_QUICK_CHECK_WINDOW_MILLIS)
-                finish(false)
-            }
-            cont.invokeOnCancellation {
-                timeoutJob.cancel()
-                monitor.stop()
-            }
-        }
+        return sensorMovementMonitorFactory.quickCheck(scope, STOP_QUICK_CHECK_WINDOW_MILLIS)
     }
 
     private fun stopSoundAndEscalation() {
@@ -243,6 +230,8 @@ class AlarmRingingService : Service() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
     }
 
     private fun acquireWakeLock() {

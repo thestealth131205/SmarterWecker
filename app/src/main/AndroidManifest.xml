@@ -143,6 +143,18 @@
             android:name=".calendar.AppointmentReminderReceiver"
             android:exported="false" />
 
+        <!--
+            Vorprüfung vor dem automatischen Schicht-Wecker sowie Wieder-Klingeln nach ohne
+            Bewegung gelöstem Notfall-Puzzle (siehe AlarmScheduler/AutomaticShiftRetryScheduler).
+        -->
+        <receiver
+            android:name=".monitoring.PreAlarmCheckReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".monitoring.AutoShiftRetryReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".alarm.BootReceiver"
             android:exported="true">
@@ -189,6 +201,16 @@
             android:name=".emergency.EmergencyAlarmService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <service
+            android:name=".monitoring.PreAlarmMovementCheckService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <service
+            android:name=".monitoring.AutoShiftRetryService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
 
         <!--
             NocturnApplication initialisiert WorkManager selbst on-demand (Configuration.Provider

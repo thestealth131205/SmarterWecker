@@ -31,7 +31,14 @@ data class AlarmEntity(
      * die [hour]/[minute]/[label] aktuell stehen. Wird bei jeder Kalenderänderung neu berechnet,
      * nicht manuell vom Nutzer gepflegt. Null = ein normaler, manuell angelegter Alarm.
      */
-    val autoShiftWakeupEpochDay: Long? = null
+    val autoShiftWakeupEpochDay: Long? = null,
+    /**
+     * Die [ShiftEntity.id], aus der [autoShiftWakeupEpochDay] abgeleitet wurde — ermöglicht es,
+     * beim Wieder-Klingeln nach einem ohne Bewegung gelösten Notfall-Puzzle (siehe
+     * [de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler]) das "Frühestes Wecken"/
+     * "Spätestens aufstehen"-Fenster der Schicht nachzuschlagen. Null bei normalen Alarmen.
+     */
+    val autoShiftWakeupShiftId: Long? = null
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */

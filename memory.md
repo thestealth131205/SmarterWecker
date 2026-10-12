@@ -605,3 +605,22 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   Action/Component/Daten — alle drei Klick-Ziele brauchen daher unterschiedliche
   `requestCode`-Werte, sonst würde `FLAG_UPDATE_CURRENT` sie gegenseitig überschreiben.
 - Noch **nicht committet/gepusht** (Standing-Regel, gilt nur für die beiden App-Repos).
+- **Automatischer Schicht-Wecker: Vorprüfung + Wieder-Klingeln ohne Bewegung** (neu, nicht
+  committet/gepusht): `AlarmEntity` hat ein neues Feld `autoShiftWakeupShiftId` (Quell-Schicht des
+  automatischen Weckers), Schema-Version 13 mit echter `Migration(12, 13)` in `DatabaseModule.kt`
+  (Pflicht laut CLAUDE.md, da reale Nutzdaten existieren).
+  - `PreAlarmMovementCheckService`/`PreAlarmCheckReceiver`: ab 2 Minuten vor dem Klingeln alle 20 s
+    für 3 s per Sensor prüfen, ob schon aufgestanden — wenn ja, Alarm abgesagt + "Wecken
+    geskippt"-Notification, statt normal zu klingeln.
+  - `AutomaticShiftRetryScheduler`/`AutoShiftRetryService`/`AutoShiftRetryReceiver`: wird das
+    Notfall-Puzzle gelöst, OHNE dass Bewegung erkannt wurde (Unterscheidung über neues Extra
+    `EXTRA_RESOLVED_VIA_MOVEMENT` an `ACTION_EMERGENCY_SOLVED`), klingelt derselbe Alarm zu
+    zufälliger Zeit innerhalb des Schicht-Fensters ("Frühestes Wecken" bis "Spätestens aufstehen",
+    spätestens Schichtbeginn) noch einmal, nach kurzer erneuter Sensor-Prüfung.
+  - Gemeinsame Grundlage für alle kurzen Bewegungs-Checks jetzt `SensorMovementMonitorFactory.
+    quickCheck()` (neue Datei `QuickMovementCheck.kt`) — `AlarmRingingService.pauseAndCheckMovement`
+    wurde darauf umgestellt (Verhalten unverändert), um Triplizierung zu vermeiden.
+  - `SensorMovementMonitor`/`-Factory` haben jetzt einen konfigurierbaren
+    `sustainedMovementMillis`-Parameter (Default `DEFAULT_SUSTAINED_MOVEMENT_MILLIS` = 3500 ms wie
+    bisher) statt eines fest verdrahteten Werts, damit die Vorprüfung ihr kürzeres 3-s-Fenster
+    sinnvoll nutzen kann.

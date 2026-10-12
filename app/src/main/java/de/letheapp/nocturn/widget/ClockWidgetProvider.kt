@@ -30,6 +30,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 private const val ACTION_TICK = "de.letheapp.nocturn.widget.ACTION_CLOCK_TICK"
+private const val TICK_INTERVAL_MILLIS = 20 * 60_000L
 private const val AGENDA_SHOWN_COUNT = 2
 private val DATE_FORMATTER = DateTimeFormatter.ofPattern("EEE, d. MMM", Locale.GERMAN)
 private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
@@ -52,10 +53,10 @@ private val AGENDA_ROW_SPECS = listOf(
  * nächsten [AGENDA_SHOWN_COUNT] anstehenden Kalendereinträge, mit einer "+N"-Angabe, falls am
  * Tag des zuletzt gezeigten Eintrags noch weitere anstehen.
  *
- * Da offizielle Widget-Updates (`updatePeriodMillis`) minütlich nicht zuverlässig genug sind,
- * stößt sich das Widget selbst per [AlarmManager.setRepeating] jede Minute neu an. Das Wetter
- * wird dabei nicht bei jedem Tick neu abgefragt, sondern von [WeatherRepository] selbst 30
- * Minuten lang gecacht.
+ * Da offizielle Widget-Updates (`updatePeriodMillis`) nicht zuverlässig genug sind, stößt sich
+ * das Widget selbst per [AlarmManager.setRepeating] alle 20 Minuten neu an. Das Wetter wird dabei
+ * nicht bei jedem Tick neu abgefragt, sondern von [WeatherRepository] selbst 30 Minuten lang
+ * gecacht.
  */
 @AndroidEntryPoint
 class ClockWidgetProvider : AppWidgetProvider() {
@@ -196,8 +197,8 @@ class ClockWidgetProvider : AppWidgetProvider() {
 
     private fun scheduleTicks(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val firstTriggerAt = (System.currentTimeMillis() / 60_000L + 1) * 60_000L
-        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, 60_000L, tickPendingIntent(context))
+        val firstTriggerAt = (System.currentTimeMillis() / TICK_INTERVAL_MILLIS + 1) * TICK_INTERVAL_MILLIS
+        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, TICK_INTERVAL_MILLIS, tickPendingIntent(context))
     }
 
     private fun tickPendingIntent(context: Context): PendingIntent {

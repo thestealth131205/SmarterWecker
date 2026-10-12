@@ -1,8 +1,10 @@
 package de.letheapp.nocturn.widget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.view.View
@@ -21,6 +23,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 
+private const val ACTION_TICK = "de.letheapp.nocturn.widget.ACTION_CALENDAR_TICK"
+private const val TICK_INTERVAL_MILLIS = 20 * 60_000L
 private const val MAX_AGENDA_ITEMS = 4
 
 private data class CalendarAgendaRowIds(val rowId: Int, val dotId: Int, val timeId: Int, val labelId: Int)
@@ -39,6 +43,10 @@ private val WEEKDAY_FORMATTER = DateTimeFormatter.ofPattern("EEE", Locale.GERMAN
  * Schichten (aus Rotationen) und freien Termine als kleine Agenda. Nutzt denselben
  * Hilt-`@AndroidEntryPoint`-auf-BroadcastReceiver-Ansatz wie [de.letheapp.nocturn.alarm.BootReceiver],
  * da `AppWidgetProvider` selbst ein `BroadcastReceiver` ist.
+ *
+ * Androids `updatePeriodMillis` wird vom System ohnehin auf minimal 30 Minuten gedeckelt, daher
+ * stößt sich das Widget wie das Uhr-Widget ([ClockWidgetProvider]) selbst per
+ * [AlarmManager.setRepeating] alle 20 Minuten neu an.
  */
 @AndroidEntryPoint
 class CalendarWidgetProvider : AppWidgetProvider() {
@@ -46,15 +54,51 @@ class CalendarWidgetProvider : AppWidgetProvider() {
     @Inject lateinit var calendarRepository: CalendarRepository
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { refreshWidget(context, appWidgetManager, it) }
+        scheduleTicks(context)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == ACTION_TICK) {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, CalendarWidgetProvider::class.java))
+            ids.forEach { refreshWidget(context, appWidgetManager, it) }
+        }
+    }
+
+    override fun onEnabled(context: Context) {
+        scheduleTicks(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(tickPendingIntent(context))
+    }
+
+    private fun refreshWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val agenda = calendarRepository.getUpcomingAgenda(MAX_AGENDA_ITEMS)
-                appWidgetIds.forEach { updateWidget(context, appWidgetManager, it, agenda) }
+                updateWidget(context, appWidgetManager, widgetId, agenda)
             } finally {
                 pendingResult.finish()
             }
         }
+    }
+
+    private fun scheduleTicks(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val firstTriggerAt = (System.currentTimeMillis() / TICK_INTERVAL_MILLIS + 1) * TICK_INTERVAL_MILLIS
+        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, TICK_INTERVAL_MILLIS, tickPendingIntent(context))
+    }
+
+    private fun tickPendingIntent(context: Context): PendingIntent {
+        val intent = Intent(context, CalendarWidgetProvider::class.java).apply { action = ACTION_TICK }
+        return PendingIntent.getBroadcast(
+            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun updateWidget(

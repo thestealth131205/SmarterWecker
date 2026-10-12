@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.monitoring.AutoShiftRetryReceiver
+import de.letheapp.nocturn.monitoring.EXTRA_MAIN_TRIGGER_AT_MILLIS
+import de.letheapp.nocturn.monitoring.PreAlarmCheckReceiver
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -14,6 +17,17 @@ import javax.inject.Singleton
 
 const val EXTRA_ALARM_ID = "extra_alarm_id"
 const val EXTRA_IS_SNOOZE = "extra_is_snooze"
+
+/**
+ * Wie weit vor dem Klingeln eines automatischen Schicht-Weckers (siehe
+ * [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]) die periodische Vorprüfung
+ * ([de.letheapp.nocturn.monitoring.PreAlarmMovementCheckService]) zu laufen beginnt.
+ */
+private const val PRE_CHECK_LEAD_MILLIS = 2 * 60_000L
+
+/** Getrennte Request-Codes, damit Vorprüfung/Wieder-Klingeln nicht mit dem Haupt-Alarm kollidieren. */
+private const val PRE_CHECK_REQUEST_CODE_OFFSET = 2_000_000
+private const val RETRY_REQUEST_CODE_OFFSET = 3_000_000
 
 @Singleton
 class AlarmScheduler @Inject constructor(
@@ -36,8 +50,23 @@ class AlarmScheduler @Inject constructor(
             cancel(alarm.id)
             return
         }
-        val triggerAtMillis = nextTriggerMillis(alarm) ?: return
+        // Ein frisch geplanter Ring-Zyklus macht ein eventuell noch ausstehendes Wieder-Klingeln
+        // (siehe AutomaticShiftRetryScheduler) aus einem vorherigen Zyklus desselben Alarms
+        // ungültig – sonst könnte es für eine inzwischen andere Schicht-Belegung auslösen.
+        cancelAutomaticRetry(alarm.id)
+
+        val triggerAtMillis = nextTriggerMillis(alarm)
+        if (triggerAtMillis == null) {
+            cancelPreCheck(alarm.id)
+            return
+        }
         scheduleExact(alarm.id, triggerAtMillis, isSnooze = false)
+
+        if (alarm.autoShiftWakeupEpochDay != null) {
+            schedulePreCheck(alarm.id, triggerAtMillis)
+        } else {
+            cancelPreCheck(alarm.id)
+        }
     }
 
     private suspend fun nextTriggerMillis(alarm: AlarmEntity): Long? {
@@ -66,6 +95,48 @@ class AlarmScheduler @Inject constructor(
 
     fun cancel(alarmId: Long) {
         alarmManager.cancel(pendingIntentFor(alarmId))
+        cancelPreCheck(alarmId)
+        cancelAutomaticRetry(alarmId)
+    }
+
+    /**
+     * Startet [de.letheapp.nocturn.monitoring.PreAlarmMovementCheckService] [PRE_CHECK_LEAD_MILLIS]
+     * vor dem eigentlichen Klingeln eines automatischen Schicht-Weckers. Liegt der Vorprüf-
+     * Zeitpunkt bereits in der Vergangenheit (sehr naher Alarm), entfällt die Vorprüfung.
+     */
+    private fun schedulePreCheck(alarmId: Long, mainTriggerAtMillis: Long) {
+        val preCheckTriggerAtMillis = mainTriggerAtMillis - PRE_CHECK_LEAD_MILLIS
+        if (preCheckTriggerAtMillis <= System.currentTimeMillis()) {
+            cancelPreCheck(alarmId)
+            return
+        }
+        val pendingIntent = preCheckPendingIntentFor(alarmId, mainTriggerAtMillis)
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, preCheckTriggerAtMillis, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, preCheckTriggerAtMillis, pendingIntent)
+        }
+    }
+
+    private fun cancelPreCheck(alarmId: Long) {
+        alarmManager.cancel(preCheckPendingIntentFor(alarmId, 0L))
+    }
+
+    /**
+     * Plant das Wieder-Klingeln eines automatischen Schicht-Weckers nach einem ohne Bewegung
+     * gelösten Notfall-Puzzle, siehe [de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler].
+     */
+    fun scheduleAutomaticRetry(alarmId: Long, triggerAtMillis: Long) {
+        val pendingIntent = retryPendingIntentFor(alarmId)
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        }
+    }
+
+    private fun cancelAutomaticRetry(alarmId: Long) {
+        alarmManager.cancel(retryPendingIntentFor(alarmId))
     }
 
     private fun scheduleExact(alarmId: Long, triggerAtMillis: Long, isSnooze: Boolean) {
@@ -88,6 +159,31 @@ class AlarmScheduler @Inject constructor(
         return PendingIntent.getBroadcast(
             context,
             alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun preCheckPendingIntentFor(alarmId: Long, mainTriggerAtMillis: Long): PendingIntent {
+        val intent = Intent(context, PreAlarmCheckReceiver::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_MAIN_TRIGGER_AT_MILLIS, mainTriggerAtMillis)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            PRE_CHECK_REQUEST_CODE_OFFSET + alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun retryPendingIntentFor(alarmId: Long): PendingIntent {
+        val intent = Intent(context, AutoShiftRetryReceiver::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, alarmId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            RETRY_REQUEST_CODE_OFFSET + alarmId.toInt(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

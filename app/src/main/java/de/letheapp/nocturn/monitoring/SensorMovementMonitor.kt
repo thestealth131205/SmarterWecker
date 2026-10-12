@@ -16,9 +16,12 @@ private const val GYRO_MAGNITUDE_THRESHOLD = 1.2f
 /**
  * Wie lange ununterbrochen Bewegung erkannt werden muss, bevor sie als "aufgestanden/läuft"
  * gilt. Verhindert, dass ein einzelnes kurzes Aufschütteln des Geräts (z. B. beim Greifen nach
- * dem Handy zum Stop-Drücken) fälschlich als Aufstehen gewertet wird.
+ * dem Handy zum Stop-Drücken) fälschlich als Aufstehen gewertet wird. Gilt als Default für den
+ * Stop-Tasten- und Wieder-Klingeln-Check; die kurze periodische Vorprüfung vor dem automatischen
+ * Schicht-Wecker (siehe [PreAlarmMovementCheckService]) nutzt bewusst einen kürzeren Wert, da ihr
+ * Prüffenster selbst nur 3 Sekunden lang ist.
  */
-private const val SUSTAINED_MOVEMENT_MILLIS = 3_500L
+const val DEFAULT_SUSTAINED_MOVEMENT_MILLIS = 3_500L
 
 /** Pause zwischen zwei Sensor-Ausschlägen, bis eine angefangene Bewegungs-Serie als abgebrochen gilt. */
 private const val MOVEMENT_GAP_TOLERANCE_MILLIS = 600L
@@ -27,10 +30,13 @@ private const val MOVEMENT_GAP_TOLERANCE_MILLIS = 600L
  * Bewegungserkennung ohne Health Connect (z.B. kein verbundenes Wearable): zählt Schritte über
  * den Schrittzähler-Sensor seit dem Start der Überwachung, ergänzt um Beschleunigungs- und
  * Gyroskop-Auswertung für Geräte ohne Schrittzähler bzw. als Zusatzsignal. Bestätigt wird erst,
- * wenn die Bewegung mindestens [SUSTAINED_MOVEMENT_MILLIS] ununterbrochen anhält — ein kurzer
+ * wenn die Bewegung mindestens [sustainedMovementMillis] ununterbrochen anhält — ein kurzer
  * Ausschlag allein reicht nicht.
  */
-class SensorMovementMonitor(context: Context) : MovementMonitor {
+class SensorMovementMonitor(
+    context: Context,
+    private val sustainedMovementMillis: Long = DEFAULT_SUSTAINED_MOVEMENT_MILLIS
+) : MovementMonitor {
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private var onConfirmed: (() -> Unit)? = null
@@ -96,7 +102,7 @@ class SensorMovementMonitor(context: Context) : MovementMonitor {
             return
         }
         val elapsedSinceStart = SystemClock.elapsedRealtime() - monitoringStartElapsedMillis
-        if (totalStepsSinceBoot - baseline >= STEP_THRESHOLD && elapsedSinceStart >= SUSTAINED_MOVEMENT_MILLIS) {
+        if (totalStepsSinceBoot - baseline >= STEP_THRESHOLD && elapsedSinceStart >= sustainedMovementMillis) {
             confirm()
         }
     }
@@ -112,7 +118,7 @@ class SensorMovementMonitor(context: Context) : MovementMonitor {
         }
         lastMovementEventElapsedMillis = now
 
-        if (now - movementStreakStartElapsedMillis!! >= SUSTAINED_MOVEMENT_MILLIS) {
+        if (now - movementStreakStartElapsedMillis!! >= sustainedMovementMillis) {
             confirm()
         }
     }
@@ -124,5 +130,6 @@ class SensorMovementMonitor(context: Context) : MovementMonitor {
 }
 
 class SensorMovementMonitorFactory @Inject constructor(@ApplicationContext private val context: Context) {
-    fun create(): SensorMovementMonitor = SensorMovementMonitor(context)
+    fun create(sustainedMovementMillis: Long = DEFAULT_SUSTAINED_MOVEMENT_MILLIS): SensorMovementMonitor =
+        SensorMovementMonitor(context, sustainedMovementMillis)
 }

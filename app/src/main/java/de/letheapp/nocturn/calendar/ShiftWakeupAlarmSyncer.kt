@@ -80,7 +80,8 @@ class ShiftWakeupAlarmSyncer @Inject constructor(
             label = "Schicht: ${shift.name}",
             rotationId = null,
             timetableJobId = null,
-            autoShiftWakeupEpochDay = dateEpochDay
+            autoShiftWakeupEpochDay = dateEpochDay,
+            autoShiftWakeupShiftId = shift.id
         )
         val id = alarmRepository.save(alarm)
         alarmScheduler.schedule(alarm.copy(id = id))
