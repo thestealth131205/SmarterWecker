@@ -504,9 +504,16 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - Home-Screen-Widgets (Kernfunktion 7): klassische `AppWidgetProvider`/`RemoteViews`
   statt Jetpack Glance, um keine zusätzliche Abhängigkeit einzuführen (FOSS-Minimalismus-
   Leitlinie) — für zwei einfache, überwiegend statische Widgets reicht das. Uhr-Widget
-  stößt sich minütlich per `AlarmManager.setRepeating` selbst neu an (offizielle
-  `updatePeriodMillis`-Updates sind auf 30-Minuten-Minimum begrenzt); "nächster Alarm"
-  kommt direkt von `AlarmManager.getNextAlarmClock()` statt aus der eigenen DB, da
+  stößt sich per `AlarmManager.setRepeating` selbst neu an (offizielle
+  `updatePeriodMillis`-Updates sind auf 30-Minuten-Minimum begrenzt) — bewusst in zwei
+  getrennten Takten: Datum/Uhrzeit jede Minute per günstigem
+  `AppWidgetManager.partiallyUpdateAppWidget` (kein Netzwerk-/DB-Zugriff), Wetter und
+  Kalender-Agenda nur alle 20 Minuten über den vollen, asynchronen Refresh — sonst hätte
+  die Uhrzeit sichtbar nachgehinkt, nur weil sie am selben Takt wie die teureren
+  Netzwerk-/DB-Abfragen hing. `android:previewImage` in `clock_widget_info.xml` zeigt im
+  Android-Widget-Auswahlmenü einen echten Screenshot des Widgets, da die automatische
+  Vorschau-Generierung aus dem Layout (seit Android 12) für dieses Widget leer blieb.
+  "nächster Alarm" kommt direkt von `AlarmManager.getNextAlarmClock()` statt aus der eigenen DB, da
   `AlarmScheduler` Alarme bereits über `setAlarmClock` plant. Kalender-Widget liest
   `CalendarRepository.getUpcomingAgenda(...)` per Hilt-`@AndroidEntryPoint` auf dem
   `AppWidgetProvider` (gleiches Pattern wie bei `BootReceiver`/`AlarmReceiver`, da

@@ -29,8 +29,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import javax.inject.Inject
 
-private const val ACTION_TICK = "de.letheapp.nocturn.widget.ACTION_CLOCK_TICK"
-private const val TICK_INTERVAL_MILLIS = 20 * 60_000L
+private const val ACTION_CLOCK_TICK = "de.letheapp.nocturn.widget.ACTION_CLOCK_TICK"
+private const val ACTION_DATA_TICK = "de.letheapp.nocturn.widget.ACTION_DATA_TICK"
+private const val CLOCK_TICK_INTERVAL_MILLIS = 60_000L
+private const val DATA_TICK_INTERVAL_MILLIS = 20 * 60_000L
 private const val AGENDA_SHOWN_COUNT = 2
 private val DATE_FORMATTER = DateTimeFormatter.ofPattern("EEE, d. MMM", Locale.GERMAN)
 private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
@@ -53,10 +55,12 @@ private val AGENDA_ROW_SPECS = listOf(
  * nächsten [AGENDA_SHOWN_COUNT] anstehenden Kalendereinträge, mit einer "+N"-Angabe, falls am
  * Tag des zuletzt gezeigten Eintrags noch weitere anstehen.
  *
- * Da offizielle Widget-Updates (`updatePeriodMillis`) nicht zuverlässig genug sind, stößt sich
- * das Widget selbst per [AlarmManager.setRepeating] alle 20 Minuten neu an. Das Wetter wird dabei
- * nicht bei jedem Tick neu abgefragt, sondern von [WeatherRepository] selbst 30 Minuten lang
- * gecacht.
+ * Da offizielle Widget-Updates (`updatePeriodMillis`) nicht zuverlässig genug sind, stößt sich das
+ * Widget selbst per [AlarmManager.setRepeating] an — dabei getrennt in zwei Takte: Datum/Uhrzeit
+ * aktualisieren sich jede Minute per günstigem [AppWidgetManager.partiallyUpdateAppWidget] (kein
+ * Netzwerk-/DB-Zugriff nötig), Wetter und Kalender-Agenda dagegen nur alle 20 Minuten über den
+ * vollen, asynchronen Refresh. Das Wetter wird dabei nicht bei jedem Tick neu abgefragt, sondern
+ * von [WeatherRepository] selbst 30 Minuten lang gecacht.
  */
 @AndroidEntryPoint
 class ClockWidgetProvider : AppWidgetProvider() {
@@ -71,10 +75,17 @@ class ClockWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_TICK) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, ClockWidgetProvider::class.java))
-            ids.forEach { refreshWidget(context, appWidgetManager, it) }
+        when (intent.action) {
+            ACTION_CLOCK_TICK -> {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, ClockWidgetProvider::class.java))
+                ids.forEach { refreshClockOnly(context, appWidgetManager, it) }
+            }
+            ACTION_DATA_TICK -> {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, ClockWidgetProvider::class.java))
+                ids.forEach { refreshWidget(context, appWidgetManager, it) }
+            }
         }
     }
 
@@ -84,7 +95,16 @@ class ClockWidgetProvider : AppWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.cancel(tickPendingIntent(context))
+        alarmManager.cancel(clockTickPendingIntent(context))
+        alarmManager.cancel(dataTickPendingIntent(context))
+    }
+
+    private fun refreshClockOnly(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
+        val views = RemoteViews(context.packageName, R.layout.widget_clock)
+        val now = LocalDateTime.now()
+        views.setTextViewText(R.id.widget_clock_date, DATE_FORMATTER.format(now))
+        views.setTextViewText(R.id.widget_clock_time, TIME_FORMATTER.format(now))
+        appWidgetManager.partiallyUpdateAppWidget(widgetId, views)
     }
 
     private fun refreshWidget(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
@@ -197,14 +217,29 @@ class ClockWidgetProvider : AppWidgetProvider() {
 
     private fun scheduleTicks(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val firstTriggerAt = (System.currentTimeMillis() / TICK_INTERVAL_MILLIS + 1) * TICK_INTERVAL_MILLIS
-        alarmManager.setRepeating(AlarmManager.RTC, firstTriggerAt, TICK_INTERVAL_MILLIS, tickPendingIntent(context))
+        val firstClockTriggerAt =
+            (System.currentTimeMillis() / CLOCK_TICK_INTERVAL_MILLIS + 1) * CLOCK_TICK_INTERVAL_MILLIS
+        alarmManager.setRepeating(
+            AlarmManager.RTC, firstClockTriggerAt, CLOCK_TICK_INTERVAL_MILLIS, clockTickPendingIntent(context)
+        )
+        val firstDataTriggerAt =
+            (System.currentTimeMillis() / DATA_TICK_INTERVAL_MILLIS + 1) * DATA_TICK_INTERVAL_MILLIS
+        alarmManager.setRepeating(
+            AlarmManager.RTC, firstDataTriggerAt, DATA_TICK_INTERVAL_MILLIS, dataTickPendingIntent(context)
+        )
     }
 
-    private fun tickPendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, ClockWidgetProvider::class.java).apply { action = ACTION_TICK }
+    private fun clockTickPendingIntent(context: Context): PendingIntent {
+        val intent = Intent(context, ClockWidgetProvider::class.java).apply { action = ACTION_CLOCK_TICK }
         return PendingIntent.getBroadcast(
-            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun dataTickPendingIntent(context: Context): PendingIntent {
+        val intent = Intent(context, ClockWidgetProvider::class.java).apply { action = ACTION_DATA_TICK }
+        return PendingIntent.getBroadcast(
+            context, 2, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 }
