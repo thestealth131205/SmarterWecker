@@ -89,6 +89,9 @@ const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
 const val BIRTHDAY_COLOR_ARGB = 0xFF8E24AA.toInt()
 const val NEON_YELLOW_ARGB = 0xFFEEFF00.toInt()
 
+/** Transparenter, dunkelblauer Zell-Hintergrund für Feiertage in der Monatsansicht (siehe [PUBLIC_HOLIDAY_COLOR_ARGB] für die weiterhin rote Legende/Tagesansicht-Zeile). */
+const val HOLIDAY_BACKGROUND_ARGB = 0xFF1A237E.toInt()
+
 /** Eine Rotation zur Anzeige in der Seitenleiste, mit dem Namen ihres Jobs zur Unterscheidung. */
 data class RotationOption(val id: Long, val name: String, val jobName: String)
 

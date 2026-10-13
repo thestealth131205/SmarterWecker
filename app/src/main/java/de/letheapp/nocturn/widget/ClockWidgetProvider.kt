@@ -80,6 +80,7 @@ class ClockWidgetProvider : AppWidgetProvider() {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, ClockWidgetProvider::class.java))
                 ids.forEach { refreshClockOnly(context, appWidgetManager, it) }
+                scheduleNextClockTick(context)
             }
             ACTION_DATA_TICK -> {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -216,17 +217,34 @@ class ClockWidgetProvider : AppWidgetProvider() {
     }
 
     private fun scheduleTicks(context: Context) {
+        scheduleNextClockTick(context)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val firstClockTriggerAt =
-            (System.currentTimeMillis() / CLOCK_TICK_INTERVAL_MILLIS + 1) * CLOCK_TICK_INTERVAL_MILLIS
-        alarmManager.setRepeating(
-            AlarmManager.RTC, firstClockTriggerAt, CLOCK_TICK_INTERVAL_MILLIS, clockTickPendingIntent(context)
-        )
         val firstDataTriggerAt =
             (System.currentTimeMillis() / DATA_TICK_INTERVAL_MILLIS + 1) * DATA_TICK_INTERVAL_MILLIS
         alarmManager.setRepeating(
             AlarmManager.RTC, firstDataTriggerAt, DATA_TICK_INTERVAL_MILLIS, dataTickPendingIntent(context)
         )
+    }
+
+    /**
+     * Einzelner, selbst-nachplanender exakter Alarm statt [AlarmManager.setRepeating]: Seit API 19
+     * sind auch RTC-setRepeating-Alarme grundsätzlich ungenau (das System darf jede Auslösung
+     * beliebig verschieben/batchen), und da jede Folge-Auslösung relativ zur tatsächlichen letzten
+     * Auslösung statt zur nominalen Minutengrenze berechnet wird, summiert sich eine einmalige
+     * Verzögerung über die Zeit immer weiter auf - sichtbar als zunehmender Rückstand der
+     * angezeigten Uhrzeit. Jeder Tick plant hier stattdessen frisch gegen die nächste echte
+     * Minutengrenze, wodurch sich eine einzelne Verzögerung nicht fortpflanzt.
+     */
+    private fun scheduleNextClockTick(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val nextTriggerAt =
+            (System.currentTimeMillis() / CLOCK_TICK_INTERVAL_MILLIS + 1) * CLOCK_TICK_INTERVAL_MILLIS
+        val pendingIntent = clockTickPendingIntent(context)
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTriggerAt, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTriggerAt, pendingIntent)
+        }
     }
 
     private fun clockTickPendingIntent(context: Context): PendingIntent {

@@ -32,14 +32,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
+
+private val WEEKDAY_FULL_NAMES = listOf(
+    "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,12 +59,20 @@ fun AlarmEditScreen(
 ) {
     val alarms by viewModel.alarms.collectAsState()
     val rotationOptions by viewModel.rotationOptions.collectAsState()
+    val allShifts by viewModel.allShifts.collectAsState()
     val ioBrokerConnected by viewModel.ioBrokerConnected.collectAsState()
     val ioBrokerDataPoints by viewModel.ioBrokerDataPoints.collectAsState()
     var alarm by remember { mutableStateOf<AlarmEntity?>(null) }
     var showRotationDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showLampDialog by remember { mutableStateOf(false) }
+    var showShiftNarrowDialog by remember { mutableStateOf(false) }
+    var showWeekdayNarrowDialog by remember { mutableStateOf(false) }
+    var pendingRotationId by remember { mutableStateOf<Long?>(null) }
+    var pendingTimetableJobId by remember { mutableStateOf<Long?>(null) }
+    var shiftNarrowOptions by remember { mutableStateOf<List<ShiftEntity>>(emptyList()) }
+    var weekdayNarrowOptions by remember { mutableStateOf<List<Int>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(alarms) {
         if (alarm == null) {
@@ -163,11 +178,19 @@ fun AlarmEditScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Filled.CalendarViewMonth, contentDescription = null)
+                val baseLabel = rotationOptions.find {
+                    it.rotationId == current.rotationId && current.rotationId != null ||
+                        it.timetableJobId == current.timetableJobId && current.timetableJobId != null
+                }?.label ?: "Nicht mit Schicht/Stundenplan verknüpft"
+                val narrowSuffix = when {
+                    current.linkedShiftId != null ->
+                        " · " + (allShifts.find { it.id == current.linkedShiftId }?.name ?: "Schicht")
+                    current.linkedTimetableWeekday != null ->
+                        " · " + WEEKDAY_FULL_NAMES.getOrElse(current.linkedTimetableWeekday) { "" }
+                    else -> ""
+                }
                 Text(
-                    text = rotationOptions.find {
-                        it.rotationId == current.rotationId && current.rotationId != null ||
-                            it.timetableJobId == current.timetableJobId && current.timetableJobId != null
-                    }?.label ?: "Nicht mit Schicht/Stundenplan verknüpft",
+                    text = baseLabel + narrowSuffix,
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
@@ -210,10 +233,77 @@ fun AlarmEditScreen(
             selectedRotationId = current.rotationId,
             selectedTimetableJobId = current.timetableJobId,
             onSelect = { option ->
-                alarm = current.copy(rotationId = option?.rotationId, timetableJobId = option?.timetableJobId)
                 showRotationDialog = false
+                when {
+                    option == null -> {
+                        alarm = current.copy(
+                            rotationId = null, timetableJobId = null,
+                            linkedShiftId = null, linkedTimetableWeekday = null
+                        )
+                    }
+                    option.rotationId != null -> {
+                        val rotationId = option.rotationId
+                        coroutineScope.launch {
+                            val shifts = viewModel.rotationShiftOptions(rotationId)
+                            if (shifts.size <= 1) {
+                                alarm = current.copy(
+                                    rotationId = rotationId, timetableJobId = null,
+                                    linkedShiftId = null, linkedTimetableWeekday = null
+                                )
+                            } else {
+                                pendingRotationId = rotationId
+                                shiftNarrowOptions = shifts
+                                showShiftNarrowDialog = true
+                            }
+                        }
+                    }
+                    else -> {
+                        val timetableJobId = option.timetableJobId!!
+                        coroutineScope.launch {
+                            val weekdays = viewModel.timetableWeekdayOptions(timetableJobId)
+                            if (weekdays.size <= 1) {
+                                alarm = current.copy(
+                                    rotationId = null, timetableJobId = timetableJobId,
+                                    linkedShiftId = null, linkedTimetableWeekday = null
+                                )
+                            } else {
+                                pendingTimetableJobId = timetableJobId
+                                weekdayNarrowOptions = weekdays
+                                showWeekdayNarrowDialog = true
+                            }
+                        }
+                    }
+                }
             },
             onDismiss = { showRotationDialog = false }
+        )
+    }
+
+    if (showShiftNarrowDialog) {
+        ShiftNarrowDialog(
+            shifts = shiftNarrowOptions,
+            onSelect = { shiftId ->
+                alarm = current.copy(
+                    rotationId = pendingRotationId, timetableJobId = null,
+                    linkedShiftId = shiftId, linkedTimetableWeekday = null
+                )
+                showShiftNarrowDialog = false
+            },
+            onDismiss = { showShiftNarrowDialog = false }
+        )
+    }
+
+    if (showWeekdayNarrowDialog) {
+        WeekdayNarrowDialog(
+            weekdays = weekdayNarrowOptions,
+            onSelect = { weekday ->
+                alarm = current.copy(
+                    rotationId = null, timetableJobId = pendingTimetableJobId,
+                    linkedShiftId = null, linkedTimetableWeekday = weekday
+                )
+                showWeekdayNarrowDialog = false
+            },
+            onDismiss = { showWeekdayNarrowDialog = false }
         )
     }
 
@@ -286,6 +376,66 @@ private fun LampDataPointDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Fertig") }
         }
+    )
+}
+
+/**
+ * Zweiter Schritt nach Auswahl einer Rotation in [RotationLinkDialog]: engt den Alarm optional
+ * auf eine einzelne Schicht der Rotation ein (z. B. nur "Frühschicht"), statt an jede Schicht
+ * der Rotation zu koppeln (siehe [AlarmEntity.linkedShiftId]).
+ */
+@Composable
+private fun ShiftNarrowDialog(
+    shifts: List<ShiftEntity>,
+    onSelect: (shiftId: Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Auf eine Schicht einengen?") },
+        text = {
+            Column {
+                TextButton(onClick = { onSelect(null) }) { Text("Jede Schicht dieser Rotation") }
+                shifts.forEach { shift ->
+                    TextButton(onClick = { onSelect(shift.id) }) {
+                        Text(shift.name, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {}
+    )
+}
+
+/**
+ * Zweiter Schritt nach Auswahl eines Stundenplan-Jobs in [RotationLinkDialog]: engt den Alarm
+ * optional auf einen einzelnen Wochentag ein, statt an jeden Unterrichtstag zu koppeln (siehe
+ * [AlarmEntity.linkedTimetableWeekday]).
+ */
+@Composable
+private fun WeekdayNarrowDialog(
+    weekdays: List<Int>,
+    onSelect: (weekday: Int?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Auf einen Wochentag einengen?") },
+        text = {
+            Column {
+                TextButton(onClick = { onSelect(null) }) { Text("Jeder Unterrichtstag") }
+                weekdays.forEach { weekday ->
+                    TextButton(onClick = { onSelect(weekday) }) {
+                        Text(
+                            WEEKDAY_FULL_NAMES.getOrElse(weekday) { "Tag $weekday" },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {}
     )
 }
 

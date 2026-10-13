@@ -1102,12 +1102,14 @@ private fun DayCell(
     val hasPublicHoliday = entries.any { it is HolidayDayEntry && !it.isSchoolHoliday }
     val contentAlpha = if (isCurrentMonth) 1f else 0.35f
     val weekendTint = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = if (isCurrentMonth) 0.55f else 0.2f)
+    val holidayTint = Color(HOLIDAY_BACKGROUND_ARGB).copy(alpha = if (isCurrentMonth) 0.55f else 0.22f)
 
     Column(
         modifier = modifier
             .heightIn(min = DAY_CELL_MIN_HEIGHT)
             .background(
                 color = when {
+                    hasPublicHoliday -> holidayTint
                     isToday -> MaterialTheme.colorScheme.surfaceVariant
                     isWeekend -> weekendTint
                     else -> Color.Transparent
@@ -1127,9 +1129,8 @@ private fun DayCell(
         Text(
             text = date.dayOfMonth.toString(),
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-            color = (if (hasPublicHoliday && isCurrentMonth) Color(PUBLIC_HOLIDAY_COLOR_ARGB) else MaterialTheme.colorScheme.onSurface)
-                .copy(alpha = if (hasPublicHoliday && isCurrentMonth) 1f else contentAlpha),
+            fontWeight = if (isToday || hasPublicHoliday) FontWeight.Bold else FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha),
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )

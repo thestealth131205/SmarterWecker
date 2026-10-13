@@ -15,13 +15,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,13 +51,13 @@ private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
 /**
  * Eigener Wetter-Screen (statt des früheren Dialogs): aktuelle Bedingungen
  * ([WeatherRepository.currentWeather]) plus 8-Tage-Vorhersage
- * ([WeatherRepository.dailyForecast], OpenWeatherMap One Call 3.0). Erreichbar über das
- * Wettersymbol in der Alarmliste und über die Wetter-Tap-Zone des Uhr-Widgets.
+ * ([WeatherRepository.dailyForecast], OpenWeatherMap One Call 3.0). Arbeitet als eigenständiger
+ * Screen auf Ebene der unteren Tab-Leiste (wie die Kalender-Monatsansicht) — kein Zurück-Pfeil,
+ * da er direkt über die Tab-Leiste bzw. das Wettersymbol/die Widget-Tap-Zone erreicht wird.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
-    onBack: () -> Unit,
     onSelectTab: (NocturnTab) -> Unit,
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
@@ -74,11 +72,6 @@ fun WeatherScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Wetter") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Zurück")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,

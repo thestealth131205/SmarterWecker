@@ -48,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val weatherEnabled by viewModel.weatherEnabled.collectAsState()
     val manualLocation by viewModel.manualLocation.collectAsState()
+    val liveLocationEnabled by viewModel.liveLocationEnabled.collectAsState()
     val locationQuery by viewModel.locationQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val searching by viewModel.searching.collectAsState()
@@ -155,6 +156,29 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                                 onClick = viewModel::useAutomaticLocation,
                                 modifier = Modifier.padding(top = 4.dp)
                             ) { Text("Automatische Standorterkennung nutzen") }
+                        }
+
+                        if (manualLocation == null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                                    Text(
+                                        "Standort bei jeder Aktualisierung neu ermitteln",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        "Statt der zuletzt vom Gerät gespeicherten Position wird aktiv eine " +
+                                            "frische, ungefähre Position angefragt — etwas mehr Akku, dafür " +
+                                            "immer die aktuelle Gegend.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(checked = liveLocationEnabled, onCheckedChange = viewModel::setLiveLocationEnabled)
+                            }
                         }
                     }
                 }

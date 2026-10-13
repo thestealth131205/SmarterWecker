@@ -5,12 +5,16 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.CancellationSignal
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.BuildConfig
 import de.letheapp.nocturn.onboarding.AppPreferences
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -214,7 +218,7 @@ class WeatherRepository @Inject constructor(
         }.getOrDefault(emptyList())
     }
 
-    private fun fetchFromApi(): DetailedWeather? {
+    private suspend fun fetchFromApi(): DetailedWeather? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) return null
         val location = resolvedLocation() ?: return null
@@ -231,7 +235,7 @@ class WeatherRepository @Inject constructor(
         }.getOrNull()
     }
 
-    private fun fetchForecastFromApi(): List<DailyForecast>? {
+    private suspend fun fetchForecastFromApi(): List<DailyForecast>? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) {
             lastForecastError = "Kein OpenWeatherMap-API-Key hinterlegt."
@@ -266,7 +270,7 @@ class WeatherRepository @Inject constructor(
         return result.getOrNull()
     }
 
-    private fun fetchHourlyFromApi(): List<HourlyForecast>? {
+    private suspend fun fetchHourlyFromApi(): List<HourlyForecast>? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) {
             lastHourlyError = "Kein OpenWeatherMap-API-Key hinterlegt."
@@ -361,8 +365,14 @@ class WeatherRepository @Inject constructor(
         )
     }
 
-    /** Manuell gewählter Ort (Einstellungen-Screen) hat Vorrang vor der GPS-Ermittlung. */
-    private fun resolvedLocation(): Location? {
+    /**
+     * Manuell gewählter Ort (Einstellungen-Screen) hat Vorrang vor jeder Ermittlung. Ohne
+     * manuellen Ort: ist [AppPreferences.liveLocationEnabled] aktiv, wird bei jeder
+     * Wetter-Aktualisierung aktiv eine frische Position angefragt ([freshLocation]) statt der
+     * zuletzt vom System zwischengespeicherten (die je nach Gerät/Provider veraltet sein kann);
+     * schlägt das fehl oder ist die Option aus, fällt es auf [lastKnownLocation] zurück.
+     */
+    private suspend fun resolvedLocation(): Location? {
         val manual = appPreferences.manualLocation.value
         if (manual != null) {
             return Location("manual").apply {
@@ -370,20 +380,55 @@ class WeatherRepository @Inject constructor(
                 longitude = manual.longitude
             }
         }
+        if (appPreferences.isLiveLocationEnabled()) {
+            freshLocation()?.let { return it }
+        }
         return lastKnownLocation()
     }
 
     private fun lastKnownLocation(): Location? {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return null
-        }
+        if (!hasLocationPermission()) return null
         val locationManager = ContextCompat.getSystemService(context, LocationManager::class.java) ?: return null
         return locationManager.allProviders
             .mapNotNull { provider -> runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() }
             .maxByOrNull { it.time }
     }
+
+    /**
+     * Fordert aktiv eine aktuelle, ungefähre Position an (statt der u. U. veralteten letzten
+     * bekannten Position) — über Androids `LocationManager.getCurrentLocation` (API 30+, seit
+     * minSdk 33 immer verfügbar), mit COARSE-tauglichen Providern (Netzwerk vor GPS) und einem
+     * harten 8-Sekunden-Timeout, damit ein deaktivierter Provider die Wetter-Aktualisierung nicht
+     * blockiert.
+     */
+    private suspend fun freshLocation(): Location? {
+        if (!hasLocationPermission()) return null
+        val locationManager = ContextCompat.getSystemService(context, LocationManager::class.java) ?: return null
+        val provider = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+            .firstOrNull { runCatching { locationManager.isProviderEnabled(it) }.getOrDefault(false) }
+            ?: return null
+
+        return withTimeoutOrNull(8_000L) {
+            suspendCancellableCoroutine<Location?> { continuation ->
+                val cancellationSignal = CancellationSignal()
+                continuation.invokeOnCancellation { cancellationSignal.cancel() }
+                try {
+                    locationManager.getCurrentLocation(
+                        provider,
+                        cancellationSignal,
+                        { it.run() },
+                        { location -> if (continuation.isActive) continuation.resume(location) }
+                    )
+                } catch (e: SecurityException) {
+                    if (continuation.isActive) continuation.resume(null)
+                }
+            }
+        }
+    }
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
 
     private fun readCache(): DetailedWeather? {
         val temp = cachePrefs.getInt(KEY_TEMP, Int.MIN_VALUE)

@@ -90,6 +90,20 @@ class CalendarRepository @Inject constructor(
     suspend fun getFirstLessonForWeekday(jobId: Long, weekday: Int): LessonEntity? =
         lessonDao.getFirstForJobAndWeekday(jobId, weekday)
 
+    /** Alle Unterrichtsstunden eines Jobs, einmalig (nicht reaktiv) — für die Wochentag-Auswahl beim Alarm-Verknüpfen. */
+    suspend fun getLessonsForJobOnce(jobId: Long): List<LessonEntity> = lessonDao.getAllForJob(jobId)
+
+    /**
+     * Alle im Muster dieser Rotation verwendeten Schichten, ohne die "nur ein Vorkommen zählt
+     * nicht"-Filterung von [getRotationShiftOptions] (die ist für die Phasen-Rückfrage gedacht,
+     * hier soll aber jede noch so seltene Schicht wählbar sein) — für die Schicht-Auswahl beim
+     * Alarm-Verknüpfen (siehe [de.letheapp.nocturn.data.db.AlarmEntity.linkedShiftId]).
+     */
+    suspend fun getAllShiftsUsedInRotation(rotationId: Long): List<ShiftEntity> {
+        val days = rotationDao.getDaysOnce(rotationId)
+        return days.mapNotNull { it.shiftId }.distinct().mapNotNull { shiftDao.getById(it) }
+    }
+
     // Schichten
 
     fun observeShiftsForJob(jobId: Long): Flow<List<ShiftEntity>> = shiftDao.observeForJob(jobId)
@@ -427,6 +441,14 @@ class CalendarRepository @Inject constructor(
             (shift?.startHour ?: 0) * 60 + (shift?.startMinute ?: 0)
         }
     }
+
+    /**
+     * Nächste Kalendereinträge einer bestimmten Schicht ab [fromEpochDay] (chronologisch) — für
+     * einen Alarm, der statt an jede Schicht einer Rotation an eine einzelne, konkrete Schicht
+     * gekoppelt ist (siehe [de.letheapp.nocturn.data.db.AlarmEntity.linkedShiftId]).
+     */
+    suspend fun getUpcomingCalendarEntriesForShift(shiftId: Long, fromEpochDay: Long): List<CalendarEntryEntity> =
+        calendarEntryDao.getUpcomingForShiftIds(listOf(shiftId), fromEpochDay)
 
     // Termine
 

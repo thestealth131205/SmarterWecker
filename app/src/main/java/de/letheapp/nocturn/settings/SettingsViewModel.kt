@@ -22,6 +22,7 @@ class SettingsViewModel @Inject constructor(
 
     val weatherEnabled: StateFlow<Boolean> = appPreferences.weatherEnabled
     val manualLocation: StateFlow<AppPreferences.ManualLocation?> = appPreferences.manualLocation
+    val liveLocationEnabled: StateFlow<Boolean> = appPreferences.liveLocationEnabled
 
     private val _locationQuery = MutableStateFlow("")
     val locationQuery: StateFlow<String> = _locationQuery
@@ -52,6 +53,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setWeatherEnabled(enabled: Boolean) {
         appPreferences.setWeatherEnabled(enabled)
+    }
+
+    fun setLiveLocationEnabled(enabled: Boolean) {
+        appPreferences.setLiveLocationEnabled(enabled)
+        weatherRepository.clearCache()
     }
 
     fun onLocationQueryChange(text: String) {

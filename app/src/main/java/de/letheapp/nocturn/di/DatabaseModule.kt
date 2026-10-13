@@ -41,11 +41,24 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Ergänzt [de.letheapp.nocturn.data.db.AlarmEntity.linkedShiftId]/[linkedTimetableWeekday] —
+     * engt eine bestehende Rotation-/Stundenplan-Verknüpfung optional auf eine einzelne Schicht
+     * bzw. einen einzelnen Wochentag ein. Reine Spalten-Erweiterung, bestehende Zeilen (= "jede
+     * Schicht"/"jeder Tag", bisheriges Verhalten) bekommen NULL.
+     */
+    private val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE alarms ADD COLUMN linkedShiftId INTEGER")
+            db.execSQL("ALTER TABLE alarms ADD COLUMN linkedTimetableWeekday INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
-            .addMigrations(MIGRATION_12_13)
+            .addMigrations(MIGRATION_12_13, MIGRATION_13_14)
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
             // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN

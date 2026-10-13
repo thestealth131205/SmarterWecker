@@ -56,6 +56,9 @@ interface LessonDao {
     @Query("SELECT * FROM lessons WHERE jobId = :jobId ORDER BY weekday, startHour, startMinute")
     fun observeForJob(jobId: Long): Flow<List<LessonEntity>>
 
+    @Query("SELECT * FROM lessons WHERE jobId = :jobId ORDER BY weekday, startHour, startMinute")
+    suspend fun getAllForJob(jobId: Long): List<LessonEntity>
+
     @Query("SELECT * FROM lessons WHERE jobId = :jobId AND weekday = :weekday ORDER BY startHour, startMinute")
     suspend fun getForJobAndWeekday(jobId: Long, weekday: Int): List<LessonEntity>
 

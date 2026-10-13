@@ -624,3 +624,38 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
     `sustainedMovementMillis`-Parameter (Default `DEFAULT_SUSTAINED_MOVEMENT_MILLIS` = 3500 ms wie
     bisher) statt eines fest verdrahteten Werts, damit die Vorprüfung ihr kürzeres 3-s-Fenster
     sinnvoll nutzen kann.
+- **Session vom 2026-10-13, vier Punkte, nicht committet/gepusht:**
+  - **Alarm-Verknüpfung auf Schicht/Wochentag einengbar**: Im Alarm-Bearbeiten-Screen öffnet sich
+    nach Auswahl einer Rotation/eines Stundenplan-Jobs im "Mit Schicht/Stundenplan verknüpfen"-
+    Dialog automatisch ein zweiter Dialog (nur falls es mehr als eine Option gibt), um auf eine
+    einzelne Schicht bzw. einen einzelnen Wochentag einzuengen — neue Felder
+    `AlarmEntity.linkedShiftId`/`linkedTimetableWeekday`, Schema-Version 14
+    (`MIGRATION_13_14` in `DatabaseModule.kt`), ausgewertet in `WakeWindowResolver`
+    (`nextRotationShiftOccurrence`/`nextTimetableWeekdayOccurrence`). Neue Repository-Funktion
+    `CalendarRepository.getAllShiftsUsedInRotation` bewusst **ohne** die
+    "Vorkommen > 1"-Filterung von `getRotationShiftOptions` (die ist nur für die
+    Phasen-Rückfrage gedacht) — jede noch so seltene Schicht muss wählbar sein.
+  - **Wetter: Live-Standort-Option**: neuer Schalter "Standort bei jeder Aktualisierung neu
+    ermitteln" im Einstellungen-Screen (`AppPreferences.liveLocationEnabled`, Default aus, nur
+    sichtbar ohne manuell gewählten Ort). `WeatherRepository.freshLocation()` nutzt
+    `LocationManager.getCurrentLocation` (API 30+, Executor-SAM `{ it.run() }`,
+    `suspendCancellableCoroutine<Location?>` + `withTimeoutOrNull(8_000L)`), fällt bei
+    Timeout/Fehler auf `lastKnownLocation()` zurück. `fetchFromApi`/`fetchForecastFromApi`/
+    `fetchHourlyFromApi` sowie `resolvedLocation` mussten dafür zu `suspend fun` werden.
+  - **Wetter-Screen ohne Zurück-Button**: arbeitet jetzt wie die Kalender-Monatsansicht als
+    eigenständiger Screen auf Tab-Ebene (kein `onBack`-Parameter mehr, kein `ArrowBack`-Icon in
+    der Topbar) — Navigation nur noch über die untere Tab-Leiste/das Wettersymbol/die
+    Widget-Tap-Zone.
+  - **Rotation-Wizard-Navigation gehärtet**: `onSaved` in `ROUTE_ROTATION_EDITOR` (MainActivity)
+    nutzt jetzt einen Fallback (`navigate(ROUTE_CALENDAR_MONTH){popUpTo(...)}`), falls
+    `popBackStack(ROUTE_CALENDAR_MONTH, false)` aus irgendeinem Grund `false` zurückgibt — die
+    ursprünglich gemeldete Mehrfach-Zurück-Problematik ließ sich beim Code-Review nicht
+    reproduzieren (die `fromWizard`-Logik war bereits korrekt verdrahtet), dieser Fix ist eine
+    defensive Absicherung für den Fall, dass die installierte APK noch einen älteren Stand hatte.
+  - **Feiertage: dunkelblauer Zell-Hintergrund statt roter Zahl**: `DayCell` in
+    `CalendarMonthScreen.kt` hat an Feiertagen jetzt einen transparenten, dunkelblauen Hintergrund
+    (neue Konstante `HOLIDAY_BACKGROUND_ARGB = 0xFF1A237E` in `CalendarMonthViewModel.kt`) statt
+    nur roter Tageszahl — die Tageszahl ist jetzt wieder normalfarben (nur fett).
+  - Lokale Verifikation weiterhin durch das bekannte aapt2-Problem blockiert (frisch erneut
+    bestätigt: `processDebugResources` scheitert an `x86_64-binfmt-P`-Fehler beim aapt2-Daemon,
+    nicht am eigenen Code) — alle Dateien manuell auf Klammern-/Klammer-Balance geprüft.

@@ -142,7 +142,7 @@ private fun NocturnNavHost(
         }
 
         composable(ROUTE_WEATHER) {
-            WeatherScreen(onBack = { navController.popBackStack() }, onSelectTab = onSelectTab)
+            WeatherScreen(onSelectTab = onSelectTab)
         }
 
         composable(ROUTE_IOBROKER_SETTINGS) {
@@ -293,7 +293,19 @@ private fun NocturnNavHost(
                 onBack = { navController.popBackStack() },
                 onSaved = {
                     if (fromWizard) {
-                        navController.popBackStack(ROUTE_CALENDAR_MONTH, false)
+                        // Räumt den kompletten "+"-Assistenten (ShiftSetup + sich selbst) auf
+                        // einen Schlag ab. Falls ROUTE_CALENDAR_MONTH aus irgendeinem Grund nicht
+                        // mehr im Backstack steht (z. B. nach einem Tab-Wechsel mit saveState),
+                        // springt der Fallback stattdessen frisch dorthin, statt stumm nichts zu
+                        // tun und den Nutzer auf den Zwischenschritten sitzen zu lassen.
+                        val popped = navController.popBackStack(ROUTE_CALENDAR_MONTH, false)
+                        if (!popped) {
+                            navController.navigate(ROUTE_CALENDAR_MONTH) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     } else {
                         navController.popBackStack()
                     }

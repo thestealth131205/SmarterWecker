@@ -113,6 +113,15 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Fenster bereits vorbei, entfällt das Wieder-Klingeln und das gelöste Puzzle beendet den Alarm
      wie gewohnt endgültig. Dafür merkt sich `AlarmEntity.autoShiftWakeupShiftId` die Quell-Schicht
      des automatischen Weckers (Schema-Version 13, echte Migration in `DatabaseModule.kt`).
+   - **Manuell angelegter Alarm optional auf eine einzelne Schicht/einen Wochentag einengen**: Die
+     "Mit Schicht/Stundenplan verknüpfen"-Auswahl im Alarm-Bearbeiten-Screen koppelt einen Alarm
+     standardmäßig an *jede* Schicht einer Rotation bzw. *jeden* Unterrichtstag eines Stundenplan-
+     Jobs (erste Stunde des Tages). Hat die gewählte Rotation mehr als eine im Muster verwendete
+     Schicht (bzw. der Stundenplan-Job Unterricht an mehr als einem Wochentag), fragt ein zweiter
+     Dialog direkt danach, ob stattdessen auf eine einzelne Schicht (z. B. nur "Frühschicht") bzw.
+     einen einzelnen Wochentag eingeengt werden soll — `AlarmEntity.linkedShiftId`/
+     `linkedTimetableWeekday` (Schema-Version 14, echte Migration in `DatabaseModule.kt`),
+     ausgewertet in `WakeWindowResolver`.
 
 6. **Kalender:**
    - Eingebauter Kalender, der die Schichtrotation visualisiert. Funktionsumfang
@@ -283,6 +292,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Ein gewählter Ort hat Vorrang vor der GPS-Ermittlung; ein eigener Button setzt wieder auf
      die automatische Positionserkennung zurück. Der Wetter-Cache wird bei jedem Ortswechsel
      sofort gelöscht, damit die Anzeige nicht noch den alten Ort zeigt.
+   - **"Standort bei jeder Aktualisierung neu ermitteln"-Schalter** (Einstellungen-Screen,
+     standardmäßig aus, nur sichtbar ohne manuell gewählten Ort): fordert statt der zuletzt vom
+     System zwischengespeicherten Position (`LocationManager.getLastKnownLocation`, kann je nach
+     Gerät veraltet sein) bei jeder Wetter-Aktualisierung aktiv eine frische Position an
+     (`LocationManager.getCurrentLocation`, API 30+, seit minSdk 33 immer verfügbar) — mit
+     COARSE-tauglichen Providern (Netzwerk vor GPS) und 8-Sekunden-Timeout, danach Fallback auf
+     die letzte bekannte Position.
    - **Wetter ist ein bewusstes Opt-in über einen eigenen Einstellungen-Screen** (3-Punkte-Menü
      der Alarmliste → "Einstellungen", standardmäßig **aus**): ist es aktiviert, erscheint oben
      in der Titelleiste der Alarmliste ein Wettersymbol; Antippen öffnet einen eigenen, vollen

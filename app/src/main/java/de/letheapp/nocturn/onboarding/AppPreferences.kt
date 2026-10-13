@@ -14,6 +14,7 @@ private const val KEY_WEATHER_ENABLED = "weather_enabled"
 private const val KEY_LOCATION_NAME = "weather_location_name"
 private const val KEY_LOCATION_LAT = "weather_location_lat"
 private const val KEY_LOCATION_LON = "weather_location_lon"
+private const val KEY_LIVE_LOCATION_ENABLED = "weather_live_location_enabled"
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -38,6 +39,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun setWeatherEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_WEATHER_ENABLED, enabled).apply()
         _weatherEnabled.value = enabled
+    }
+
+    /**
+     * Standardmäßig aus: Statt der letzten vom System zwischengespeicherten Position (kann
+     * veraltet sein) fordert [de.letheapp.nocturn.weather.WeatherRepository] bei jeder
+     * Wetter-Aktualisierung aktiv eine frische, ungefähre Standortermittlung an. Bewusstes
+     * Opt-in, da eine aktive Standortanfrage kurzzeitig mehr Akku braucht als das bloße
+     * Auslesen der letzten bekannten Position. Wirkt nur ohne manuell gewählten Ort.
+     */
+    private val _liveLocationEnabled = MutableStateFlow(prefs.getBoolean(KEY_LIVE_LOCATION_ENABLED, false))
+    val liveLocationEnabled: StateFlow<Boolean> = _liveLocationEnabled
+
+    fun isLiveLocationEnabled(): Boolean = _liveLocationEnabled.value
+
+    fun setLiveLocationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LIVE_LOCATION_ENABLED, enabled).apply()
+        _liveLocationEnabled.value = enabled
     }
 
     /** Manuell gewählter Wetter-Ort statt der automatischen `LocationManager`-Ermittlung. */

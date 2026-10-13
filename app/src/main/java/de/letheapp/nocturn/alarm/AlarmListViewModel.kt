@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.db.JobMode
+import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
@@ -98,6 +99,26 @@ class AlarmListViewModel @Inject constructor(
         }
         rotationOptions + timetableOptions
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Für die Anzeige des Schicht-Namens, falls ein Alarm auf [AlarmEntity.linkedShiftId] eingeengt ist. */
+    val allShifts: StateFlow<List<ShiftEntity>> = calendarRepository.observeAllShifts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Die in einer Rotation tatsächlich verwendeten Schichten (ohne "Frei") — zur Auswahl, falls
+     * ein Alarm statt an jede Schicht der Rotation an eine einzelne gekoppelt werden soll (siehe
+     * [AlarmEntity.linkedShiftId]).
+     */
+    suspend fun rotationShiftOptions(rotationId: Long): List<ShiftEntity> =
+        calendarRepository.getAllShiftsUsedInRotation(rotationId)
+
+    /**
+     * Die Wochentage (0=Mo..6=So), an denen ein Stundenplan-Job tatsächlich Unterrichtsstunden
+     * hat — zur Auswahl, falls ein Alarm statt an jeden Unterrichtstag an einen einzelnen
+     * Wochentag gekoppelt werden soll (siehe [AlarmEntity.linkedTimetableWeekday]).
+     */
+    suspend fun timetableWeekdayOptions(jobId: Long): List<Int> =
+        calendarRepository.getLessonsForJobOnce(jobId).map { it.weekday }.distinct().sorted()
 
     fun createAlarm(hour: Int, minute: Int, repeatDays: Int = 0) {
         viewModelScope.launch {

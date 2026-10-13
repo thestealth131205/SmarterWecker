@@ -38,7 +38,20 @@ data class AlarmEntity(
      * [de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler]) das "Frühestes Wecken"/
      * "Spätestens aufstehen"-Fenster der Schicht nachzuschlagen. Null bei normalen Alarmen.
      */
-    val autoShiftWakeupShiftId: Long? = null
+    val autoShiftWakeupShiftId: Long? = null,
+    /**
+     * Engt eine Verknüpfung mit [rotationId] optional auf eine einzelne Schicht ein (z. B. nur
+     * "Frühschicht" statt jeder Schicht der Rotation) — nur wirksam, wenn [rotationId] gesetzt
+     * ist. Null = jede Schicht der Rotation löst den Alarm aus (bisheriges Verhalten).
+     */
+    val linkedShiftId: Long? = null,
+    /**
+     * Engt eine Verknüpfung mit [timetableJobId] optional auf einen einzelnen Wochentag ein
+     * (0 = Montag .. 6 = Sonntag, siehe [LessonEntity.weekday]) — nur wirksam, wenn
+     * [timetableJobId] gesetzt ist. Null = jeder Unterrichtstag löst den Alarm aus (erste Stunde
+     * des Tages, bisheriges Verhalten).
+     */
+    val linkedTimetableWeekday: Int? = null
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */

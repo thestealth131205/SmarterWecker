@@ -21,7 +21,7 @@ import androidx.room.RoomDatabase
         IoBrokerAccountEntity::class,
         TaskEntity::class
     ],
-    version = 13,
+    version = 14,
     // Es existieren bereits reale Nutzdaten (Alarme, Jobs, Schichten, Rotationen, Kalender-
     // einträge) auf installierten Geräten — Schema-Export ist jetzt an, damit künftige
     // Versionsbumps per echter Migration (androidx.room.migration.Migration) statt eines

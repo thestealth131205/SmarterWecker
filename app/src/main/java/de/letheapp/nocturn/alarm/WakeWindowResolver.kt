@@ -41,7 +41,10 @@ class WakeWindowResolver @Inject constructor(
         val rotationId = alarm.rotationId
         val timetableJobId = alarm.timetableJobId
         return when {
+            rotationId != null && alarm.linkedShiftId != null -> nextRotationShiftOccurrence(alarm.linkedShiftId, from)
             rotationId != null -> nextRotationOccurrence(rotationId, from)
+            timetableJobId != null && alarm.linkedTimetableWeekday != null ->
+                nextTimetableWeekdayOccurrence(timetableJobId, alarm.linkedTimetableWeekday, from)
             timetableJobId != null -> nextTimetableOccurrence(timetableJobId, from)
             else -> null
         }
@@ -59,9 +62,14 @@ class WakeWindowResolver @Inject constructor(
         for (dayOffset in 0 downTo -1) {
             val date = now.toLocalDate().plusDays(dayOffset.toLong())
             val occurrence = if (rotationId != null) {
-                occurrenceFromRotationDate(rotationId, date)
+                occurrenceFromRotationDate(rotationId, date, alarm.linkedShiftId)
             } else {
-                occurrenceFromTimetableDate(timetableJobId!!, date)
+                val weekday = alarm.linkedTimetableWeekday
+                if (weekday != null && date.dayOfWeek.value - 1 != weekday) {
+                    null
+                } else {
+                    occurrenceFromTimetableDate(timetableJobId!!, date)
+                }
             }
             if (occurrence != null) return occurrence.deadline
         }
@@ -71,12 +79,18 @@ class WakeWindowResolver @Inject constructor(
     /**
      * Gelten an diesem Tag mehrere Schichten gleichzeitig (siehe CLAUDE.md "Rotationen"), zählt
      * für die Weck-/Aufsteh-Deadline die mit dem frühesten Schichtbeginn — das ist die, für die
-     * man tatsächlich aufstehen muss.
+     * man tatsächlich aufstehen muss. Ist der Alarm auf eine einzelne Schicht eingeengt
+     * ([shiftId], siehe [de.letheapp.nocturn.data.db.AlarmEntity.linkedShiftId]), zählt stattdessen
+     * nur diese, unabhängig davon, ob an diesem Tag noch andere Schichten gelten.
      */
-    private suspend fun occurrenceFromRotationDate(rotationId: Long, date: LocalDate): WakeOccurrence? {
+    private suspend fun occurrenceFromRotationDate(rotationId: Long, date: LocalDate, shiftId: Long? = null): WakeOccurrence? {
         val entries = calendarRepository.getCalendarEntriesForDateAndRotation(rotationId, date.toEpochDay())
         val shifts = entries.mapNotNull { it.shiftId }.mapNotNull { calendarRepository.getShift(it) }
-        val shift = shifts.minByOrNull { it.startHour * 60 + it.startMinute } ?: return null
+        val shift = if (shiftId != null) {
+            shifts.find { it.id == shiftId }
+        } else {
+            shifts.minByOrNull { it.startHour * 60 + it.startMinute }
+        } ?: return null
         return WakeOccurrence(
             start = date.atTime(shift.startHour, shift.startMinute),
             earliestWakeOffsetMinutes = shift.earliestWakeOffsetMinutes,
@@ -118,6 +132,38 @@ class WakeWindowResolver @Inject constructor(
         for (offset in 0..7) {
             val date = from.toLocalDate().plusDays(offset.toLong())
             val occurrence = occurrenceFromTimetableDate(jobId, date) ?: continue
+            if (occurrence.wakeTime.isAfter(from)) return occurrence
+        }
+        return null
+    }
+
+    /**
+     * Wie [nextTimetableOccurrence], aber eingeengt auf einen einzelnen Wochentag (siehe
+     * [de.letheapp.nocturn.data.db.AlarmEntity.linkedTimetableWeekday]) statt jeden Unterrichtstag.
+     */
+    private suspend fun nextTimetableWeekdayOccurrence(jobId: Long, weekday: Int, from: LocalDateTime): WakeOccurrence? {
+        for (offset in 0..7) {
+            val date = from.toLocalDate().plusDays(offset.toLong())
+            if (date.dayOfWeek.value - 1 != weekday) continue
+            val occurrence = occurrenceFromTimetableDate(jobId, date) ?: continue
+            if (occurrence.wakeTime.isAfter(from)) return occurrence
+        }
+        return null
+    }
+
+    /**
+     * Wie [nextRotationOccurrence], aber eingeengt auf eine einzelne Schicht (siehe
+     * [de.letheapp.nocturn.data.db.AlarmEntity.linkedShiftId]) statt jede Schicht der Rotation.
+     */
+    private suspend fun nextRotationShiftOccurrence(shiftId: Long, from: LocalDateTime): WakeOccurrence? {
+        val shift = calendarRepository.getShift(shiftId) ?: return null
+        val entries = calendarRepository.getUpcomingCalendarEntriesForShift(shiftId, from.toLocalDate().toEpochDay())
+        for (entry in entries) {
+            val occurrence = WakeOccurrence(
+                start = LocalDate.ofEpochDay(entry.dateEpochDay).atTime(shift.startHour, shift.startMinute),
+                earliestWakeOffsetMinutes = shift.earliestWakeOffsetMinutes,
+                latestWakeupOffsetMinutes = shift.latestWakeupOffsetMinutes
+            )
             if (occurrence.wakeTime.isAfter(from)) return occurrence
         }
         return null
