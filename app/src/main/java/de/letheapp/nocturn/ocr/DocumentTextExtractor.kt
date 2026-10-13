@@ -40,14 +40,14 @@ object DocumentTextExtractor {
         }
     }
 
-    private fun extractFromImage(context: Context, uri: Uri, ocrEngine: TesseractOcrEngine): String {
+    private suspend fun extractFromImage(context: Context, uri: Uri, ocrEngine: TesseractOcrEngine): String {
         val bitmap = context.contentResolver.openInputStream(uri)?.use {
             android.graphics.BitmapFactory.decodeStream(it)
         } ?: return ""
         return ocrEngine.recognize(bitmap)
     }
 
-    private fun extractFromPdf(context: Context, uri: Uri, ocrEngine: TesseractOcrEngine): String {
+    private suspend fun extractFromPdf(context: Context, uri: Uri, ocrEngine: TesseractOcrEngine): String {
         val fd: ParcelFileDescriptor = context.contentResolver.openFileDescriptor(uri, "r") ?: return ""
         val textBuilder = StringBuilder()
         fd.use { descriptor ->
