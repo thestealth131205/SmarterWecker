@@ -28,6 +28,7 @@ import de.letheapp.nocturn.export.CalendarExportScreen
 import de.letheapp.nocturn.holidays.HolidaySettingsScreen
 import de.letheapp.nocturn.iobroker.IoBrokerSettingsScreen
 import de.letheapp.nocturn.monitoring.HealthConnectStatusScreen
+import de.letheapp.nocturn.ocr.LetterImportScreen
 import de.letheapp.nocturn.ocr.PhotoImportScreen
 import de.letheapp.nocturn.onboarding.AppPreferences
 import de.letheapp.nocturn.onboarding.PermissionsScreen
@@ -58,6 +59,7 @@ private const val ROUTE_CALENDAR_ADD_SHIFT = "calendarAddShift/{epochDay}"
 private const val ROUTE_HOLIDAY_SETTINGS = "holidaySettings"
 private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
 private const val ROUTE_PHOTO_IMPORT = "photoImport/{jobId}"
+private const val ROUTE_LETTER_IMPORT = "letterImport"
 private const val ROUTE_NEXTCLOUD_SYNC = "nextcloudSync"
 private const val ROUTE_IOBROKER_SETTINGS = "ioBrokerSettings"
 private const val ROUTE_SETTINGS = "settings"
@@ -187,6 +189,10 @@ private fun NocturnNavHost(
             PhotoImportScreen(onBack = { navController.popBackStack() })
         }
 
+        composable(ROUTE_LETTER_IMPORT) {
+            LetterImportScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(ROUTE_CALENDAR_MONTH) {
             CalendarMonthScreen(
                 onBack = { navController.popBackStack() },
@@ -198,6 +204,7 @@ private fun NocturnNavHost(
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
                 onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
+                onOpenLetterImport = { navController.navigate(ROUTE_LETTER_IMPORT) },
                 onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")

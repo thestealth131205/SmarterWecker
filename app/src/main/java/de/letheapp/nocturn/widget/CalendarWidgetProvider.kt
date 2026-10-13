@@ -14,6 +14,7 @@ import de.letheapp.nocturn.EXTRA_OPEN_CALENDAR
 import de.letheapp.nocturn.MainActivity
 import de.letheapp.nocturn.R
 import de.letheapp.nocturn.data.repository.AgendaEntry
+import de.letheapp.nocturn.data.repository.AgendaEntryType
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,17 +120,28 @@ class CalendarWidgetProvider : AppWidgetProvider() {
             } else {
                 views.setViewVisibility(spec.rowId, View.VISIBLE)
                 views.setInt(spec.dotId, "setColorFilter", entry.colorArgb)
-                val date = LocalDate.ofEpochDay(entry.epochDay)
-                val dayLabel = if (date == today) {
-                    context.getString(R.string.widget_calendar_today)
+
+                if (entry.type == AgendaEntryType.SHIFT) {
+                    // Eine eingetragene Schicht ist reine Hintergrundinfo und bekommt nur den
+                    // farbigen Punkt, ein tatsächlicher Termin wird daneben mit Titel/Uhrzeit
+                    // angezeigt statt in der kurzen Zeilenanzahl des Widgets zu verschwinden.
+                    views.setViewVisibility(spec.timeId, View.GONE)
+                    views.setViewVisibility(spec.labelId, View.GONE)
                 } else {
-                    WEEKDAY_FORMATTER.format(date)
+                    views.setViewVisibility(spec.timeId, View.VISIBLE)
+                    views.setViewVisibility(spec.labelId, View.VISIBLE)
+                    val date = LocalDate.ofEpochDay(entry.epochDay)
+                    val dayLabel = if (date == today) {
+                        context.getString(R.string.widget_calendar_today)
+                    } else {
+                        WEEKDAY_FORMATTER.format(date)
+                    }
+                    views.setTextViewText(
+                        spec.timeId,
+                        if (entry.timeLabel != null) "$dayLabel, ${entry.timeLabel}" else dayLabel
+                    )
+                    views.setTextViewText(spec.labelId, entry.label)
                 }
-                views.setTextViewText(
-                    spec.timeId,
-                    if (entry.timeLabel != null) "$dayLabel, ${entry.timeLabel}" else dayLabel
-                )
-                views.setTextViewText(spec.labelId, entry.label)
             }
         }
 

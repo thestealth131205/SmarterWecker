@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
@@ -123,6 +124,7 @@ fun CalendarMonthScreen(
     onOpenCalendarTemplates: () -> Unit,
     onOpenHolidaySettings: () -> Unit,
     onOpenNextcloudSync: () -> Unit,
+    onOpenLetterImport: () -> Unit,
     onOpenRotationEditor: (jobId: Long) -> Unit,
     onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
     onSelectTab: (NocturnTab) -> Unit,
@@ -338,6 +340,9 @@ fun CalendarMonthScreen(
                         }
                         IconButton(onClick = viewModel::shareMonth) {
                             Icon(Icons.Filled.Share, contentDescription = "Kalender teilen")
+                        }
+                        IconButton(onClick = onOpenLetterImport) {
+                            Icon(Icons.Filled.CameraAlt, contentDescription = "Termin aus Foto oder Datei erkennen")
                         }
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(Icons.Filled.MoreVert, contentDescription = "Weitere Optionen")

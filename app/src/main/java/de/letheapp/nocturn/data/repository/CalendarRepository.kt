@@ -576,7 +576,8 @@ class CalendarRepository @Inject constructor(
                 epochDay = entry.dateEpochDay,
                 label = shift.name,
                 colorArgb = shift.colorArgb,
-                timeLabel = "%02d:%02d".format(shift.startHour, shift.startMinute)
+                timeLabel = "%02d:%02d".format(shift.startHour, shift.startMinute),
+                type = AgendaEntryType.SHIFT
             )
         }
 
@@ -589,7 +590,8 @@ class CalendarRepository @Inject constructor(
                     null
                 } else {
                     Instant.ofEpochMilli(appointment.startEpochMillis).atZone(zone).toLocalTime().format(timeFormatter)
-                }
+                },
+                type = AgendaEntryType.APPOINTMENT
             )
         }
 
@@ -598,7 +600,8 @@ class CalendarRepository @Inject constructor(
                 epochDay = date.toEpochDay(),
                 label = "🎂 ${birthday.displayName}",
                 colorArgb = BIRTHDAY_COLOR_ARGB,
-                timeLabel = null
+                timeLabel = null,
+                type = AgendaEntryType.BIRTHDAY
             )
         }
 
@@ -606,12 +609,17 @@ class CalendarRepository @Inject constructor(
     }
 }
 
+/** Unterscheidet, wie ein [AgendaEntry] in den Widgets dargestellt wird: eine Schicht nur als
+ *  farbiger Punkt (Hintergrundinfo), ein Termin/Geburtstag dagegen mit vollem Titel/Uhrzeit. */
+enum class AgendaEntryType { SHIFT, APPOINTMENT, BIRTHDAY }
+
 /** Ein Eintrag im Kalender-Widget: entweder eine Schicht an einem Rotationstag oder ein freier Termin. */
 data class AgendaEntry(
     val epochDay: Long,
     val label: String,
     val colorArgb: Int,
-    val timeLabel: String?
+    val timeLabel: String?,
+    val type: AgendaEntryType
 )
 
 /** Für das Uhr-Widget (CLAUDE.md Kernfunktion 7): die schmal angezeigten nächsten Termine. */

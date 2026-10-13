@@ -230,6 +230,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Berechtigung `READ_CONTACTS` (siehe Kernfunktion 10); ohne sie bleiben die Geburtstage
      einfach leer. Kontaktbild wird ohne zusätzliche Bild-Bibliothek direkt per
      `ContentResolver`/`BitmapFactory` geladen (FOSS-Minimalismus). Neues Package `contacts`.
+   - **Brief-/Terminzettel-Foto-Import**: eigenes Kamera-Symbol in der Topbar der
+     Kalender-Monatsansicht (zwischen "Kalender teilen" und dem 3-Punkte-Menü) öffnet sofort
+     die Kamera; danach lokale OCR über dieselbe Tesseract4Android-Engine wie der
+     Stundenplan-Foto-Import (Kernfunktion 5) und ein deterministisches, LLM-freies
+     Regex-/Heuristik-Regelwerk (`AppointmentTextParser`), das Datum (numerisch, ausgeschriebene
+     Monate, relative Tage/Wochentage), Uhrzeit (Einzelzeit, Zeitspanne, Dauer-Angabe),
+     Betreff/Titel (Betreff-Zeile oder typische Termin-Substantive), Ort (PLZ+Ort plus
+     vorangehende Straßenzeile) und Hinweise ("Bitte mitbringen" o. Ä.) aus dem erkannten Text
+     extrahiert. Bei mehreren gefundenen Datumsangaben (z. B. Brief-Ausstellungsdatum vs.
+     eigentlicher Termin) entscheidet ein einfaches Scoring (Nähe zu Termin-Schlüsselwörtern,
+     Zukunft-Bonus/Vergangenheit-Malus, Nähe zu einer Uhrzeit). Das Ergebnis füllt direkt die
+     normale Termin-Kontrollmaske (`AddAppointmentScreen`) vor — nichts wird automatisch
+     gespeichert, der Nutzer bestätigt oder korrigiert immer erst per Hand.
    - **"+"-Button in der Monatsansicht**: fragt ab, ob ein Termin oder eine Schicht
      angelegt werden soll. Als Datum wird der zuvor angetippte Tag vorbelegt (alternativ
      frei wählbar über einen Datums-Dialog). Eine manuell für einen einzelnen Tag

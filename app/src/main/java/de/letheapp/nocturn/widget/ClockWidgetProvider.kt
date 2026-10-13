@@ -15,6 +15,7 @@ import de.letheapp.nocturn.EXTRA_OPEN_WEATHER
 import de.letheapp.nocturn.MainActivity
 import de.letheapp.nocturn.R
 import de.letheapp.nocturn.data.repository.AgendaEntry
+import de.letheapp.nocturn.data.repository.AgendaEntryType
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.data.repository.WidgetAgenda
 import de.letheapp.nocturn.weather.WeatherRepository
@@ -199,13 +200,21 @@ class ClockWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(spec.rowId, View.VISIBLE)
             views.setInt(spec.dotId, "setColorFilter", entry.colorArgb)
 
-            val isLastShown = index == agenda.entries.lastIndex
-            val extraSuffix = if (isLastShown && agenda.extraCountForLastDay > 0) {
-                " (+${agenda.extraCountForLastDay})"
+            if (entry.type == AgendaEntryType.SHIFT) {
+                // Eine eingetragene Schicht ist reine Hintergrundinfo und bekommt nur den
+                // farbigen Punkt, damit ein tatsächlicher Termin mit Titel/Uhrzeit nicht durch
+                // sie aus den wenigen sichtbaren Zeilen verdrängt wird.
+                views.setViewVisibility(spec.textId, View.GONE)
             } else {
-                ""
+                views.setViewVisibility(spec.textId, View.VISIBLE)
+                val isLastShown = index == agenda.entries.lastIndex
+                val extraSuffix = if (isLastShown && agenda.extraCountForLastDay > 0) {
+                    " (+${agenda.extraCountForLastDay})"
+                } else {
+                    ""
+                }
+                views.setTextViewText(spec.textId, formatAgendaText(entry, today) + extraSuffix)
             }
-            views.setTextViewText(spec.textId, formatAgendaText(entry, today) + extraSuffix)
         }
     }
 
