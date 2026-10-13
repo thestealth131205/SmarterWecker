@@ -1142,16 +1142,17 @@ private fun DayCell(
 
         Column(modifier = Modifier.padding(top = 3.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             entries.take(MAX_ENTRIES_PER_DAY).forEach { entry ->
+                val pillColor = Color(entry.colorArgb)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(entry.colorArgb).copy(alpha = contentAlpha), RoundedCornerShape(4.dp))
+                        .background(pillColor.copy(alpha = contentAlpha), RoundedCornerShape(4.dp))
                 ) {
                     Text(
                         text = entry.label,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = contentAlpha),
+                        color = readableLabelColor(pillColor).copy(alpha = contentAlpha),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
@@ -1170,5 +1171,15 @@ private fun DayCell(
             }
         }
     }
+}
+
+/**
+ * Die Schicht-/Termin-Pastellpalette ist deutlich heller als die frühere, kräftig gesättigte
+ * Farbauswahl — weißer Text direkt darauf wäre kaum noch lesbar. Wählt je nach Helligkeit des
+ * Hintergrunds dunklen oder hellen Text statt fest Weiß.
+ */
+private fun readableLabelColor(background: Color): Color {
+    val luminance = 0.299 * background.red + 0.587 * background.green + 0.114 * background.blue
+    return if (luminance > 0.6) Color(0xFF212121) else Color.White
 }
 

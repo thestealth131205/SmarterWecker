@@ -524,7 +524,16 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Wird nicht auf Maven Central, sondern nur über **JitPack** veröffentlicht (Repository in
   `settings.gradle.kts` ergänzt). Die deutschen Trainingsdaten werden nicht ins Repo gelegt,
   sondern beim ersten Foto-Import einmalig von der offiziellen `tesseract-ocr/tessdata`-
-  Quelle in den App-internen Speicher nachgeladen.
+  Quelle in den App-internen Speicher nachgeladen. **Rotations-robuste Erkennung**: Tesseract
+  liefert bei nicht annähernd horizontalem Text (z. B. ein im Hochformat fotografierter, quer
+  beschrifteter Zettel) nur Zufallsfragmente — ohne zusätzliche `osd.traineddata` gibt es keine
+  eingebaute Orientierungserkennung. `TesseractOcrEngine.recognize()` erkennt daher bei allen vier
+  90°-Rotationen und behält die Variante mit der höchsten mittleren Tesseract-Konfidenz
+  (`meanConfidence()`) — kostet das Vierfache an Rechenzeit, fällt bei einem einmaligen
+  Foto-Import aber nicht ins Gewicht. **Grenze bewusst nicht gelöst**: Tesseract ist auf
+  gedruckten Text trainiert: handschriftliche Notizen bleiben auch nach dieser Korrektur
+  unzuverlässig, da das ein fundamental anderes (und mit on-device-FOSS-Mitteln kaum lösbares)
+  Erkennungsproblem ist als Druckschrift-OCR.
 - Berechtigungs-Onboarding (Kernfunktion 10): eigener Onboarding-Screen beim ersten
   Start, der alle benötigten Berechtigungen inkl. Begründung anfragt.
 - System-Registrierung (Kernfunktion 11): Manifest-Intent-Filter für

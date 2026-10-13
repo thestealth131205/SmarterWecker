@@ -233,7 +233,9 @@ private fun ContactPhoto(photoUri: String?, fallbackColor: Color, modifier: Modi
             modifier = modifier.background(fallbackColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.Cake, contentDescription = null, tint = Color.White)
+            val luminance = 0.299 * fallbackColor.red + 0.587 * fallbackColor.green + 0.114 * fallbackColor.blue
+            val iconTint = if (luminance > 0.6) Color(0xFF212121) else Color.White
+            Icon(Icons.Filled.Cake, contentDescription = null, tint = iconTint)
         }
     }
 }

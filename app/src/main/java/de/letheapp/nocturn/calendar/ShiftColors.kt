@@ -6,19 +6,21 @@ import androidx.compose.ui.graphics.toArgb
 /**
  * Feste Farbpalette zur Schichtauswahl. Eine freie Farbwahl (Farbrad) würde eine
  * zusätzliche Abhängigkeit erfordern; die kuratierte Palette deckt den Zweck
- * ("frei wählbare Farbe pro Schicht") ohne Extra-Library ab.
+ * ("frei wählbare Farbe pro Schicht") ohne Extra-Library ab. Bewusst pastellige
+ * ("200"-Tonstufe) statt kräftig-gesättigter Töne, passend zur Farbgebung von Terminen/
+ * Ereignissen (siehe [de.letheapp.nocturn.data.repository.CalendarRepository]).
  */
 val SHIFT_COLOR_PALETTE: List<Color> = listOf(
-    Color(0xFFEF5350), // Rot
-    Color(0xFFFF9800), // Orange
-    Color(0xFFFFCA28), // Gelb
-    Color(0xFF66BB6A), // Grün
-    Color(0xFF26A69A), // Türkis
-    Color(0xFF42A5F5), // Blau
-    Color(0xFF5C6BC0), // Indigo
-    Color(0xFFAB47BC), // Violett
-    Color(0xFFEC407A), // Pink
-    Color(0xFF8D6E63)  // Braun
+    Color(0xFFEF9A9A), // Rot
+    Color(0xFFFFCC80), // Orange
+    Color(0xFFFFE082), // Gelb
+    Color(0xFFA5D6A7), // Grün
+    Color(0xFF80CBC4), // Türkis
+    Color(0xFF90CAF9), // Blau
+    Color(0xFF9FA8DA), // Indigo
+    Color(0xFFCE93D8), // Violett
+    Color(0xFFF48FB1), // Pink
+    Color(0xFFBCAAA4)  // Braun
 )
 
 val DEFAULT_SHIFT_COLOR_ARGB: Int = SHIFT_COLOR_PALETTE.first().toArgb()

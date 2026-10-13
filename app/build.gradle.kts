@@ -34,8 +34,8 @@ android {
         // + Gradle 9 + Kotlin 2.2/KSP2 (API 37/Android 17) — bewusst (noch) nicht gemacht.
         minSdk = 33
         targetSdk = 36
-        versionCode = 26
-        versionName = "0.26.0"
+        versionCode = 27
+        versionName = "0.27.0"
 
         // OpenWeatherMap-Key-Handling analog zum Iosync-Projekt: lokal aus local.properties,
         // im CI aus dem GitHub-Secret OPENWEATHER_API_KEY als gleichnamige Umgebungsvariable.

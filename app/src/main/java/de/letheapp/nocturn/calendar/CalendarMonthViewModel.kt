@@ -84,13 +84,13 @@ data class TaskDayEntry(
     override val label: String get() = if (completed) "✓ $title" else title
 }
 
-const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFE53935.toInt()
-const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFF43A047.toInt()
-const val BIRTHDAY_COLOR_ARGB = 0xFF8E24AA.toInt()
+const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFEF9A9A.toInt()
+const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFFAED581.toInt()
+const val BIRTHDAY_COLOR_ARGB = 0xFFCE93D8.toInt()
 const val NEON_YELLOW_ARGB = 0xFFEEFF00.toInt()
 
-/** Transparenter, dunkelblauer Zell-Hintergrund für Feiertage in der Monatsansicht (siehe [PUBLIC_HOLIDAY_COLOR_ARGB] für die weiterhin rote Legende/Tagesansicht-Zeile). */
-const val HOLIDAY_BACKGROUND_ARGB = 0xFF1A237E.toInt()
+/** Heller, transparenter Zell-Hintergrund für Feiertage in der Monatsansicht (siehe [PUBLIC_HOLIDAY_COLOR_ARGB] für die weiterhin separat eingefärbte Legende/Tagesansicht-Zeile). */
+const val HOLIDAY_BACKGROUND_ARGB = 0xFF9FA8DA.toInt()
 
 /** Eine Rotation zur Anzeige in der Seitenleiste, mit dem Namen ihres Jobs zur Unterscheidung. */
 data class RotationOption(val id: Long, val name: String, val jobName: String)

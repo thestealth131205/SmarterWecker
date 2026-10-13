@@ -49,11 +49,11 @@ class CalendarRepository @Inject constructor(
     private val contactBirthdayRepository: ContactBirthdayRepository
 ) {
     companion object {
-        /** Standardfarbe für frei angelegte Termine (Orange), unabhängig vom Theme. */
-        const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFF7043.toInt()
+        /** Standardfarbe für frei angelegte Termine (pastelliges Orange), unabhängig vom Theme. */
+        const val DEFAULT_APPOINTMENT_COLOR_ARGB = 0xFFFFAB91.toInt()
 
-        /** Standardfarbe für Aufgaben (Grün, angelehnt an Google Tasks), unabhängig vom Theme. */
-        const val DEFAULT_TASK_COLOR_ARGB = 0xFF33B679.toInt()
+        /** Standardfarbe für Aufgaben (pastelliges Grün, angelehnt an Google Tasks), unabhängig vom Theme. */
+        const val DEFAULT_TASK_COLOR_ARGB = 0xFFA5D6A7.toInt()
 
         /** Zeitfenster, in dem das Kalender-Widget nach anstehenden Einträgen sucht. */
         private const val AGENDA_LOOKAHEAD_DAYS = 14L

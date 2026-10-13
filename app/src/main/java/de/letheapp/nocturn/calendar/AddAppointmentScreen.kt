@@ -72,6 +72,27 @@ fun AddAppointmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Termin speichern") })
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onCancelled) { Text("Abbrechen") }
+                TextButton(onClick = {
+                    viewModel.save(
+                        title = title,
+                        location = location,
+                        description = description,
+                        startEpochMillis = beginMillis,
+                        endEpochMillis = endMillis,
+                        allDay = allDay,
+                        priority = priority,
+                        reminderMinutesBefore = reminderMinutesBefore,
+                        onSaved = onSaved
+                    )
+                }) { Text("Speichern") }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -163,26 +184,6 @@ fun AddAppointmentScreen(
                     Text("Ende", modifier = Modifier.weight(1f))
                     Text(formatDateTime(endMillis), style = MaterialTheme.typography.bodyMedium)
                 }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onCancelled) { Text("Abbrechen") }
-                TextButton(onClick = {
-                    viewModel.save(
-                        title = title,
-                        location = location,
-                        description = description,
-                        startEpochMillis = beginMillis,
-                        endEpochMillis = endMillis,
-                        allDay = allDay,
-                        priority = priority,
-                        reminderMinutesBefore = reminderMinutesBefore,
-                        onSaved = onSaved
-                    )
-                }) { Text("Speichern") }
             }
         }
     }

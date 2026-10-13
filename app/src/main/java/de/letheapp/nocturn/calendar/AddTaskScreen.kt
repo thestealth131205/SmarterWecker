@@ -52,7 +52,25 @@ fun AddTaskScreen(
     var editingTime by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Aufgabe speichern") }) }
+        topBar = { TopAppBar(title = { Text("Aufgabe speichern") }) },
+        bottomBar = {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onCancelled) { Text("Abbrechen") }
+                TextButton(onClick = {
+                    viewModel.save(
+                        title = title,
+                        notes = notes,
+                        dueEpochDay = date.toEpochDay(),
+                        dueEpochMillis = dueTimeMillis,
+                        allDay = allDay,
+                        onSaved = onSaved
+                    )
+                }) { Text("Speichern") }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
@@ -99,23 +117,6 @@ fun AddTaskScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onCancelled) { Text("Abbrechen") }
-                TextButton(onClick = {
-                    viewModel.save(
-                        title = title,
-                        notes = notes,
-                        dueEpochDay = date.toEpochDay(),
-                        dueEpochMillis = dueTimeMillis,
-                        allDay = allDay,
-                        onSaved = onSaved
-                    )
-                }) { Text("Speichern") }
             }
         }
     }
