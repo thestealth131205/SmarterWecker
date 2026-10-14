@@ -524,16 +524,49 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Wird nicht auf Maven Central, sondern nur über **JitPack** veröffentlicht (Repository in
   `settings.gradle.kts` ergänzt). Die deutschen Trainingsdaten werden nicht ins Repo gelegt,
   sondern beim ersten Foto-Import einmalig von der offiziellen `tesseract-ocr/tessdata`-
-  Quelle in den App-internen Speicher nachgeladen. **Rotations-robuste Erkennung**: Tesseract
-  liefert bei nicht annähernd horizontalem Text (z. B. ein im Hochformat fotografierter, quer
-  beschrifteter Zettel) nur Zufallsfragmente — ohne zusätzliche `osd.traineddata` gibt es keine
-  eingebaute Orientierungserkennung. `TesseractOcrEngine.recognize()` erkennt daher bei allen vier
-  90°-Rotationen und behält die Variante mit der höchsten mittleren Tesseract-Konfidenz
-  (`meanConfidence()`) — kostet das Vierfache an Rechenzeit, fällt bei einem einmaligen
-  Foto-Import aber nicht ins Gewicht. **Grenze bewusst nicht gelöst**: Tesseract ist auf
+  Quelle in den App-internen Speicher nachgeladen — seit der Integration der echten
+  Orientierungs-/Schrift-Erkennung (siehe unten) zusätzlich zur Sprachdatei auch `osd.traineddata`
+  aus derselben Quelle. **Rotations-robuste Erkennung**: Tesseract liefert bei nicht annähernd
+  horizontalem Text (z. B. ein im Hochformat fotografierter, quer beschrifteter Zettel) ohne
+  Weiteres nur Zufallsfragmente. `TesseractOcrEngine.recognize()` nutzt daher zuerst einen
+  einzelnen Durchlauf mit `PSM_AUTO_OSD` (volle automatische Seitenlayout-Analyse inkl. echter
+  Orientierungs- und Schrift-Erkennung über die geladene `osd.traineddata`) statt wie zuvor blind
+  alle vier Rotationen durchzuprobieren. Reicht dessen mittlere Tesseract-Konfidenz
+  (`meanConfidence()`) nicht (z. B. bei unüblichen Layouts oder falls der `osd.traineddata`-
+  Download fehlschlug), fällt die Erkennung auf den bisherigen, robusteren Weg zurück: alle vier
+  90°-Rotationen mit festem Einzelblock-Layout (`PSM_SINGLE_BLOCK`) durchprobieren und die
+  Variante mit der höchsten Konfidenz behalten. **Grenze bewusst nicht gelöst**: Tesseract ist auf
   gedruckten Text trainiert: handschriftliche Notizen bleiben auch nach dieser Korrektur
   unzuverlässig, da das ein fundamental anderes (und mit on-device-FOSS-Mitteln kaum lösbares)
   Erkennungsproblem ist als Druckschrift-OCR.
+- **Lokales Fine-Tuning von `deu.traineddata` für Termin-/Datums-/Uhrzeit-Erkennung**: unter
+  `ocr-training/` (komplett `.gitignore`t — Quellcode-Klon + generierte Trainingsdaten gehören
+  nicht in den App-Code-Verlauf) liegt eine lokale Trainingsumgebung: ein aus dem offiziellen
+  `tesseract-ocr/tesseract`-Quellcode gebauter Satz Trainings-Tools (`text2image`,
+  `lstmtraining`, `combine_tessdata`, erfordert `libicu-dev`/`libpango1.0-dev`/`libcairo2-dev`
+  zum Bauen, da Debian diese Tools nicht fertig paketiert), die offizielle `deu.traineddata`/
+  `osd.traineddata` (Startpunkt) sowie `tesseract-ocr/langdata_lstm` (Sprachressourcen/
+  Unicharset). `scripts/train-ocr-model.sh` automatisiert den kompletten Ablauf: Korpus
+  (`ocr-training/corpus/appointments.txt`, Termine/Daten/Uhrzeiten/Orte/OCR-Fehlerbilder in
+  mehreren Schriftarten/Größen) → synthetische Trainingsbilder (`text2image`) → `.lstmf`-Dateien
+  (`tesseract --psm 6 lstm.train`, der in vielen Kurzanleitungen fehlende Zwischenschritt
+  zwischen Bild+Box und tatsächlichem LSTM-Training) → Transfer-Learning mit niedriger
+  Iterationszahl gegen den aus der offiziellen `deu.traineddata` extrahierten LSTM-Checkpoint
+  (`combine_tessdata -e`) → fertiges `deu_appointments.traineddata`.
+  **In der App verdrahtet**: Vor der Umstellung wurde das Ergebnis gegen synthetischen
+  Termin-Text (auch in einer im Training nicht enthaltenen Schriftart), gegen themenfremden
+  deutschen Fließtext (Prüfung auf *catastrophic forgetting*) und gegen echte Fotos getestet —
+  keine Regression in Konfidenz/Worttreue gegenüber der offiziellen `deu.traineddata` in allen
+  drei Fällen. `TesseractOcrEngine.ensureTrainedDataAvailable()` lädt die Sprachdatei (`deu`)
+  daher jetzt von einem selbst gehosteten Download-Endpunkt
+  (`https://letheapp.de/downloads/nocturn/ocr/deu_appointments.traineddata`) statt der
+  offiziellen Tesseract-Quelle; `osd.traineddata` (Orientierungserkennung, nicht fine-getunt)
+  kommt unverändert von dort. Eine lokale Versionsmarkierung (`deu.version` neben der
+  zwischengespeicherten `deu.traineddata`, `DEU_MODEL_VERSION`-Konstante) erzwingt bei bereits
+  installierten Apps, die noch die alte offizielle Datei zwischengespeichert haben, einmalig
+  ein Neuladen. **Weiterhin eine bewusste Grenze**: Handschrift bleibt unabhängig vom
+  Fine-Tuning unzuverlässig (siehe oben) — das Fine-Tuning verbessert nur die Erkennung
+  gedruckten Texts innerhalb der Termin-Domäne, ohne sie außerhalb zu verschlechtern.
 - Berechtigungs-Onboarding (Kernfunktion 10): eigener Onboarding-Screen beim ersten
   Start, der alle benötigten Berechtigungen inkl. Begründung anfragt.
 - System-Registrierung (Kernfunktion 11): Manifest-Intent-Filter für

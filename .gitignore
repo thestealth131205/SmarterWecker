@@ -21,3 +21,8 @@ keystore/
 
 # Server-Zugangsdaten für das Deploy-Skript (siehe scripts/release-deploy.sh) — niemals ins Repo.
 .server-credentials
+
+# Lokale Tesseract-Fine-Tuning-Umgebung (siehe CLAUDE.md "Foto-Import/OCR") — Quellcode-Klon,
+# Basis-Modelle und generierte Trainingsdaten gehören nicht in den App-Code-Verlauf.
+ocr-training/
+fonts.conf
