@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +21,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
@@ -76,7 +76,7 @@ fun CalendarDayScreen(
 ) {
     val items by viewModel.items.collectAsState()
     val jobs by viewModel.jobs.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    var addMenuExpanded by remember { mutableStateOf(false) }
     var showRotationPicker by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -91,59 +91,66 @@ fun CalendarDayScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
-            }
+            AddEntrySpeedDial(
+                expanded = addMenuExpanded,
+                onExpandedChange = { addMenuExpanded = it },
+                onPickAppointment = {
+                    addMenuExpanded = false
+                    onAddAppointment(viewModel.date)
+                },
+                onPickTask = {
+                    addMenuExpanded = false
+                    onAddTask(viewModel.date)
+                },
+                onPickShift = {
+                    addMenuExpanded = false
+                    onAddShift(viewModel.date)
+                },
+                onPickRotation = {
+                    addMenuExpanded = false
+                    showRotationPicker = true
+                }
+            )
         }
     ) { innerPadding ->
-        if (items.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Keine Einträge an diesem Tag")
-            }
-        } else {
-            val birthdayItems = items.filterIsInstance<BirthdayAgendaItem>()
-            val taskItems = items.filterIsInstance<TaskAgendaItem>()
-            val allDayItems = items.filterIsInstance<AllDayAgendaItem>()
-            val timedItems = items.filterIsInstance<TimedAgendaItem>().sortedBy { it.startMinuteOfDay }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(birthdayItems) { BirthdayCard(it) }
-                items(taskItems) { item ->
-                    TaskCard(item, onToggle = { completed -> viewModel.toggleTaskCompleted(item.taskId, completed) })
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (items.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Keine Einträge an diesem Tag")
                 }
-                items(allDayItems) { AllDayCard(it) }
-                items(timedItems) { TimedCard(it) }
+            } else {
+                val birthdayItems = items.filterIsInstance<BirthdayAgendaItem>()
+                val taskItems = items.filterIsInstance<TaskAgendaItem>()
+                val allDayItems = items.filterIsInstance<AllDayAgendaItem>()
+                val timedItems = items.filterIsInstance<TimedAgendaItem>().sortedBy { it.startMinuteOfDay }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(birthdayItems) { BirthdayCard(it) }
+                    items(taskItems) { item ->
+                        TaskCard(item, onToggle = { completed -> viewModel.toggleTaskCompleted(item.taskId, completed) })
+                    }
+                    items(allDayItems) { AllDayCard(it) }
+                    items(timedItems) { TimedCard(it) }
+                }
+            }
+
+            if (addMenuExpanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { addMenuExpanded = false })
+                        }
+                )
             }
         }
-    }
-
-    if (showAddDialog) {
-        AddEntryTypeDialog(
-            onPickAppointment = {
-                showAddDialog = false
-                onAddAppointment(viewModel.date)
-            },
-            onPickTask = {
-                showAddDialog = false
-                onAddTask(viewModel.date)
-            },
-            onPickShift = {
-                showAddDialog = false
-                onAddShift(viewModel.date)
-            },
-            onPickRotation = {
-                showAddDialog = false
-                showRotationPicker = true
-            },
-            onDismiss = { showAddDialog = false }
-        )
     }
 
     if (showRotationPicker) {

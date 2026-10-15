@@ -536,6 +536,19 @@ class CalendarRepository @Inject constructor(
     suspend fun deleteManualShiftEntry(entry: ManualShiftEntryEntity) = manualShiftEntryDao.delete(entry)
 
     /**
+     * Löscht alle Einträge (Schichten aus Rotationen, manuelle Schichten, Termine, Aufgaben) an
+     * einem einzelnen Tag — für den Bearbeiten-Modus der Monatsansicht (Tag(e) lang gedrückt
+     * halten, siehe [de.letheapp.nocturn.calendar.CalendarMonthScreen]). Feiertage/Ferien/
+     * Geburtstage sind reine, nicht löschbare Anzeigedaten und bleiben unberührt.
+     */
+    suspend fun deleteAllEntriesForDay(epochDay: Long) {
+        calendarEntryDao.deleteForDate(epochDay)
+        manualShiftEntryDao.deleteForDate(epochDay)
+        appointmentDao.getForDate(epochDay).forEach { deleteAppointment(it) }
+        taskDao.deleteForDate(epochDay)
+    }
+
+    /**
      * Für das Kalender-Homescreen-Widget: die nächsten [maxItems] anstehenden Einträge
      * (Schichten aus Rotationen + freie Termine) ab heute, über die nächsten
      * [AGENDA_LOOKAHEAD_DAYS] Tage, chronologisch sortiert.

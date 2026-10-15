@@ -250,6 +250,27 @@ class CalendarMonthViewModel @Inject constructor(
     val jobs: StateFlow<List<JobEntity>> = calendarRepository.observeJobs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Für die Schicht-Chip-Leiste des Bearbeiten-Modus: alle gespeicherten Schichten, jobübergreifend. */
+    val allShifts: StateFlow<List<ShiftEntity>> = calendarRepository.observeAllShifts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Bearbeiten-Modus: fügt die gewählte Schicht an jedem der ausgewählten Tage als manuelle
+     *  Schicht-Einzeleintragung hinzu (ergänzt bereits bestehende Einträge, ersetzt sie nicht). */
+    fun addShiftToDays(days: Set<LocalDate>, shift: ShiftEntity) {
+        viewModelScope.launch {
+            days.forEach { calendarRepository.saveManualShiftEntry(shift.jobId, shift.id, it.toEpochDay()) }
+            shiftWakeupAlarmSyncer.sync()
+        }
+    }
+
+    /** Bearbeiten-Modus: löscht alle Einträge (Schichten, Termine, Aufgaben) an den ausgewählten Tagen. */
+    fun deleteEntriesForDays(days: Set<LocalDate>) {
+        viewModelScope.launch {
+            days.forEach { calendarRepository.deleteAllEntriesForDay(it.toEpochDay()) }
+            shiftWakeupAlarmSyncer.sync()
+        }
+    }
+
     /** Legt einen neuen Job direkt aus dem "+"-Dialog an und liefert dessen ID an [onCreated],
      *  damit der Screen anschließend direkt zum passenden Editor (Rotation oder Stundenplan)
      *  weiternavigieren kann. */

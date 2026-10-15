@@ -140,6 +140,10 @@ interface CalendarEntryDao {
     @Query("DELETE FROM calendar_entries WHERE rotationId = :rotationId")
     suspend fun deleteForRotation(rotationId: Long)
 
+    /** Für den Bearbeiten-Modus der Monatsansicht (Tag(e) lang gedrückt halten → löschen). */
+    @Query("DELETE FROM calendar_entries WHERE dateEpochDay = :epochDay")
+    suspend fun deleteForDate(epochDay: Long)
+
     @Query(
         "DELETE FROM calendar_entries WHERE rotationId = :rotationId " +
             "AND dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay"
@@ -204,6 +208,10 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments WHERE reminderMinutesBefore IS NOT NULL")
     suspend fun getAllWithReminder(): List<AppointmentEntity>
 
+    /** Alle Termine, die einen Tag überdecken — für den Bearbeiten-Modus der Monatsansicht. */
+    @Query("SELECT * FROM appointments WHERE startEpochDay <= :epochDay AND endEpochDay >= :epochDay")
+    suspend fun getForDate(epochDay: Long): List<AppointmentEntity>
+
     @Insert
     suspend fun insert(appointment: AppointmentEntity): Long
 
@@ -221,6 +229,10 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getById(id: Long): TaskEntity?
+
+    /** Für den Bearbeiten-Modus der Monatsansicht (Tag(e) lang gedrückt halten → löschen). */
+    @Query("DELETE FROM tasks WHERE dueEpochDay = :epochDay")
+    suspend fun deleteForDate(epochDay: Long)
 
     @Insert
     suspend fun insert(task: TaskEntity): Long
@@ -249,6 +261,10 @@ interface ManualShiftEntryDao {
 
     @Delete
     suspend fun delete(entry: ManualShiftEntryEntity)
+
+    /** Für den Bearbeiten-Modus der Monatsansicht (Tag(e) lang gedrückt halten → löschen). */
+    @Query("DELETE FROM manual_shift_entries WHERE dateEpochDay = :epochDay")
+    suspend fun deleteForDate(epochDay: Long)
 }
 
 @Dao

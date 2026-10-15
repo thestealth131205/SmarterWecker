@@ -1,11 +1,12 @@
 package de.letheapp.nocturn.calendar
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.EventRepeat
@@ -63,6 +65,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -134,9 +137,13 @@ fun CalendarMonthScreen(
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     val rotations by viewModel.rotations.collectAsState()
     val jobs by viewModel.jobs.collectAsState()
+    val allShifts by viewModel.allShifts.collectAsState()
     val shareFileUri by viewModel.shareFileUri.collectAsState()
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
-    var showAddDialog by remember { mutableStateOf(false) }
+    var editMode by remember { mutableStateOf(false) }
+    var selectedDays by remember { mutableStateOf<Set<LocalDate>>(emptySet()) }
+    var showDeleteDaysConfirm by remember { mutableStateOf(false) }
+    var addMenuExpanded by remember { mutableStateOf(false) }
     var showRotationPicker by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showNoJobTip by remember { mutableStateOf(false) }
@@ -155,6 +162,11 @@ fun CalendarMonthScreen(
 
     BackHandler(enabled = drawerState.isOpen) {
         drawerScope.launch { drawerState.close() }
+    }
+
+    BackHandler(enabled = editMode && !drawerState.isOpen) {
+        editMode = false
+        selectedDays = emptySet()
     }
 
     LaunchedEffect(shareFileUri) {
@@ -338,11 +350,24 @@ fun CalendarMonthScreen(
                         IconButton(onClick = viewModel::nextMonth) {
                             Icon(Icons.Filled.ChevronRight, contentDescription = "Nächster Monat")
                         }
-                        IconButton(onClick = viewModel::shareMonth) {
-                            Icon(Icons.Filled.Share, contentDescription = "Kalender teilen")
-                        }
-                        IconButton(onClick = onOpenLetterImport) {
-                            Icon(Icons.Filled.CameraAlt, contentDescription = "Termin aus Foto oder Datei erkennen")
+                        if (editMode) {
+                            IconButton(
+                                onClick = { showDeleteDaysConfirm = true },
+                                enabled = selectedDays.isNotEmpty()
+                            ) {
+                                Icon(
+                                    Icons.Filled.Delete,
+                                    contentDescription = "Einträge der ausgewählten Tage löschen",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = viewModel::shareMonth) {
+                                Icon(Icons.Filled.Share, contentDescription = "Kalender teilen")
+                            }
+                            IconButton(onClick = onOpenLetterImport) {
+                                Icon(Icons.Filled.CameraAlt, contentDescription = "Termin aus Foto oder Datei erkennen")
+                            }
                         }
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(Icons.Filled.MoreVert, contentDescription = "Weitere Optionen")
@@ -389,19 +414,48 @@ fun CalendarMonthScreen(
                 )
             },
             floatingActionButton = {
-                SmallFloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Eintrag hinzufügen")
+                if (!editMode) {
+                    AddEntrySpeedDial(
+                        expanded = addMenuExpanded,
+                        onExpandedChange = { addMenuExpanded = it },
+                        onPickAppointment = {
+                            addMenuExpanded = false
+                            onAddAppointment(selectedDay ?: LocalDate.now())
+                        },
+                        onPickTask = {
+                            addMenuExpanded = false
+                            onAddTask(selectedDay ?: LocalDate.now())
+                        },
+                        onPickShift = {
+                            addMenuExpanded = false
+                            onAddShift(selectedDay ?: LocalDate.now())
+                        },
+                        onPickRotation = {
+                            addMenuExpanded = false
+                            showRotationPicker = true
+                        }
+                    )
                 }
             },
             bottomBar = {
-                NocturnBottomBar(selected = NocturnTab.KALENDER, onSelect = onSelectTab)
+                Column {
+                    if (editMode && selectedDays.isNotEmpty()) {
+                        EditModeShiftChipRow(
+                            shifts = allShifts,
+                            jobsById = jobs.associateBy { it.id },
+                            onPick = { shift -> viewModel.addShiftToDays(selectedDays, shift) }
+                        )
+                        Divider()
+                    }
+                    NocturnBottomBar(selected = NocturnTab.KALENDER, onSelect = onSelectTab)
+                }
             }
         ) { innerPadding ->
             var dragAccumulated by remember { mutableStateOf(0f) }
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
                     .padding(horizontal = 8.dp)
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
@@ -423,6 +477,16 @@ fun CalendarMonthScreen(
                     Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                         Text(
                             "Tippe auf den Starttag für „${rotation.name}“ im Kalender.",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                if (editMode) {
+                    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                        Text(
+                            "${selectedDays.size} Tag(e) ausgewählt — weitere Tage antippen, um sie hinzuzufügen oder wieder zu entfernen.",
                             modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -458,26 +522,37 @@ fun CalendarMonthScreen(
                                     isCurrentMonth = YearMonth.from(date) == month,
                                     isWeekend = dayOfWeekIndex >= 5,
                                     isToday = date == today,
-                                    isSelected = date == selectedDay,
+                                    isSelected = if (editMode) date in selectedDays else date == selectedDay,
                                     entries = entriesByDay[date].orEmpty(),
                                     onClick = {
-                                        val rotation = pendingRotation
-                                        if (rotation != null) {
-                                            pendingRotation = null
-                                            scope.launch {
-                                                val startEpochDay = date.toEpochDay()
-                                                val candidates = viewModel.rotationPhaseCandidates(rotation.id, startEpochDay)
-                                                if (candidates.size <= 1) {
-                                                    durationDialogFor = RotationApplyRequest(rotation, date, candidates.firstOrNull() ?: 0)
-                                                } else {
-                                                    val shiftOptions = viewModel.getRotationShiftOptions(rotation.id)
-                                                    val usageCounts = viewModel.getRotationShiftUsageCounts(rotation.id)
-                                                    phaseQueryFor = RotationTodayShiftQueryState(rotation, date, shiftOptions, usageCounts)
-                                                }
-                                            }
+                                        if (editMode) {
+                                            selectedDays = if (date in selectedDays) selectedDays - date else selectedDays + date
+                                            if (selectedDays.isEmpty()) editMode = false
                                         } else {
-                                            selectedDay = date
-                                            if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
+                                            val rotation = pendingRotation
+                                            if (rotation != null) {
+                                                pendingRotation = null
+                                                scope.launch {
+                                                    val startEpochDay = date.toEpochDay()
+                                                    val candidates = viewModel.rotationPhaseCandidates(rotation.id, startEpochDay)
+                                                    if (candidates.size <= 1) {
+                                                        durationDialogFor = RotationApplyRequest(rotation, date, candidates.firstOrNull() ?: 0)
+                                                    } else {
+                                                        val shiftOptions = viewModel.getRotationShiftOptions(rotation.id)
+                                                        val usageCounts = viewModel.getRotationShiftUsageCounts(rotation.id)
+                                                        phaseQueryFor = RotationTodayShiftQueryState(rotation, date, shiftOptions, usageCounts)
+                                                    }
+                                                }
+                                            } else {
+                                                selectedDay = date
+                                                if (entriesByDay[date].orEmpty().isNotEmpty()) onOpenDay(date)
+                                            }
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (!editMode && pendingRotation == null) {
+                                            editMode = true
+                                            selectedDays = setOf(date)
                                         }
                                     },
                                     modifier = Modifier.weight(1f).fillMaxHeight()
@@ -487,6 +562,17 @@ fun CalendarMonthScreen(
                         Divider()
                     }
                 }
+            }
+
+            if (addMenuExpanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { addMenuExpanded = false })
+                        }
+                )
+            }
             }
         }
 
@@ -503,28 +589,6 @@ fun CalendarMonthScreen(
                 dismissButton = {
                     TextButton(onClick = { showNoJobTip = false }) { Text("Abbrechen") }
                 }
-            )
-        }
-
-        if (showAddDialog) {
-            AddEntryTypeDialog(
-                onPickAppointment = {
-                    showAddDialog = false
-                    onAddAppointment(selectedDay ?: LocalDate.now())
-                },
-                onPickTask = {
-                    showAddDialog = false
-                    onAddTask(selectedDay ?: LocalDate.now())
-                },
-                onPickShift = {
-                    showAddDialog = false
-                    onAddShift(selectedDay ?: LocalDate.now())
-                },
-                onPickRotation = {
-                    showAddDialog = false
-                    showRotationPicker = true
-                },
-                onDismiss = { showAddDialog = false }
             )
         }
 
@@ -651,6 +715,31 @@ fun CalendarMonthScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingDeleteRotation = null }) { Text("Abbrechen") }
+                }
+            )
+        }
+
+        if (showDeleteDaysConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDaysConfirm = false },
+                title = { Text("Einträge löschen?") },
+                text = {
+                    Text(
+                        "Alle Termine, Aufgaben und Schichten an ${selectedDays.size} ausgewählten Tag(en) werden unwiderruflich gelöscht."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteEntriesForDays(selectedDays)
+                        showDeleteDaysConfirm = false
+                        editMode = false
+                        selectedDays = emptySet()
+                    }) {
+                        Text("Löschen")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDaysConfirm = false }) { Text("Abbrechen") }
                 }
             )
         }
@@ -942,6 +1031,44 @@ private fun ShiftChipRow(
     }
 }
 
+/**
+ * Horizontal scrollbare Chip-Leiste im Bearbeiten-Modus der Monatsansicht: zeigt alle
+ * gespeicherten Schichten jobübergreifend. Tippen auf einen Chip fügt die Schicht allen gerade
+ * ausgewählten Tagen als manuelle Einzel-Schicht hinzu (siehe [CalendarMonthViewModel.addShiftToDays]).
+ */
+@Composable
+private fun EditModeShiftChipRow(
+    shifts: List<ShiftEntity>,
+    jobsById: Map<Long, JobEntity>,
+    onPick: (ShiftEntity) -> Unit
+) {
+    if (shifts.isEmpty()) return
+    val showJobSuffix = shifts.map { it.jobId }.distinct().size > 1
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        shifts.forEach { shift ->
+            val label = if (showJobSuffix) {
+                "${shift.name} · ${jobsById[shift.jobId]?.name.orEmpty()}"
+            } else {
+                shift.name
+            }
+            FilterChip(
+                selected = false,
+                onClick = { onPick(shift) },
+                leadingIcon = {
+                    Box(modifier = Modifier.size(10.dp).background(Color(shift.colorArgb), CircleShape))
+                },
+                label = { Text(label) }
+            )
+        }
+    }
+}
+
 @Composable
 private fun HolidayLegendRow(color: Color, label: String) {
     Row(
@@ -953,43 +1080,59 @@ private fun HolidayLegendRow(color: Color, label: String) {
     }
 }
 
+/**
+ * Ersetzt den früheren modalen "Eintrag hinzufügen"-Dialog durch ein direkt über dem "+"
+ * aufklappendes Bubble-Menü (kein abdunkelnder Hintergrund, kein "Abbrechen"-Button) — Tippen
+ * auf eine der Bubbles wählt den Eintragstyp, Tippen daneben oder erneut auf den Button (der
+ * dabei zu einem X wird) schließt das Menü wieder.
+ */
 @Composable
-internal fun AddEntryTypeDialog(
+internal fun AddEntrySpeedDial(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     onPickAppointment: () -> Unit,
     onPickTask: () -> Unit,
     onPickShift: () -> Unit,
-    onPickRotation: () -> Unit,
-    onDismiss: () -> Unit
+    onPickRotation: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Eintrag hinzufügen") },
-        text = {
-            Column {
-                Text(
-                    "Was möchtest du anlegen?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                TextButton(onClick = onPickAppointment, modifier = Modifier.fillMaxWidth()) {
-                    Text("Termin", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                }
-                TextButton(onClick = onPickTask, modifier = Modifier.fillMaxWidth()) {
-                    Text("Aufgabe", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                }
-                TextButton(onClick = onPickShift, modifier = Modifier.fillMaxWidth()) {
-                    Text("Schicht", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                }
-                TextButton(onClick = onPickRotation, modifier = Modifier.fillMaxWidth()) {
-                    Text("Rotation / Stundenplan", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
-                }
+    Column(horizontalAlignment = Alignment.End) {
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                SpeedDialPill("Termin", onClick = onPickAppointment)
+                SpeedDialPill("Aufgabe", onClick = onPickTask)
+                SpeedDialPill("Schicht", onClick = onPickShift)
+                SpeedDialPill("Rotation / Stundenplan", onClick = onPickRotation)
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
         }
-    )
+        SmallFloatingActionButton(onClick = { onExpandedChange(!expanded) }) {
+            Icon(
+                if (expanded) Icons.Filled.Close else Icons.Filled.Add,
+                contentDescription = "Eintrag hinzufügen"
+            )
+        }
+    }
+}
+
+@Composable
+private fun SpeedDialPill(label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 3.dp,
+        shadowElevation = 2.dp
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 /**
@@ -1093,6 +1236,7 @@ internal fun monthGridWeeks(month: YearMonth): Int {
     return weeksToShowMonth + 1
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayCell(
     date: LocalDate,
@@ -1102,6 +1246,7 @@ private fun DayCell(
     isSelected: Boolean,
     entries: List<CalendarDayEntry>,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hasPublicHoliday = entries.any { it is HolidayDayEntry && !it.isSchoolHoliday }
@@ -1128,7 +1273,7 @@ private fun DayCell(
                     else -> Modifier
                 }
             )
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 2.dp, vertical = 4.dp)
     ) {
         Text(
