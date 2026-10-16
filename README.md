@@ -1,9 +1,24 @@
+![NocTurn – Wecker-App mit Schichtkalender](docs/screenshots/01-hero.jpg)
+
 # NocTurn (Smarter Wecker)
 
 Android-App, die es praktisch unmöglich macht, den Wecker zu verschlafen. Statt
 simplem Wegdrücken wird nach dem Klingeln aktiv per Sensorik/Health Connect
 überprüft, ob man tatsächlich aufgestanden ist und sich bewegt hat. Dazu ein
 übersichtlicher Schichtplan-/Stundenplan-Kalender mit automatischer Rotation.
+
+<p align="center">
+  <img src="docs/screenshots/02-entspannt.jpg" width="45%" alt="Entspannt den Tag genießen" />
+  <img src="docs/screenshots/03-kalender.jpg" width="45%" alt="Kalender mit selbst definierten Farben" />
+</p>
+
+- **Entspannt den Tag genießen** – ohne Angst vor dem Verschlafen oder unnötigem
+  Stress, wenn man schon wach ist: Die Aufsteh-Erkennung (Kernfunktion 1) prüft
+  zuverlässig per Sensorik/Health Connect, ob wirklich aufgestanden wurde, statt
+  blind einer fixen Schlummerzeit zu vertrauen.
+- **Alles im Blick mit selbst definierten Farben** – der Schichtkalender zeigt
+  Rotationen, manuelle Zusatzeinträge (z. B. "Kinder-Wochenende"), Feiertage und
+  mehr übersichtlich nebeneinander, jede Schicht in frei wählbarer Farbe.
 
 > **Status:** Phase 1 (MVP) ist umgesetzt und seitdem um zahlreiche Zusatzfunktionen
 > erweitert (siehe unten). Details und offene Konzept-Punkte siehe
