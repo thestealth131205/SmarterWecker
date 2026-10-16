@@ -49,10 +49,10 @@ export default {
 	computed: {
 		repeatEveryLabel() {
 			if (this.frequency === 'NONE') {
-				return this.$t('calendar', 'Repeat')
+				return this.$t('nocturnkalender', 'Repeat')
 			}
 
-			return this.$t('calendar', 'Repeat every')
+			return this.$t('nocturnkalender', 'Repeat every')
 		},
 
 		isIntervalDisabled() {

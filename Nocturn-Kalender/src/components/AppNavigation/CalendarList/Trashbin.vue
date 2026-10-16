@@ -5,7 +5,7 @@
 
 <template>
 	<NcAppNavigationItem
-		:name="t('calendar', 'Trash bin')"
+		:name="t('nocturnkalender', 'Trash bin')"
 		:pinned="true"
 		@click.prevent="onShow">
 		<template #icon>
@@ -15,14 +15,14 @@
 			<NcModal
 				v-if="showModal"
 				size="large"
-				:name="t('calendar', 'Trash bin')"
+				:name="t('nocturnkalender', 'Trash bin')"
 				@close="showModal = false">
 				<div class="modal__content">
-					<h2>{{ t('calendar', 'Trash bin') }}</h2>
+					<h2>{{ t('nocturnkalender', 'Trash bin') }}</h2>
 					<NcEmptyContent
 						v-if="loading"
 						class="modal__content__loading"
-						:description="t('calendar', 'Loading deleted items.')">
+						:description="t('nocturnkalender', 'Loading deleted items.')">
 						<template #icon>
 							<NcLoadingIcon decorative />
 						</template>
@@ -30,7 +30,7 @@
 					<NcEmptyContent
 						v-else-if="!items.length"
 						class="modal__content__empty"
-						:description="t('calendar', 'You do not have any deleted items.')">
+						:description="t('nocturnkalender', 'You do not have any deleted items.')">
 						<template #icon>
 							<IconDelete decorative />
 						</template>
@@ -40,10 +40,10 @@
 							<thead>
 								<tr>
 									<th class="name">
-										{{ t('calendar', 'Name') }}
+										{{ t('nocturnkalender', 'Name') }}
 									</th>
 									<th class="deletedAt">
-										{{ t('calendar', 'Deleted') }}
+										{{ t('nocturnkalender', 'Deleted') }}
 									</th>
 									<th>&nbsp;</th>
 								</tr>
@@ -74,7 +74,7 @@
 									<td>
 										<div class="item-actions">
 											<NcButton v-if="item.canRestore" variant="secondary" @click="restore(item)">
-												{{ t('calendar', 'Restore') }}
+												{{ t('nocturnkalender', 'Restore') }}
 											</NcButton>
 
 											<NcActions v-if="item.canDelete" :forceMenu="item.canRestore">
@@ -82,7 +82,7 @@
 													<template #icon>
 														<IconDelete :size="20" decorative />
 													</template>
-													{{ t('calendar', 'Delete permanently') }}
+													{{ t('nocturnkalender', 'Delete permanently') }}
 												</NcActionButton>
 											</NcActions>
 										</div>
@@ -92,10 +92,10 @@
 						</table>
 						<div class="footer">
 							<p v-if="retentionDuration">
-								{{ n('calendar', 'Items in the trash bin are deleted after {numDays} day', 'Items in the trash bin are deleted after {numDays} days', retentionDuration, { numDays: retentionDuration }) }}
+								{{ n('nocturnkalender', 'Items in the trash bin are deleted after {numDays} day', 'Items in the trash bin are deleted after {numDays} days', retentionDuration, { numDays: retentionDuration }) }}
 							</p>
 							<NcButton variant="error" @click="onEmptyTrashBin()">
-								{{ t('calendar', 'Empty trash bin') }}
+								{{ t('nocturnkalender', 'Empty trash bin') }}
 							</NcButton>
 						</div>
 					</template>
@@ -173,13 +173,13 @@ export default {
 				canRestore: this.canRestoreCalendar(calendar),
 			}))
 			const formattedCalendarObjects = this.objects.map((vobject) => {
-				let eventSummary = t('calendar', 'Untitled item')
+				let eventSummary = t('nocturnkalender', 'Untitled item')
 				try {
 					eventSummary = vobject?.calendarComponent.getComponentIterator().next().value?.title
 				} catch (error) {
 					logger.error('Failed to read event summary from deleted calendar object', { error })
 				}
-				let subline = vobject.calendar?.displayName || t('calendar', 'Unknown calendar')
+				let subline = vobject.calendar?.displayName || t('nocturnkalender', 'Unknown calendar')
 				if (vobject.isEvent) {
 					const event = vobject?.calendarComponent.getFirstComponent('VEVENT')
 					const utcOffset = (event?.startDate.getInTimezone(this.timezoneObject).utcOffset() ?? 0) / 60
@@ -236,7 +236,7 @@ export default {
 					error,
 				})
 
-				showError(t('calendar', 'Could not load deleted calendars and objects'))
+				showError(t('nocturnkalender', 'Could not load deleted calendars and objects'))
 			}
 			this.loading = false
 		},
@@ -255,7 +255,7 @@ export default {
 			} catch (error) {
 				logger.error('could not delete ' + item.url, { error })
 
-				showError(t('calendar', 'Could not delete calendar or event'))
+				showError(t('nocturnkalender', 'Could not delete calendar or event'))
 			}
 		},
 
@@ -274,14 +274,14 @@ export default {
 			} catch (error) {
 				logger.error('could not restore ' + item.url, { error })
 
-				showError(t('calendar', 'Could not restore calendar or event'))
+				showError(t('nocturnkalender', 'Could not restore calendar or event'))
 			}
 		},
 
 		onEmptyTrashBin() {
 			OC.dialogs.confirm(
-				t('calendar', 'Do you really want to empty the trash bin?'),
-				t('calendar', 'Empty trash bin'),
+				t('nocturnkalender', 'Do you really want to empty the trash bin?'),
+				t('nocturnkalender', 'Empty trash bin'),
 				this.emptyTrashBin,
 				true,
 			)

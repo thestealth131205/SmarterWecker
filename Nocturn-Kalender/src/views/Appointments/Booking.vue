@@ -92,7 +92,7 @@ async function fetchSlots(): Promise<void> {
 			timeZone.value,
 		)
 	} catch (e) {
-		showError(t('calendar', 'Could not fetch slots'))
+		showError(t('nocturnkalender', 'Could not fetch slots'))
 		logger.error('Could not fetch slots', { e })
 	} finally {
 		loadingSlots.value = false
@@ -161,7 +161,7 @@ onMounted(async () => {
 				</div>
 				<div class="booking__date-selection">
 					<h5 class="booking__date-header">
-						{{ $t('calendar', 'Select a date') }}
+						{{ $t('nocturnkalender', 'Select a date') }}
 					</h5>
 					<div class="booking__date">
 						<DateTimePicker
@@ -174,18 +174,18 @@ onMounted(async () => {
 					<div class="booking__time-zone">
 						<TimezonePicker
 							v-model="timeZone"
-							:aria-label="$t('calendar', 'Select a date')"
+							:aria-label="$t('nocturnkalender', 'Select a date')"
 							@change="fetchSlots" />
 					</div>
 				</div>
 				<div class="booking__slot-selection">
-					<h5>{{ $t('calendar', 'Select slot') }}</h5>
+					<h5>{{ $t('nocturnkalender', 'Select slot') }}</h5>
 					<div class="booking__slots">
 						<NcLoadingIcon v-if="loadingSlots" :size="24" />
 						<NcEmptyContent
 							v-else-if="slots.length === 0 && !loadingSlots"
-							:title="$t('calendar', 'No slots available')"
-							:description="$t('calendar', 'No slots available')" />
+							:title="$t('nocturnkalender', 'No slots available')"
+							:description="$t('nocturnkalender', 'No slots available')" />
 						<template v-else>
 							<AppointmentSlot
 								v-for="slot in slots"

@@ -16,7 +16,7 @@ declare module '@nextcloud/event-bus' {
 }
 
 __webpack_nonce__ = getCSPNonce()!
-__webpack_public_path__ = linkTo('calendar', 'js/')
+__webpack_public_path__ = linkTo('nocturnkalender', 'js/')
 
 /** Id of the app menu action registered by `Application::registerNewEventAction` */
 const NEW_EVENT_ACTION_ID = 'calendar:new-event'

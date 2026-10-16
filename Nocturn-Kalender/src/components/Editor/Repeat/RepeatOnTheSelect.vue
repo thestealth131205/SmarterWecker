@@ -9,9 +9,9 @@
 		:allowEmpty="false"
 		:options="options"
 		:disabled="disabled"
-		:placeholder="$t('calendar', 'Monday')"
+		:placeholder="$t('nocturnkalender', 'Monday')"
 		:clearable="false"
-		:ariaLabelCombobox="$t('calendar', 'Day of week')"
+		:ariaLabelCombobox="$t('nocturnkalender', 'Day of week')"
 		inputId="repeat-on-the"
 		label="label" />
 </template>
@@ -66,13 +66,13 @@ export default {
 				label: dayNames[0],
 				value: ['SU'],
 			}, {
-				label: this.$t('calendar', 'day'),
+				label: this.$t('nocturnkalender', 'day'),
 				value: ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'],
 			}, {
-				label: this.$t('calendar', 'weekday'),
+				label: this.$t('nocturnkalender', 'weekday'),
 				value: ['MO', 'TU', 'WE', 'TH', 'FR'],
 			}, {
-				label: this.$t('calendar', 'weekend day'),
+				label: this.$t('nocturnkalender', 'weekend day'),
 				value: ['SU', 'SA'],
 			}]
 		},

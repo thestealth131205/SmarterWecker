@@ -24,7 +24,7 @@
 				:name="radioInputId"
 				:modelValue="byMonthDayEnabled"
 				@update:modelValue="enableByMonthDay">
-				{{ $t('calendar', 'On specific day') }}
+				{{ $t('nocturnkalender', 'On specific day') }}
 			</NcCheckboxRadioSwitch>
 			<div class="repeat-option-set-section__grid">
 				<NcButton
@@ -45,7 +45,7 @@
 				:name="radioInputId"
 				:modelValue="!byMonthDayEnabled"
 				@update:modelValue="enableBySetPosition">
-				{{ $t('calendar', 'On the') }}
+				{{ $t('nocturnkalender', 'On the') }}
 			</NcCheckboxRadioSwitch>
 			<RepeatFirstLastSelect
 				:bySetPosition="bySetPosition"

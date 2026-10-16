@@ -1,5 +1,10 @@
 package de.letheapp.nocturn.calendar
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,8 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -21,11 +31,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.alarm.NocturnTimePickerDialog
@@ -63,11 +75,27 @@ fun AddAppointmentScreen(
     var allDay by remember { mutableStateOf(initialAllDay) }
     var priority by remember { mutableStateOf(initialPriority) }
     var reminderMinutesBefore by remember { mutableStateOf(initialReminderMinutesBefore) }
+    var showAsBusy by remember { mutableStateOf(true) }
     var beginMillis by remember { mutableLongStateOf(initialBeginMillis) }
     var endMillis by remember { mutableLongStateOf(initialEndMillis) }
     var editingBegin by remember { mutableStateOf(false) }
     var editingEnd by remember { mutableStateOf(false) }
     var editingDate by remember { mutableStateOf(false) }
+    val attachments = remember { mutableStateListOf<PendingAttachment>() }
+    val context = LocalContext.current
+
+    val attachmentPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        uris.forEach { uri ->
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val fileName = queryAttachmentFileName(uri, context) ?: uri.lastPathSegment.orEmpty()
+            val mimeType = context.contentResolver.getType(uri)
+            attachments.add(PendingAttachment(uri = uri.toString(), fileName = fileName, mimeType = mimeType))
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -89,6 +117,8 @@ fun AddAppointmentScreen(
                         allDay = allDay,
                         priority = priority,
                         reminderMinutesBefore = reminderMinutesBefore,
+                        showAsBusy = showAsBusy,
+                        attachments = attachments.toList(),
                         onSaved = onSaved
                     )
                 }) { Text("Speichern") }
@@ -145,6 +175,20 @@ fun AddAppointmentScreen(
                 }
             }
 
+            Text("Anzeigen als", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    true to "Beschäftigt",
+                    false to "Frei"
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = showAsBusy == value,
+                        onClick = { showAsBusy = value },
+                        label = { Text(label) }
+                    )
+                }
+            }
+
             Text("Erinnerung", style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf<Pair<Int?, String>>(
@@ -183,6 +227,36 @@ fun AddAppointmentScreen(
                 ) {
                     Text("Ende", modifier = Modifier.weight(1f))
                     Text(formatDateTime(endMillis), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    if (attachments.isEmpty()) "Keine Anhänge" else "Anhänge",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = {
+                    attachmentPicker.launch(arrayOf("*/*"))
+                }) { Text("Hinzufügen") }
+            }
+            attachments.forEach { attachment ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.AttachFile, contentDescription = null)
+                    Text(
+                        attachment.fileName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f).padding(start = 8.dp)
+                    )
+                    IconButton(onClick = { attachments.remove(attachment) }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Anhang entfernen")
+                    }
                 }
             }
         }
@@ -240,3 +314,13 @@ private fun formatDate(epochMillis: Long): String {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(formatter)
 }
+
+private fun queryAttachmentFileName(uri: Uri, context: android.content.Context): String? =
+    runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) cursor.getString(index) else null
+            } else null
+        }
+    }.getOrNull()

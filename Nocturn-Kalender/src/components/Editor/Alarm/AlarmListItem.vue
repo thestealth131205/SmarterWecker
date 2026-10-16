@@ -5,7 +5,7 @@
 
 <template>
 	<!-- Yes, technically an alarm is a component, not a property, but for the matter of CSS names it really doesn't matter -->
-	<div class="property-alarm-item" :title="isDefault ? $t('calendar', 'Default reminder of calendar') : ''">
+	<div class="property-alarm-item" :title="isDefault ? $t('nocturnkalender', 'Default reminder of calendar') : ''">
 		<div v-if="!isEditing" class="property-alarm-item__front">
 			<div class="property-alarm-item__label" :class="{ 'property-alarm-item__label--default': isDefault }">
 				{{ formatAlarm(alarm, isAllDay, currentUserTimezone, locale) }}
@@ -16,7 +16,7 @@
 			class="property-alarm-item__edit property-alarm-item__edit--timed">
 			<NcTextField
 				type="number"
-				:label="$t('calendar', 'Amount')"
+				:label="$t('nocturnkalender', 'Amount')"
 				:labelOutside="true"
 				:modelValue="String(alarm.relativeAmountTimed)"
 				@update:modelValue="changeRelativeAmountTimed" />
@@ -32,7 +32,7 @@
 			<div class="property-alarm-item__edit--all-day__distance">
 				<NcTextField
 					type="number"
-					:label="$t('calendar', 'Amount')"
+					:label="$t('nocturnkalender', 'Amount')"
 					:labelOutside="false"
 					:modelValue="String(alarm.relativeAmountAllDay)"
 					@update:modelValue="changeRelativeAmountAllDay" />
@@ -45,7 +45,7 @@
 			</div>
 			<div class="property-alarm-item__edit--all-day__time">
 				<span class="property-alarm-item__edit--all-day__time__before-at-label">
-					{{ $t('calendar', 'before at') }}
+					{{ $t('nocturnkalender', 'before at') }}
 				</span>
 				<TimePicker
 					:date="relativeAllDayDate"
@@ -59,7 +59,7 @@
 				:date="alarm.absoluteDate"
 				:timezoneId="alarm.absoluteTimezoneId"
 				:isAllDay="false"
-				:ariaLabel="$t('calendar', 'Alarm date and time')"
+				:ariaLabel="$t('nocturnkalender', 'Alarm date and time')"
 				@change="changeAbsoluteDate"
 				@changeTimezone="changeAbsoluteTimezoneId" />
 		</div>
@@ -75,7 +75,7 @@
 					value="DISPLAY"
 					:modelValue="alarmType"
 					@update:modelValue="changeType('DISPLAY')">
-					{{ $t('calendar', 'Notification') }}
+					{{ $t('nocturnkalender', 'Notification') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="canChangeAlarmType || (!isAlarmTypeEmail && forceEventAlarmType === 'EMAIL')"
@@ -83,7 +83,7 @@
 					value="EMAIL"
 					:modelValue="alarmType"
 					@update:modelValue="changeType('EMAIL')">
-					{{ $t('calendar', 'Email') }}
+					{{ $t('nocturnkalender', 'Email') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="canChangeAlarmType && isAlarmTypeAudio"
@@ -91,7 +91,7 @@
 					value="AUDIO"
 					:modelValue="alarmType"
 					@update:modelValue="changeType('AUDIO')">
-					{{ $t('calendar', 'Audio notification') }}
+					{{ $t('nocturnkalender', 'Audio notification') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="canChangeAlarmType && isAlarmTypeOther"
@@ -99,7 +99,7 @@
 					:value="isAlarmTypeOther ?? alarmType"
 					:modelValue="alarmType"
 					@update:modelValue="changeType(alarmType)">
-					{{ $t('calendar', 'Other notification') }}
+					{{ $t('nocturnkalender', 'Other notification') }}
 				</ActionRadio>
 
 				<ActionSeparator v-if="canChangeAlarmType && !isRecurring" />
@@ -110,7 +110,7 @@
 					value="RELATIVE"
 					:modelValue="alarmRelationType"
 					@update:modelValue="switchToRelativeAlarm">
-					{{ $t('calendar', 'Relative to event') }}
+					{{ $t('nocturnkalender', 'Relative to event') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="!isRecurring"
@@ -118,7 +118,7 @@
 					value="ABSOLUTE"
 					:modelValue="alarmRelationType"
 					@update:modelValue="switchToAbsoluteAlarm">
-					{{ $t('calendar', 'On date') }}
+					{{ $t('nocturnkalender', 'On date') }}
 				</ActionRadio>
 
 				<ActionSeparator />
@@ -129,7 +129,7 @@
 					<template #icon>
 						<Pencil :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Edit time') }}
+					{{ $t('nocturnkalender', 'Edit time') }}
 				</ActionButton>
 				<ActionButton
 					v-if="canEdit && isEditing"
@@ -137,14 +137,14 @@
 					<template #icon>
 						<Check :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Save time') }}
+					{{ $t('nocturnkalender', 'Save time') }}
 				</ActionButton>
 
 				<ActionButton @click="removeAlarm">
 					<template #icon>
 						<Delete :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Remove reminder') }}
+					{{ $t('nocturnkalender', 'Remove reminder') }}
 				</ActionButton>
 			</Actions>
 		</div>
@@ -325,11 +325,11 @@ export default {
 		absoluteDateFormat() {
 			return [
 				'[',
-				this.$t('calendar', 'on'),
+				this.$t('nocturnkalender', 'on'),
 				'] ',
 				moment.localeData().longDateFormat('L'),
 				' [',
-				this.$t('calendar', 'at'),
+				this.$t('nocturnkalender', 'at'),
 				'] ',
 				moment.localeData().longDateFormat('LT'),
 			].join('')

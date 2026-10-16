@@ -24,31 +24,31 @@ function getRFCProperties() {
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.1.3
 		 */
 		accessClass: {
-			readableName: t('calendar', 'When shared show'),
+			readableName: t('nocturnkalender', 'When shared show'),
 			icon: 'Eye',
 			options: [
-				{ value: 'PUBLIC', label: t('calendar', 'When shared show full event') },
-				{ value: 'CONFIDENTIAL', label: t('calendar', 'When shared show only busy') },
-				{ value: 'PRIVATE', label: t('calendar', 'When shared hide this event') },
+				{ value: 'PUBLIC', label: t('nocturnkalender', 'When shared show full event') },
+				{ value: 'CONFIDENTIAL', label: t('nocturnkalender', 'When shared show only busy') },
+				{ value: 'PRIVATE', label: t('nocturnkalender', 'When shared hide this event') },
 			],
 			multiple: false,
-			info: t('calendar', 'The visibility of this event in read-only shared calendars.'),
+			info: t('nocturnkalender', 'The visibility of this event in read-only shared calendars.'),
 			defaultValue: 'PUBLIC',
 		},
 		/**
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.1.7
 		 */
 		location: {
-			readableName: t('calendar', 'Location'),
-			placeholder: t('calendar', 'Add a location'),
+			readableName: t('nocturnkalender', 'Location'),
+			placeholder: t('nocturnkalender', 'Add a location'),
 			icon: 'MapMarker',
 		},
 		/**
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.1.5
 		 */
 		description: {
-			readableName: t('calendar', 'Description'),
-			placeholder: t('calendar', 'Add a description\n'
+			readableName: t('nocturnkalender', 'Description'),
+			placeholder: t('nocturnkalender', 'Add a description\n'
 			+ '\n'
 			+ '- What is this meeting about\n'
 			+ '- Agenda items\n'
@@ -60,28 +60,28 @@ function getRFCProperties() {
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.1.11
 		 */
 		status: {
-			readableName: t('calendar', 'Status'),
+			readableName: t('nocturnkalender', 'Status'),
 			icon: 'Check',
 			options: [
-				{ value: 'CONFIRMED', label: t('calendar', 'Confirmed') },
-				{ value: 'TENTATIVE', label: t('calendar', 'Tentative') },
-				{ value: 'CANCELLED', label: t('calendar', 'Canceled') },
+				{ value: 'CONFIRMED', label: t('nocturnkalender', 'Confirmed') },
+				{ value: 'TENTATIVE', label: t('nocturnkalender', 'Tentative') },
+				{ value: 'CANCELLED', label: t('nocturnkalender', 'Canceled') },
 			],
 			multiple: false,
-			info: t('calendar', 'Confirmation about the overall status of the event.'),
+			info: t('nocturnkalender', 'Confirmation about the overall status of the event.'),
 			defaultValue: 'CONFIRMED',
 		},
 		/**
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.2.7
 		 */
 		timeTransparency: {
-			readableName: t('calendar', 'Show as'),
+			readableName: t('nocturnkalender', 'Show as'),
 			icon: 'Briefcase',
 			multiple: false,
-			info: t('calendar', 'Take this event into account when calculating free-busy information.'),
+			info: t('nocturnkalender', 'Take this event into account when calculating free-busy information.'),
 			options: [
-				{ value: 'TRANSPARENT', label: t('calendar', 'Free') },
-				{ value: 'OPAQUE', label: t('calendar', 'Busy') },
+				{ value: 'TRANSPARENT', label: t('nocturnkalender', 'Free') },
+				{ value: 'OPAQUE', label: t('nocturnkalender', 'Busy') },
 			],
 			defaultValue: 'TRANSPARENT',
 		},
@@ -89,22 +89,22 @@ function getRFCProperties() {
 		 * https://tools.ietf.org/html/rfc5545#section-3.8.1.2
 		 */
 		categories: {
-			readableName: t('calendar', 'Categories'),
+			readableName: t('nocturnkalender', 'Categories'),
 			icon: 'Tag',
 			multiple: true,
-			info: t('calendar', 'Categories help you to structure and organize your events.'),
-			placeholder: t('calendar', 'Search or add categories'),
-			tagPlaceholder: t('calendar', 'Add this as a new category'),
+			info: t('nocturnkalender', 'Categories help you to structure and organize your events.'),
+			placeholder: t('nocturnkalender', 'Search or add categories'),
+			tagPlaceholder: t('nocturnkalender', 'Add this as a new category'),
 			options: getDefaultCategories(),
 		},
 		/**
 		 * https://tools.ietf.org/html/rfc7986#section-5.9
 		 */
 		color: {
-			readableName: t('calendar', 'Custom color'),
+			readableName: t('nocturnkalender', 'Custom color'),
 			icon: 'EyedropperVariant',
 			multiple: false,
-			info: t('calendar', 'Special color of this event. Overrides the calendar-color.'),
+			info: t('nocturnkalender', 'Special color of this event. Overrides the calendar-color.'),
 		},
 	}
 }

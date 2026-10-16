@@ -17,7 +17,7 @@
 							scope="col"
 							class="proposal-matrix__table-header-participant"
 							colspan="2">
-							{{ t('calendar', 'Select your meeting availability') }}
+							{{ t('nocturnkalender', 'Select your meeting availability') }}
 						</th>
 						<th
 							v-for="participant in proposal.participants"
@@ -65,7 +65,7 @@
 									@update:modelValue="$emit('dateVote', { date: date, vote: ProposalDateVote.Yes })">
 									<div class="vote-option">
 										<VoteYesIcon />
-										{{ t('calendar', 'Yes') }}
+										{{ t('nocturnkalender', 'Yes') }}
 									</div>
 								</NcCheckboxRadioSwitch>
 								<NcCheckboxRadioSwitch
@@ -78,7 +78,7 @@
 									@update:modelValue="$emit('dateVote', { date: date, vote: ProposalDateVote.No })">
 									<div class="vote-option">
 										<VoteNoIcon />
-										{{ t('calendar', 'No') }}
+										{{ t('nocturnkalender', 'No') }}
 									</div>
 								</NcCheckboxRadioSwitch>
 								<NcCheckboxRadioSwitch
@@ -91,7 +91,7 @@
 									@update:modelValue="$emit('dateVote', { date: date, vote: ProposalDateVote.Maybe })">
 									<div class="vote-option">
 										<VoteMaybeIcon />
-										{{ t('calendar', 'Maybe') }}
+										{{ t('nocturnkalender', 'Maybe') }}
 									</div>
 								</NcCheckboxRadioSwitch>
 							</div>
@@ -105,12 +105,12 @@
 						<td v-if="mode === 'organizer'" class="proposal-matrix__table-actions-organizer">
 							<NcButton
 								variant="tertiary"
-								:title="t('calendar', 'Create a meeting for this date and time')"
+								:title="t('nocturnkalender', 'Create a meeting for this date and time')"
 								@click="$emit('dateConvert', date)">
 								<template #icon>
 									<CreateIcon />
 								</template>
-								{{ t('calendar', 'Create') }}
+								{{ t('nocturnkalender', 'Create') }}
 							</NcButton>
 						</td>
 					</tr>
@@ -118,7 +118,7 @@
 			</table>
 		</div>
 		<div v-else class="proposal-matrix__empty">
-			{{ t('calendar', 'No participants or dates available') }}
+			{{ t('nocturnkalender', 'No participants or dates available') }}
 		</div>
 	</div>
 </template>
@@ -233,13 +233,13 @@ function participantVoteLabel(participantId: number | null, dateId: number | nul
 	const vote = participantVote(participantId, dateId)
 	switch (vote) {
 		case ProposalDateVote.Yes:
-			return t('calendar', 'Yes')
+			return t('nocturnkalender', 'Yes')
 		case ProposalDateVote.No:
-			return t('calendar', 'No')
+			return t('nocturnkalender', 'No')
 		case ProposalDateVote.Maybe:
-			return t('calendar', 'Maybe')
+			return t('nocturnkalender', 'Maybe')
 		default:
-			return t('calendar', 'None')
+			return t('nocturnkalender', 'None')
 	}
 }
 

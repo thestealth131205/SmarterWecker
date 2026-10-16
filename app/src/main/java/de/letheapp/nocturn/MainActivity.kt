@@ -93,7 +93,8 @@ class MainActivity : ComponentActivity() {
             else -> ROUTE_ALARM_LIST
         }
         setContent {
-            NocTurnTheme {
+            val dynamicColorEnabled by appPreferences.dynamicColorEnabled.collectAsState()
+            NocTurnTheme(dynamicColor = dynamicColorEnabled) {
                 NocturnNavHost(
                     startDestination = startDestination,
                     appPreferences = appPreferences

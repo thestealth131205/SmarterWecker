@@ -92,7 +92,7 @@ async function deleteConfig(config: AppointmentConfig): Promise<void> {
 		class="appointment-config-list">
 		<AppNavigationCaption
 			class="appointment-config-list__caption"
-			:name="t('calendar', 'Appointment schedules')">
+			:name="t('nocturnkalender', 'Appointment schedules')">
 			<template
 				v-if="hasUserEmailAddress"
 				#actions>
@@ -102,7 +102,7 @@ async function deleteConfig(config: AppointmentConfig): Promise<void> {
 					<template #icon>
 						<PlusIcon :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Create new') }}
+					{{ t('nocturnkalender', 'Create new') }}
 				</ActionButton>
 			</template>
 		</AppNavigationCaption>

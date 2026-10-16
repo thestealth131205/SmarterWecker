@@ -15,6 +15,7 @@ private const val KEY_LOCATION_NAME = "weather_location_name"
 private const val KEY_LOCATION_LAT = "weather_location_lat"
 private const val KEY_LOCATION_LON = "weather_location_lon"
 private const val KEY_LIVE_LOCATION_ENABLED = "weather_live_location_enabled"
+private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -56,6 +57,19 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun setLiveLocationEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_LIVE_LOCATION_ENABLED, enabled).apply()
         _liveLocationEnabled.value = enabled
+    }
+
+    /**
+     * Standardmäßig aus: NocTurn nutzt ein festes Neon-Gelb-Branding (siehe
+     * [de.letheapp.nocturn.ui.theme.NocTurnTheme]) statt der vom Geräte-Wallpaper abgeleiteten
+     * Material-You-Akzentfarbe. Wer das möchte, kann Dynamic Color hier wieder einschalten.
+     */
+    private val _dynamicColorEnabled = MutableStateFlow(prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, false))
+    val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, enabled).apply()
+        _dynamicColorEnabled.value = enabled
     }
 
     /** Manuell gewählter Wetter-Ort statt der automatischen `LocationManager`-Ermittlung. */

@@ -10,7 +10,7 @@
 		</div>
 
 		<p class="publish-calendar__label">
-			{{ $t('calendar', 'Share link') }}
+			{{ $t('nocturnkalender', 'Share link') }}
 		</p>
 
 		<template v-if="isPublished">
@@ -19,7 +19,7 @@
 					<template #icon>
 						<ContentCopy :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Copy public link') }}
+					{{ $t('nocturnkalender', 'Copy public link') }}
 				</NcActionButton>
 			</NcActions>
 
@@ -30,7 +30,7 @@
 					<template #icon>
 						<Email :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Send link to calendar via email') }}
+					{{ $t('nocturnkalender', 'Send link to calendar via email') }}
 				</NcActionButton>
 				<NcActionInput
 					v-if="showEMailInput"
@@ -38,13 +38,13 @@
 					<template #icon>
 						<Email :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Enter one address') }}
+					{{ $t('nocturnkalender', 'Enter one address') }}
 				</NcActionInput>
 				<NcActionText
 					v-if="showEMailSending"
 					icon="icon-loading-small">
 					<!-- eslint-disable-next-line no-irregular-whitespace -->
-					{{ $t('calendar', 'Sending email …') }}
+					{{ $t('nocturnkalender', 'Sending email …') }}
 				</NcActionText>
 
 				<NcActionButton
@@ -53,25 +53,25 @@
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Copy subscription link') }}
+					{{ $t('nocturnkalender', 'Copy subscription link') }}
 				</NcActionButton>
 				<NcActionText
 					v-if="showCopySubscriptionLinkSpinner"
 					icon="icon-loading-small">
 					<!-- eslint-disable-next-line no-irregular-whitespace -->
-					{{ $t('calendar', 'Copying link …') }}
+					{{ $t('nocturnkalender', 'Copying link …') }}
 				</NcActionText>
 				<NcActionText v-if="showCopySubscriptionLinkSuccess">
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Copied link') }}
+					{{ $t('nocturnkalender', 'Copied link') }}
 				</NcActionText>
 				<NcActionText v-if="showCopySubscriptionLinkError">
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Could not copy link') }}
+					{{ $t('nocturnkalender', 'Could not copy link') }}
 				</NcActionText>
 
 				<NcActionButton
@@ -80,25 +80,25 @@
 					<template #icon>
 						<CodeBrackets :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Copy embedding code') }}
+					{{ $t('nocturnkalender', 'Copy embedding code') }}
 				</NcActionButton>
 				<NcActionText
 					v-if="showCopyEmbedCodeLinkSpinner"
 					icon="icon-loading-small">
 					<!-- eslint-disable-next-line no-irregular-whitespace -->
-					{{ $t('calendar', 'Copying code …') }}
+					{{ $t('nocturnkalender', 'Copying code …') }}
 				</NcActionText>
 				<NcActionText v-if="showCopyEmbedCodeLinkSuccess">
 					<template #icon>
 						<CodeBrackets :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Copied code') }}
+					{{ $t('nocturnkalender', 'Copied code') }}
 				</NcActionText>
 				<NcActionText v-if="showCopyEmbedCodeLinkError">
 					<template #icon>
 						<CodeBrackets :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Could not copy code') }}
+					{{ $t('nocturnkalender', 'Could not copy code') }}
 				</NcActionText>
 
 				<NcActionButton
@@ -107,19 +107,19 @@
 					<template #icon>
 						<Delete :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Delete share link') }}
+					{{ $t('nocturnkalender', 'Delete share link') }}
 				</NcActionButton>
 				<NcActionText
 					v-if="unpublishingCalendar"
 					icon="icon-loading-small">
 					<!-- eslint-disable-next-line no-irregular-whitespace -->
-					{{ $t('calendar', 'Deleting share link …') }}
+					{{ $t('nocturnkalender', 'Deleting share link …') }}
 				</NcActionText>
 			</NcActions>
 		</template>
 		<NcActions v-else>
 			<NcActionButton
-				aria-label="$t('calendar', 'Share link')"
+				aria-label="$t('nocturnkalender', 'Share link')"
 				:disabled="publishingCalendar"
 				@click.prevent.stop="publishCalendar">
 				<template #icon>
@@ -219,7 +219,7 @@ export default {
 				await this.calendarsStore.publishCalendar({ calendar: this.calendar })
 			} catch (error) {
 				logger.debug(error)
-				showError(this.$t('calendar', 'An error occurred, unable to publish calendar.'))
+				showError(this.$t('nocturnkalender', 'An error occurred, unable to publish calendar.'))
 			} finally {
 				this.publishingCalendar = false
 			}
@@ -239,7 +239,7 @@ export default {
 			const emailAddress = event.target.querySelector('input[type=text]').value
 			try {
 				const url = [
-					linkTo('calendar', 'index.php'),
+					linkTo('nocturnkalender', 'index.php'),
 					'v1/public/sendmail',
 				].join('/')
 				await HttpClient.post(url, {
@@ -248,7 +248,7 @@ export default {
 				})
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'An error occurred, unable to send email.'))
+				showError(this.$t('nocturnkalender', 'An error occurred, unable to send email.'))
 			} finally {
 				this.showEMailLabel = true
 				this.showEMailInput = false
@@ -267,10 +267,10 @@ export default {
 			// copy link for calendar to clipboard
 			try {
 				await navigator.clipboard.writeText(url)
-				showSuccess(this.$t('calendar', 'Calendar link copied to clipboard.'))
+				showSuccess(this.$t('nocturnkalender', 'Calendar link copied to clipboard.'))
 			} catch (error) {
 				logger.debug(error)
-				showError(this.$t('calendar', 'Calendar link could not be copied to clipboard.'))
+				showError(this.$t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 			} finally {
 				this.showCopyPublicLinkLabel = true
 				this.showCopyPublicLinkSpinner = false
@@ -296,7 +296,7 @@ export default {
 				this.showCopySubscriptionLinkSuccess = true
 				this.showCopySubscriptionLinkError = false
 
-				showSuccess(this.$t('calendar', 'Calendar link copied to clipboard.'))
+				showSuccess(this.$t('nocturnkalender', 'Calendar link copied to clipboard.'))
 			} catch (error) {
 				logger.debug(error)
 				this.menuOpen = true
@@ -305,7 +305,7 @@ export default {
 				this.showCopySubscriptionLinkSuccess = false
 				this.showCopySubscriptionLinkError = true
 
-				showError(this.$t('calendar', 'Calendar link could not be copied to clipboard.'))
+				showError(this.$t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 			} finally {
 				setTimeout(() => {
 					this.showCopySubscriptionLinkLabel = true
@@ -338,7 +338,7 @@ export default {
 				this.showCopyEmbedCodeLinkSuccess = true
 				this.showCopyEmbedCodeLinkError = false
 
-				showSuccess(this.$t('calendar', 'Embed code copied to clipboard.'))
+				showSuccess(this.$t('nocturnkalender', 'Embed code copied to clipboard.'))
 			} catch (error) {
 				logger.debug(error)
 				this.menuOpen = true
@@ -347,7 +347,7 @@ export default {
 				this.showCopyEmbedCodeLinkSuccess = false
 				this.showCopyEmbedCodeLinkError = true
 
-				showError(this.$t('calendar', 'Embed code could not be copied to clipboard.'))
+				showError(this.$t('nocturnkalender', 'Embed code could not be copied to clipboard.'))
 			} finally {
 				setTimeout(() => {
 					this.showCopyEmbedCodeLinkLabel = true
@@ -368,7 +368,7 @@ export default {
 			} catch (error) {
 				logger.debug(error)
 				this.unpublishingCalendar = false
-				showError(this.$t('calendar', 'Unpublishing calendar failed'))
+				showError(this.$t('nocturnkalender', 'Unpublishing calendar failed'))
 			}
 		},
 

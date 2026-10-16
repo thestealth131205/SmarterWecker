@@ -456,7 +456,7 @@ export default defineStore('calendars', {
 				try {
 					await this.deleteCalendar({ calendar })
 				} catch (error) {
-					showError(t('calendar', 'An error occurred, unable to delete the calendar.'))
+					showError(t('nocturnkalender', 'An error occurred, unable to delete the calendar.'))
 					logger.error(error)
 				} finally {
 					clearInterval(deleteInterval)
@@ -875,7 +875,7 @@ export default defineStore('calendars', {
 
 				const calendarId = importFilesStore.importCalendarRelation[file.id]
 				if (calendarId === 'new') {
-					const displayName = file.parser.getName() || t('calendar', 'Imported {filename}', {
+					const displayName = file.parser.getName() || t('nocturnkalender', 'Imported {filename}', {
 						filename: file.name,
 					})
 					const color = file.parser.getColor() || uidToHexColor(displayName)

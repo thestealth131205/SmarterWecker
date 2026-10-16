@@ -71,7 +71,7 @@ async function removeShift(shift: NocturnShift): Promise<void> {
 		await nocturnScheduleStore.deleteShift(shift.uid)
 	} catch (error) {
 		logger.error('Failed to delete NocTurn shift', { error })
-		showError(t('calendar', 'Could not delete shift'))
+		showError(t('nocturnkalender', 'Could not delete shift'))
 	}
 }
 
@@ -91,7 +91,7 @@ async function removeRotation(rotation: NocturnRotation): Promise<void> {
 		await nocturnScheduleStore.deleteRotation(rotation.uid)
 	} catch (error) {
 		logger.error('Failed to delete NocTurn rotation', { error })
-		showError(t('calendar', 'Could not delete rotation'))
+		showError(t('nocturnkalender', 'Could not delete rotation'))
 	}
 }
 
@@ -100,7 +100,7 @@ async function removeJob(): Promise<void> {
 		await nocturnScheduleStore.deleteJob(props.job.uid)
 	} catch (error) {
 		logger.error('Failed to delete NocTurn job', { error })
-		showError(t('calendar', 'Could not delete job'))
+		showError(t('nocturnkalender', 'Could not delete job'))
 	}
 }
 </script>
@@ -122,38 +122,38 @@ async function removeJob(): Promise<void> {
 					<template #icon>
 						<ClockPlusIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Add shift') }}
+					{{ t('nocturnkalender', 'Add shift') }}
 				</ActionButton>
 				<ActionButton :closeAfterClick="true" @click="openNewRotation">
 					<template #icon>
 						<PlusIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Add rotation') }}
+					{{ t('nocturnkalender', 'Add rotation') }}
 				</ActionButton>
 				<ActionButton :closeAfterClick="true" @click="showJobEditor = true">
 					<template #icon>
 						<PencilIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Edit') }}
+					{{ t('nocturnkalender', 'Edit') }}
 				</ActionButton>
 				<ActionButton :closeAfterClick="true" @click="showShareModal = true">
 					<template #icon>
 						<AccountPlusOutlineIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Share') }}
+					{{ t('nocturnkalender', 'Share') }}
 				</ActionButton>
 				<ActionButton :closeAfterClick="true" @click="removeJob">
 					<template #icon>
 						<DeleteIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Delete') }}
+					{{ t('nocturnkalender', 'Delete') }}
 				</ActionButton>
 			</template>
 		</AppNavigationItem>
 
 		<div v-if="expanded" class="nocturn-job-item__children">
 			<div v-if="shifts.length === 0 && rotations.length === 0" class="nocturn-job-item__empty">
-				{{ t('calendar', 'No shifts yet') }}
+				{{ t('nocturnkalender', 'No shifts yet') }}
 			</div>
 
 			<div
@@ -163,10 +163,10 @@ async function removeJob(): Promise<void> {
 				<span class="nocturn-job-item__color-dot" :style="{ 'background-color': shift.color }" />
 				<span class="nocturn-job-item__child-name">{{ shift.name }}</span>
 				<span class="nocturn-job-item__child-time">{{ shift.startTimeLabel }}–{{ shift.endTimeLabel }}</span>
-				<button class="nocturn-job-item__child-action" :aria-label="t('calendar', 'Edit')" @click="openEditShift(shift)">
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Edit')" @click="openEditShift(shift)">
 					<PencilIcon :size="16" />
 				</button>
-				<button class="nocturn-job-item__child-action" :aria-label="t('calendar', 'Delete')" @click="removeShift(shift)">
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Delete')" @click="removeShift(shift)">
 					<DeleteIcon :size="16" />
 				</button>
 			</div>
@@ -177,13 +177,13 @@ async function removeJob(): Promise<void> {
 				class="nocturn-job-item__child">
 				<CalendarSyncIcon :size="18" decorative />
 				<span class="nocturn-job-item__child-name">{{ rotation.name }}</span>
-				<button class="nocturn-job-item__child-action" :aria-label="t('calendar', 'Apply to calendar')" @click="applyRotationTarget = rotation">
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Apply to calendar')" @click="applyRotationTarget = rotation">
 					<CalendarSyncIcon :size="16" />
 				</button>
-				<button class="nocturn-job-item__child-action" :aria-label="t('calendar', 'Edit')" @click="openEditRotation(rotation)">
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Edit')" @click="openEditRotation(rotation)">
 					<PencilIcon :size="16" />
 				</button>
-				<button class="nocturn-job-item__child-action" :aria-label="t('calendar', 'Delete')" @click="removeRotation(rotation)">
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Delete')" @click="removeRotation(rotation)">
 					<DeleteIcon :size="16" />
 				</button>
 			</div>

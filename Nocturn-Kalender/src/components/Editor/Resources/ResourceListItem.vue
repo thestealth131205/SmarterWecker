@@ -24,7 +24,7 @@
 					<template #icon>
 						<Plus :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Add resource') }}
+					{{ $t('nocturnkalender', 'Add resource') }}
 				</ActionButton>
 			</actions>
 			<Actions v-else-if="isViewedByOrganizer">
@@ -36,13 +36,13 @@
 					:name="roomType" />
 				<ActionCaption
 					v-if="hasProjector"
-					:name="$t('calendar', 'Has a projector')" />
+					:name="$t('nocturnkalender', 'Has a projector')" />
 				<ActionCaption
 					v-if="hasWhiteboard"
-					:name="$t('calendar', 'Has a whiteboard')" />
+					:name="$t('nocturnkalender', 'Has a whiteboard')" />
 				<ActionCaption
 					v-if="isAccessible"
-					:name="$t('calendar', 'Wheelchair accessible')" />
+					:name="$t('nocturnkalender', 'Wheelchair accessible')" />
 				<ActionSeparator v-if="seatingCapacity || roomType || hasProjector || hasWhiteboard || isAccessible" />
 				<ActionButton
 					v-if="principal"
@@ -51,13 +51,13 @@
 					<template #icon>
 						<CalendarSearch :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Check availability') }}
+					{{ $t('nocturnkalender', 'Check availability') }}
 				</ActionButton>
 				<ActionButton @click="removeResource">
 					<template #icon>
 						<Delete :size="20" decorative />
 					</template>
-					{{ $t('calendar', 'Remove resource') }}
+					{{ $t('nocturnkalender', 'Remove resource') }}
 				</ActionButton>
 			</actions>
 		</div>
@@ -210,8 +210,7 @@ export default {
 				return null
 			}
 
-			return this.$n(
-				'calendar',
+			return this.$n('nocturnkalender',
 				'{seatingCapacity} seat',
 				'{seatingCapacity} seats',
 				seatingCapacity,

@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is not valid" : "La dirección de E Mail proporcionada no es valida",
     "Hello," : "Hola,",

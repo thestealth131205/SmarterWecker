@@ -4,16 +4,12 @@ import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.CalDavAccountDao
 import de.letheapp.nocturn.data.db.CalDavAccountEntity
-import de.letheapp.nocturn.data.db.CalendarEntryDao
-import de.letheapp.nocturn.data.db.JobDao
-import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.SyncedEventDao
 import de.letheapp.nocturn.data.db.SyncedEventEntity
 import de.letheapp.nocturn.data.db.SyncedLocalType
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,13 +17,16 @@ import javax.inject.Singleton
 /**
  * Orchestriert die Nextcloud-CalDAV-Synchronisierung (siehe CLAUDE.md "Kalendersync").
  *
- * Richtung bewusst unterschiedlich je Datentyp, um das in CLAUDE.md offene "TBD ob Lesen reicht"
- * aufzulösen:
  * - Freie Termine ([AppointmentEntity]): bidirektional (Push lokaler Änderungen, Pull entfernter
- *   Änderungen/Neuanlagen/Löschungen).
- * - Schicht-Kalendereinträge (aus Rotationen): nur Push (NocTurn -> Nextcloud) in einem rollenden
- *   Zeitfenster von [SHIFT_SYNC_WINDOW_DAYS] Tagen, da diese Einträge von der Rotation abgeleitet
- *   sind und nicht sinnvoll aus Nextcloud zurückgelesen werden können.
+ *   Änderungen/Neuanlagen/Löschungen) über reines CalDAV.
+ * - Schichten/Jobs/Rotationen: ausschließlich über die strukturierte NocTurn-Schedule-REST-API der
+ *   NocTurn-Kalender-App ([NocturnScheduleSyncRepository]/[NocturnScheduleApiClient]) — NICHT mehr
+ *   zusätzlich als einfache CalDAV-VEVENTs in den normalen Kalender exportiert. Der frühere
+ *   Doppelweg (generischer CalDAV-Export der Schicht-Vorkommen UND strukturierter Schedule-Sync)
+ *   führte dazu, dass dieselbe Schicht dem Nutzer doppelt angezeigt wurde, sobald beide Wege
+ *   gleichzeitig aktiv waren. Ist die NocTurn-Kalender-App auf dem Zielserver nicht installiert,
+ *   wird das klar gemeldet (siehe [checkNocturnKalenderAvailable]) statt stillschweigend auf den
+ *   generischen CalDAV-Weg auszuweichen.
  *
  * Bekannte Vereinfachung: lokal gelöschte Termine werden aktuell nicht automatisch auf Nextcloud
  * entfernt (kein Tombstone-Tracking) — Löschen auf Nextcloud-Seite entfernt den Termin dagegen
@@ -40,12 +39,27 @@ class NextcloudSyncRepository @Inject constructor(
     private val accountDao: CalDavAccountDao,
     private val syncedEventDao: SyncedEventDao,
     private val appointmentDao: AppointmentDao,
-    private val calendarEntryDao: CalendarEntryDao,
-    private val shiftDao: ShiftDao,
-    private val jobDao: JobDao,
-    private val scheduleSyncRepository: NocturnScheduleSyncRepository
+    private val scheduleSyncRepository: NocturnScheduleSyncRepository,
+    private val scheduleApiClient: NocturnScheduleApiClient
 ) {
     fun observeAccount(): Flow<CalDavAccountEntity?> = accountDao.observeAccount()
+
+    /**
+     * Prüft, ob die NocTurn-Kalender-App auf diesem Server verfügbar ist — Voraussetzung für den
+     * Schichtplan-Sync. Wird vor dem Verbinden und vor jedem Umschalten des entsprechenden
+     * Schalters im UI aufgerufen, damit NocTurn klar "App fehlt" meldet statt den Sync einfach
+     * fehlschlagen zu lassen.
+     */
+    suspend fun checkNocturnKalenderAvailable(serverUrl: String, username: String, password: String): Boolean =
+        scheduleApiClient.isNocturnKalenderInstalled(serverUrl, username, password)
+
+    /** Wie [checkNocturnKalenderAvailable], aber für das bereits verbundene Konto (Passwort kommt
+     * aus dem verschlüsselten Store statt aus einem frisch eingegebenen Formular). */
+    suspend fun checkNocturnKalenderAvailableForConnectedAccount(): Boolean {
+        val account = accountDao.getAccountOnce() ?: return false
+        val password = credentialsStore.getPassword(account.id) ?: return false
+        return scheduleApiClient.isNocturnKalenderInstalled(account.serverUrl, account.username, password)
+    }
 
     suspend fun discoverCalendars(serverUrl: String, username: String, password: String): List<CalDavCalendarInfo> =
         calDavClient.discoverCalendars(serverUrl, username, password)
@@ -57,7 +71,6 @@ class NextcloudSyncRepository @Inject constructor(
         password: String,
         calendar: CalDavCalendarInfo,
         syncAppointments: Boolean,
-        syncShifts: Boolean,
         syncNocturnSchedule: Boolean = false
     ): Long {
         disconnect()
@@ -68,7 +81,7 @@ class NextcloudSyncRepository @Inject constructor(
                 calendarHref = calendar.href,
                 calendarDisplayName = calendar.displayName,
                 syncAppointments = syncAppointments,
-                syncShifts = syncShifts,
+                syncShifts = false,
                 syncNocturnSchedule = syncNocturnSchedule
             )
         )
@@ -84,8 +97,8 @@ class NextcloudSyncRepository @Inject constructor(
         }
     }
 
-    suspend fun updateSyncOptions(account: CalDavAccountEntity, syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean = account.syncNocturnSchedule) {
-        accountDao.update(account.copy(syncAppointments = syncAppointments, syncShifts = syncShifts, syncNocturnSchedule = syncNocturnSchedule))
+    suspend fun updateSyncOptions(account: CalDavAccountEntity, syncAppointments: Boolean, syncNocturnSchedule: Boolean) {
+        accountDao.update(account.copy(syncAppointments = syncAppointments, syncNocturnSchedule = syncNocturnSchedule))
     }
 
     suspend fun syncNow(): Result<Unit> {
@@ -93,9 +106,22 @@ class NextcloudSyncRepository @Inject constructor(
         val password = credentialsStore.getPassword(account.id)
             ?: return Result.failure(CalDavException("Kein gespeichertes Nextcloud-Passwort gefunden"))
         return try {
+            // Aufräumen eines früheren, inzwischen entfernten Wegs: Schicht-Vorkommen wurden
+            // früher zusätzlich als einfache CalDAV-VEVENTs exportiert (führte zu doppelt
+            // angezeigten Schichten neben dem strukturierten Schedule-Sync). Bereits existierende
+            // Alt-Einträge werden hier einmalig entfernt, danach ist diese Schleife ein No-Op.
+            removeLegacyShiftCaldavEvents(account, password)
             if (account.syncAppointments) syncAppointments(account, password)
-            if (account.syncShifts) pushShiftOccurrences(account, password)
-            if (account.syncNocturnSchedule) scheduleSyncRepository.runSync(account, password)
+            if (account.syncNocturnSchedule) {
+                if (scheduleApiClient.isNocturnKalenderInstalled(account.serverUrl, account.username, password)) {
+                    scheduleSyncRepository.runSync(account, password)
+                } else {
+                    throw NocturnScheduleApiException(
+                        "Die NocTurn-Kalender-App ist auf diesem Nextcloud-Server nicht installiert. " +
+                            "Installiere sie zuerst, um Schichten/Jobs/Rotationen zu synchronisieren."
+                    )
+                }
+            }
             // scheduleSyncRepository.runSync() aktualisiert ggf. selbst schon nocturnScheduleSyncToken -
             // Konto frisch nachladen, damit dieses abschließende Update diesen neuen Cursor nicht wieder
             // mit dem alten, hier noch zwischengespeicherten Stand überschreibt.
@@ -106,6 +132,14 @@ class NextcloudSyncRepository @Inject constructor(
             val latest = accountDao.getAccountOnce() ?: account
             accountDao.update(latest.copy(lastSyncError = e.message ?: "Unbekannter Fehler"))
             Result.failure(e)
+        }
+    }
+
+    private suspend fun removeLegacyShiftCaldavEvents(account: CalDavAccountEntity, password: String) {
+        val legacyEntries = syncedEventDao.getForAccountAndType(account.id, SyncedLocalType.SHIFT.name)
+        for (entry in legacyEntries) {
+            runCatching { calDavClient.deleteEvent(entry.href, account.username, password) }
+            syncedEventDao.delete(entry)
         }
     }
 
@@ -142,6 +176,7 @@ class NextcloudSyncRepository @Inject constructor(
                     endEpochDay = epochDay(parsed.endEpochMillis),
                     allDay = parsed.allDay,
                     colorArgb = CalendarRepository.DEFAULT_APPOINTMENT_COLOR_ARGB,
+                    showAsBusy = parsed.showAsBusy,
                     dirty = false
                 )
             )
@@ -168,7 +203,8 @@ class NextcloudSyncRepository @Inject constructor(
                 description = appointment.description,
                 startEpochMillis = appointment.startEpochMillis,
                 endEpochMillis = appointment.endEpochMillis,
-                allDay = appointment.allDay
+                allDay = appointment.allDay,
+                showAsBusy = appointment.showAsBusy
             )
             val newEtag = calDavClient.putEvent(href, account.username, password, ics, existingSync?.etag).orEmpty()
             if (existingSync == null) {
@@ -188,70 +224,6 @@ class NextcloudSyncRepository @Inject constructor(
         }
     }
 
-    private suspend fun pushShiftOccurrences(account: CalDavAccountEntity, password: String) {
-        val today = LocalDate.now().toEpochDay()
-        val windowEnd = today + SHIFT_SYNC_WINDOW_DAYS
-        val entries = calendarEntryDao.getRangeWithShiftOnce(today, windowEnd)
-        val known = syncedEventDao.getForAccountAndType(account.id, SyncedLocalType.SHIFT.name)
-        val knownByKey = known.associateBy { it.localKey }
-        val currentKeys = HashSet<String>()
-
-        for (entry in entries) {
-            val shiftId = entry.shiftId ?: continue
-            val shift = shiftDao.getById(shiftId) ?: continue
-            val job = jobDao.getById(entry.jobId)
-            // shiftId mit im Schlüssel, da an einem Tag mehrere Schichten derselben Rotation
-            // gleichzeitig gelten können (siehe CLAUDE.md "Rotationen") und sonst kollidieren würden.
-            val key = "${entry.rotationId}:${entry.dateEpochDay}:$shiftId"
-            currentKeys += key
-
-            val date = LocalDate.ofEpochDay(entry.dateEpochDay)
-            val startMillis = date.atTime(shift.startHour, shift.startMinute)
-                .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endMillis = startMillis + shift.durationMinutes * 60_000L
-            val summary = if (job != null) "${shift.name} (${job.name})" else shift.name
-            val contentHash = "$summary|$startMillis|$endMillis".hashCode()
-
-            val existingSync = knownByKey[key]
-            if (existingSync != null && existingSync.contentHash == contentHash) continue
-
-            val uid = "nocturn-shift-${entry.rotationId}-${entry.dateEpochDay}-$shiftId@letheapp.de"
-            val href = existingSync?.href ?: "${account.calendarHref}$uid.ics"
-            val ics = IcsFormat.buildEvent(
-                uid = uid,
-                summary = summary,
-                location = "",
-                description = "",
-                startEpochMillis = startMillis,
-                endEpochMillis = endMillis,
-                allDay = false
-            )
-            val newEtag = calDavClient.putEvent(href, account.username, password, ics, existingSync?.etag)
-                ?: existingSync?.etag.orEmpty()
-            if (existingSync == null) {
-                syncedEventDao.insert(
-                    SyncedEventEntity(
-                        accountId = account.id,
-                        localType = SyncedLocalType.SHIFT.name,
-                        localKey = key,
-                        href = href,
-                        etag = newEtag,
-                        contentHash = contentHash
-                    )
-                )
-            } else {
-                syncedEventDao.update(existingSync.copy(etag = newEtag, href = href, contentHash = contentHash))
-            }
-        }
-
-        for (entry in known) {
-            if (entry.localKey !in currentKeys) {
-                runCatching { calDavClient.deleteEvent(entry.href, account.username, password) }
-                syncedEventDao.delete(entry)
-            }
-        }
-    }
-
     private fun applyParsedToAppointment(existing: AppointmentEntity, parsed: IcsFormat.ParsedEvent): AppointmentEntity =
         existing.copy(
             title = parsed.summary,
@@ -262,13 +234,10 @@ class NextcloudSyncRepository @Inject constructor(
             startEpochDay = epochDay(parsed.startEpochMillis),
             endEpochDay = epochDay(parsed.endEpochMillis),
             allDay = parsed.allDay,
+            showAsBusy = parsed.showAsBusy,
             dirty = false
         )
 
     private fun epochDay(epochMillis: Long): Long =
         Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
-
-    private companion object {
-        const val SHIFT_SYNC_WINDOW_DAYS = 180L
-    }
 }

@@ -25,6 +25,10 @@ class Version2040Date20210908101001 extends SimpleMigrationStep {
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
 		$schema = $schemaClosure();
 
+		if ($schema->hasTable('calendar_appt_configs')) {
+			return $schema;
+		}
+
 		$table = $schema->createTable('calendar_appt_configs');
 		$table->addColumn('id', 'bigint', [
 			'autoincrement' => true,

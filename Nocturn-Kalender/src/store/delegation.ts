@@ -184,7 +184,7 @@ export default defineStore('delegation', () => {
 			const calendarHomeUrl = await getClient().getCalendarHomeUrlForPrincipal(delegatorPrincipalUrl)
 			if (!calendarHomeUrl) {
 				logger.warn('Could not determine calendar home URL for delegator', { delegatorPrincipalUrl })
-				showError(t('calendar', 'Could not load delegated calendars. Make sure the server supports calendar delegation.'))
+				showError(t('nocturnkalender', 'Could not load delegated calendars. Make sure the server supports calendar delegation.'))
 				continue
 			}
 
@@ -215,7 +215,7 @@ export default defineStore('delegation', () => {
 				logger.debug('Fetched delegated calendars from', { calendarHomeUrl, permission, count: mappedCalendars.length })
 			} catch (error) {
 				logger.error('Could not fetch calendars for delegator', { delegatorPrincipalUrl, error })
-				showError(t('calendar', 'Could not load delegated calendars. Make sure the server supports calendar delegation.'))
+				showError(t('nocturnkalender', 'Could not load delegated calendars. Make sure the server supports calendar delegation.'))
 			}
 		}
 	}

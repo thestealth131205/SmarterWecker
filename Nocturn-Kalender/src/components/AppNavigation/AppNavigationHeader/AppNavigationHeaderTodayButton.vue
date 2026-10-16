@@ -29,6 +29,6 @@ useHotKey('t', () => today())
 	<NcButton
 		class="today"
 		@click="today">
-		{{ t('calendar', 'Today') }}
+		{{ t('nocturnkalender', 'Today') }}
 	</NcButton>
 </template>

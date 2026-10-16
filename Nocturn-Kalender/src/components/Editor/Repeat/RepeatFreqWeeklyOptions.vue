@@ -6,7 +6,7 @@
 <template>
 	<div class="repeat-option-set repeat-option-set--weekly">
 		<span class="repeat-option-set-section__title">
-			{{ $t('calendar', 'on') }}
+			{{ $t('nocturnkalender', 'on') }}
 		</span>
 		<div class="repeat-option-set-section__grid">
 			<NcButton

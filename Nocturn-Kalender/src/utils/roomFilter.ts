@@ -246,7 +246,7 @@ export function groupRoomsByBuilding(
 	pinnedEmails: string[] = [],
 ): RoomGroup[] {
 	// Translators: heading above rooms that have no building address
-	const fallbackName = t('calendar', 'Other rooms')
+	const fallbackName = t('nocturnkalender', 'Other rooms')
 	const groups = new Map<string, RoomOption[]>()
 
 	for (const room of rooms) {

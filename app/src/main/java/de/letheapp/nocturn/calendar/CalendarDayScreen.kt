@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,9 +21,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -32,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +83,7 @@ fun CalendarDayScreen(
     val jobs by viewModel.jobs.collectAsState()
     var addMenuExpanded by remember { mutableStateOf(false) }
     var showRotationPicker by remember { mutableStateOf(false) }
+    var attachmentsDialogItem by remember { mutableStateOf<DayAgendaItem?>(null) }
 
     Scaffold(
         topBar = {
@@ -136,9 +142,13 @@ fun CalendarDayScreen(
                     items(taskItems) { item ->
                         TaskCard(item, onToggle = { completed -> viewModel.toggleTaskCompleted(item.taskId, completed) })
                     }
-                    items(allDayItems) { AllDayCard(it) }
-                    items(timedItems) { TimedCard(it) }
+                    items(allDayItems) { AllDayCard(it, onShowAttachments = { attachmentsDialogItem = it }) }
+                    items(timedItems) { TimedCard(it, onShowAttachments = { attachmentsDialogItem = it }) }
                 }
+            }
+
+            attachmentsDialogItem?.let { item ->
+                AttachmentsDialog(item = item, onDismiss = { attachmentsDialogItem = null })
             }
 
             if (addMenuExpanded) {
@@ -274,7 +284,7 @@ private fun TaskCard(item: TaskAgendaItem, onToggle: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun AllDayCard(item: AllDayAgendaItem) {
+private fun AllDayCard(item: AllDayAgendaItem, onShowAttachments: (AllDayAgendaItem) -> Unit = {}) {
     val accentColor = Color(item.colorArgb)
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -285,18 +295,21 @@ private fun AllDayCard(item: AllDayAgendaItem) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.size(12.dp).background(accentColor, CircleShape))
-            Column(modifier = Modifier.padding(start = 12.dp)) {
+            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                 Text(item.title, style = MaterialTheme.typography.bodyLarge)
                 item.subtitle?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            if (item.attachments.isNotEmpty()) {
+                AttachmentBadge(count = item.attachments.size, onClick = { onShowAttachments(item) })
             }
         }
     }
 }
 
 @Composable
-private fun TimedCard(item: TimedAgendaItem) {
+private fun TimedCard(item: TimedAgendaItem, onShowAttachments: (TimedAgendaItem) -> Unit = {}) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -316,14 +329,68 @@ private fun TimedCard(item: TimedAgendaItem) {
                     .height(36.dp)
                     .background(Color(item.colorArgb), RoundedCornerShape(2.dp))
             )
-            Column(modifier = Modifier.padding(start = 16.dp)) {
+            Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
                 Text(item.title, style = MaterialTheme.typography.bodyLarge)
                 item.subtitle?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            if (item.attachments.isNotEmpty()) {
+                AttachmentBadge(count = item.attachments.size, onClick = { onShowAttachments(item) })
+            }
         }
     }
+}
+
+@Composable
+private fun AttachmentBadge(count: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(count.toString(), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** Zeigt die Anhänge eines Termins (siehe [AttachmentRef]); Tippen öffnet die Datei über die registrierte Fremd-App. */
+@Composable
+private fun AttachmentsDialog(item: DayAgendaItem, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val attachments = when (item) {
+        is TimedAgendaItem -> item.attachments
+        is AllDayAgendaItem -> item.attachments
+        else -> emptyList()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Anhänge") },
+        text = {
+            Column {
+                attachments.forEach { attachment ->
+                    Text(
+                        attachment.fileName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                runCatching {
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(Uri.parse(attachment.uri), context.contentResolver.getType(Uri.parse(attachment.uri)))
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
+                            .padding(vertical = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Schließen") }
+        }
+    )
 }
 
 private fun formatMinuteOfDay(totalMinutes: Int): String {

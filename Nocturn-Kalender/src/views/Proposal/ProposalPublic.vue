@@ -23,27 +23,27 @@
 			<div class="proposal-public__content-row-details">
 				<div class="proposal-public__content-organizer">
 					<NcAvatar :user="storedProposal?.uid" :displayName="storedProposal?.uname" :isNoUser="true" />
-					{{ storedProposal?.uname || t('calendar', 'Unknown User') }}
+					{{ storedProposal?.uname || t('nocturnkalender', 'Unknown User') }}
 				</div>
 				<h1 class="proposal-public__content-title">
-					{{ storedProposal?.title || t('calendar', 'No Title') }}
+					{{ storedProposal?.title || t('nocturnkalender', 'No Title') }}
 				</h1>
 				<div class="proposal-public__content-description">
-					{{ storedProposal?.description || t('calendar', 'No Description') }}
+					{{ storedProposal?.description || t('nocturnkalender', 'No Description') }}
 				</div>
 				<div class="proposal-public__content-location">
 					<LocationIcon />
-					{{ storedProposal?.location || t('calendar', 'No Location') }}
+					{{ storedProposal?.location || t('nocturnkalender', 'No Location') }}
 				</div>
 				<div class="proposal-public__content-duration">
 					<div class="proposal-public__content-duration-left">
 						<DurationIcon />
-						{{ storedProposal?.duration ? storedProposal.duration + ' min' : t('calendar', 'No Duration') }}
+						{{ storedProposal?.duration ? storedProposal.duration + ' min' : t('nocturnkalender', 'No Duration') }}
 					</div>
 					<div class="proposal-public__content-duration-right">
 						<NcTimezonePicker
 							v-model="userTimezone"
-							:aria-label="t('calendar', 'Select a different time zone')" />
+							:aria-label="t('nocturnkalender', 'Select a different time zone')" />
 					</div>
 				</div>
 				<div class="proposal-public__content-matrix">
@@ -57,7 +57,7 @@
 			</div>
 			<div class="proposal-public__content-row-actions">
 				<NcButton variant="primary" @click="onSubmit">
-					{{ t('calendar', 'Submit') }}
+					{{ t('nocturnkalender', 'Submit') }}
 				</NcButton>
 			</div>
 		</NcGuestContent>
@@ -97,23 +97,23 @@ const userTimezone = ref('UTC')
 
 const blankViewLabel = computed<string>(() => {
 	if (contentView.value === 'loading') {
-		return t('calendar', 'Loading meeting proposal')
+		return t('nocturnkalender', 'Loading meeting proposal')
 	} else {
-		return t('calendar', 'No meeting proposal found')
+		return t('nocturnkalender', 'No meeting proposal found')
 	}
 })
 
 const blankViewDescription = computed<string>(() => {
 	if (contentView.value === 'loading') {
-		return t('calendar', 'Please wait while we load the meeting proposal.')
+		return t('nocturnkalender', 'Please wait while we load the meeting proposal.')
 	} else {
-		return t('calendar', 'The link you followed may be broken, or the meeting proposal may no longer exist.')
+		return t('nocturnkalender', 'The link you followed may be broken, or the meeting proposal may no longer exist.')
 	}
 })
 
-const respondedViewLabel = computed<string>(() => t('calendar', 'Thank you for your response!'))
+const respondedViewLabel = computed<string>(() => t('nocturnkalender', 'Thank you for your response!'))
 
-const respondedViewDescription = computed<string>(() => t('calendar', 'Your vote has been recorded. Thank you for participating!'))
+const respondedViewDescription = computed<string>(() => t('nocturnkalender', 'Your vote has been recorded. Thank you for participating!'))
 
 function onDateVote({ date, vote }: { date: ProposalDate, vote: ProposalDateVote }): void {
 	if (date.id !== null && response.value.dates[date.id]) {

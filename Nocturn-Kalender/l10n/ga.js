@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "Ar choinníoll go bhfuil an seoladh ríomhphoist ró-fhada",
     "User-Session unexpectedly expired" : "Chuaigh an Seisiún Úsáideora in éag gan choinne",

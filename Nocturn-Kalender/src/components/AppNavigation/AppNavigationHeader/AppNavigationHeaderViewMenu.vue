@@ -22,23 +22,23 @@ const router = useRouter()
 const views = [{
 	id: 'timeGridDay',
 	icon: ViewDay,
-	label: t('calendar', 'Day'),
+	label: t('nocturnkalender', 'Day'),
 }, {
 	id: 'timeGridWeek',
 	icon: ViewWeek,
-	label: t('calendar', 'Week'),
+	label: t('nocturnkalender', 'Week'),
 }, {
 	id: 'dayGridMonth',
 	icon: ViewModule,
-	label: t('calendar', 'Month'),
+	label: t('nocturnkalender', 'Month'),
 }, {
 	id: 'multiMonthYear',
 	icon: ViewComfy,
-	label: t('calendar', 'Year'),
+	label: t('nocturnkalender', 'Year'),
 }, {
 	id: 'listMonth',
 	icon: ViewList,
-	label: t('calendar', 'List'),
+	label: t('nocturnkalender', 'List'),
 }]
 
 const defaultIcon = computed(() => {

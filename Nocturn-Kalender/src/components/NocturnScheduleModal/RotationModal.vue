@@ -45,10 +45,10 @@ if (editing.value.days.length === 0) {
 	editing.value.days = [null, null, null, null, null, null, null]
 }
 
-const formTitle = props.isNew ? t('calendar', 'Create rotation') : t('calendar', 'Edit rotation')
-const saveButtonText = props.isNew ? t('calendar', 'Create') : t('calendar', 'Save')
+const formTitle = props.isNew ? t('nocturnkalender', 'Create rotation') : t('nocturnkalender', 'Edit rotation')
+const saveButtonText = props.isNew ? t('nocturnkalender', 'Create') : t('nocturnkalender', 'Save')
 
-const freeDayOption: ShiftOption = { value: null, label: t('calendar', 'Free day') }
+const freeDayOption: ShiftOption = { value: null, label: t('nocturnkalender', 'Free day') }
 
 const shiftOptions = computed<ShiftOption[]>(() => {
 	return [
@@ -98,11 +98,11 @@ async function save(): Promise<void> {
 			<NcTextField
 				v-model="editing.name"
 				class="nocturn-rotation-modal__row"
-				:label="t('calendar', 'Name')"
-				:placeholder="t('calendar', 'e.g. 4-shift rotation')" />
+				:label="t('nocturnkalender', 'Name')"
+				:placeholder="t('nocturnkalender', 'e.g. 4-shift rotation')" />
 
 			<p class="nocturn-rotation-modal__hint">
-				{{ t('calendar', 'Define the repeating day-for-day pattern. It has no fixed start date - you choose one later when applying it to the calendar.') }}
+				{{ t('nocturnkalender', 'Define the repeating day-for-day pattern. It has no fixed start date - you choose one later when applying it to the calendar.') }}
 			</p>
 
 			<div class="nocturn-rotation-modal__days">
@@ -110,7 +110,7 @@ async function save(): Promise<void> {
 					v-for="(shiftUid, index) in editing.days"
 					:key="index"
 					class="nocturn-rotation-modal__day">
-					<span class="nocturn-rotation-modal__day-label">{{ t('calendar', 'Day {n}', { n: index + 1 }) }}</span>
+					<span class="nocturn-rotation-modal__day-label">{{ t('nocturnkalender', 'Day {n}', { n: index + 1 }) }}</span>
 					<NcSelect
 						class="nocturn-rotation-modal__day-select"
 						:modelValue="optionForDay(shiftUid)"
@@ -120,7 +120,7 @@ async function save(): Promise<void> {
 						@update:modelValue="setDay(index, $event)" />
 					<NcButton
 						type="tertiary"
-						:aria-label="t('calendar', 'Remove day')"
+						:aria-label="t('nocturnkalender', 'Remove day')"
 						:disabled="editing.days.length <= 1"
 						@click="removeDay(index)">
 						<template #icon>
@@ -134,7 +134,7 @@ async function save(): Promise<void> {
 				<template #icon>
 					<PlusIcon :size="18" />
 				</template>
-				{{ t('calendar', 'Add day') }}
+				{{ t('nocturnkalender', 'Add day') }}
 			</NcButton>
 
 			<NcButton

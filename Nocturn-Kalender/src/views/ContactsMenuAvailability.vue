@@ -65,7 +65,7 @@ export default {
 	computed: {
 		...mapStores(usePrincipalsStore, useSettingsStore),
 		dialogName() {
-			return t('calendar', 'Availability of {displayName}', {
+			return t('nocturnkalender', 'Availability of {displayName}', {
 				displayName: this.userDisplayName,
 			})
 		},

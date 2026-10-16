@@ -12,7 +12,7 @@
 			:searchable="true"
 			:max-height="600"
 			:placeholder="placeholder"
-			:ariaLabelCombobox="$t('calendar', 'Search for resources')"
+			:ariaLabelCombobox="$t('nocturnkalender', 'Search for resources')"
 			:class="{ showContent: inputGiven, 'icon-loading': isLoading }"
 			inputId="resource-search-email"
 			label="displayName"
@@ -46,16 +46,16 @@
 				<Actions class="resource-search__capacity__actions">
 					<ActionCheckbox v-model="isAvailable">
 						<!-- Translators room or resource is not yet booked -->
-						{{ $t('calendar', 'Available') }}
+						{{ $t('nocturnkalender', 'Available') }}
 					</ActionCheckbox>
 					<ActionCheckbox v-model="hasProjector">
-						{{ $t('calendar', 'Projector') }}
+						{{ $t('nocturnkalender', 'Projector') }}
 					</ActionCheckbox>
 					<ActionCheckbox v-model="hasWhiteboard">
-						{{ $t('calendar', 'Whiteboard') }}
+						{{ $t('nocturnkalender', 'Whiteboard') }}
 					</ActionCheckbox>
 					<ActionCheckbox v-model="isAccessible">
-						{{ $t('calendar', 'Wheelchair accessible') }}
+						{{ $t('nocturnkalender', 'Wheelchair accessible') }}
 					</ActionCheckbox>
 				</Actions>
 			</div>
@@ -123,11 +123,11 @@ export default {
 		...mapStores(usePrincipalsStore),
 		...mapState(useCalendarObjectInstanceStore, ['calendarObjectInstance']),
 		placeholder() {
-			return this.$t('calendar', 'Search for resources or rooms')
+			return this.$t('nocturnkalender', 'Search for resources or rooms')
 		},
 
 		noResult() {
-			return this.$t('calendar', 'No match found')
+			return this.$t('nocturnkalender', 'No match found')
 		},
 
 		features() {
@@ -220,7 +220,7 @@ export default {
 				.map((principal) => {
 					const subLineData = []
 					if (principal.roomSeatingCapacity) {
-						subLineData.push(this.$n('calendar', '{seatingCapacity} seat', '{seatingCapacity} seats', principal.roomSeatingCapacity, {
+						subLineData.push(this.$n('nocturnkalender', '{seatingCapacity} seat', '{seatingCapacity} seats', principal.roomSeatingCapacity, {
 							seatingCapacity: principal.roomSeatingCapacity,
 						}))
 					}
@@ -264,11 +264,11 @@ export default {
 		formatAvailability(isAvailable) {
 			if (isAvailable) {
 				// TRANSLATORS room or resource is available due to not being booked yet
-				return this.$t('calendar', 'available')
+				return this.$t('nocturnkalender', 'available')
 			}
 
 			// TRANSLATORS room or resource is unavailable due to it being already booked
-			return this.$t('calendar', 'unavailable')
+			return this.$t('nocturnkalender', 'unavailable')
 		},
 	},
 }

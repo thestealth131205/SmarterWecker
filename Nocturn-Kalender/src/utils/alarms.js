@@ -299,7 +299,7 @@ export function updateAlarms(eventComponent) {
 		}
 
 		if (!alarmComponent.hasProperty('DESCRIPTION')) {
-			const defaultDescription = t('calendar', 'This is an event reminder.')
+			const defaultDescription = t('nocturnkalender', 'This is an event reminder.')
 			alarmComponent.addProperty(new Property('DESCRIPTION', defaultDescription))
 		}
 
@@ -315,7 +315,7 @@ export function updateAlarms(eventComponent) {
 		if (summaryProperty) {
 			alarmComponent.addProperty(summaryProperty.clone())
 		} else {
-			const defaultSummary = t('calendar', 'Untitled event')
+			const defaultSummary = t('nocturnkalender', 'Untitled event')
 			alarmComponent.addProperty(new Property('SUMMARY', defaultSummary))
 		}
 

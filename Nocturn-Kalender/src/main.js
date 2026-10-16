@@ -29,7 +29,7 @@ __webpack_nonce__ = btoa(getRequestToken())
 // OC.generateUrl ensure the index.php (or not)
 // We do not want the index.php since we're loading files
 // eslint-disable-next-line
-__webpack_public_path__ = linkTo('calendar', 'js/')
+__webpack_public_path__ = linkTo('nocturnkalender', 'js/')
 
 const app = createApp(App)
 
@@ -57,6 +57,6 @@ const rootInstance = app.mount('#content')
 export default rootInstance
 
 const appointmentsConfigsStore = useAppointmentConfigsStore()
-appointmentsConfigsStore.addInitialConfigs(loadState('calendar', 'appointmentConfigs', []).map((config) => new AppointmentConfig(config)))
+appointmentsConfigsStore.addInitialConfigs(loadState('nocturnkalender', 'appointmentConfigs', []).map((config) => new AppointmentConfig(config)))
 
 windowTitleService(router)

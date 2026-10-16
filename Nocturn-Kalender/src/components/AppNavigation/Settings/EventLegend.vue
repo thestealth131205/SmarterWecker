@@ -5,58 +5,58 @@
 <template>
 	<NcAppSettingsSection
 		id="settings-modal-legend"
-		:name="t('calendar', 'Event legend')">
+		:name="t('nocturnkalender', 'Event legend')">
 		<p class="event-legend__intro">
-			{{ t('calendar', 'Calendar events are styled to convey additional information at a glance.') }}
+			{{ t('nocturnkalender', 'Calendar events are styled to convey additional information at a glance.') }}
 		</p>
 
 		<!-- Free / Busy -->
 		<h3 class="event-legend__heading">
-			{{ t('calendar', 'Free / Busy') }}
+			{{ t('nocturnkalender', 'Free / Busy') }}
 		</h3>
 		<ul class="event-legend__list">
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--busy">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Busy') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Busy') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Busy: your time is marked as occupied') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Busy: your time is marked as occupied') }}</span>
 			</li>
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--free">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Free') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Free') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Free: your time is still available') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Free: your time is still available') }}</span>
 			</li>
 		</ul>
 
 		<!-- Participation status -->
 		<h3 class="event-legend__heading">
-			{{ t('calendar', 'Participation status') }}
+			{{ t('nocturnkalender', 'Participation status') }}
 		</h3>
 		<ul class="event-legend__list">
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--accepted">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Accepted') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Accepted') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Accepted: you confirmed your attendance') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Accepted: you confirmed your attendance') }}</span>
 			</li>
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--tentative">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Tentative') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Tentative') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Tentative: your participation is uncertain') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Tentative: your participation is uncertain') }}</span>
 			</li>
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--needs-action">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Invited') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Invited') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Invited: you have not yet responded to this invitation') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Invited: you have not yet responded to this invitation') }}</span>
 			</li>
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--declined">
-					<span class="event-legend__demo-title event-legend__demo-title--strikethrough">{{ t('calendar', 'Declined') }}</span>
+					<span class="event-legend__demo-title event-legend__demo-title--strikethrough">{{ t('nocturnkalender', 'Declined') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Declined: you declined this event') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Declined: you declined this event') }}</span>
 			</li>
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--all-declined">
@@ -65,16 +65,16 @@
 						<svg class="event-legend__icon" viewBox="0 -960 960 960" aria-hidden="true">
 							<path d="m40-120 440-760 440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z" />
 						</svg>
-						{{ t('calendar', 'All declined') }}
+						{{ t('nocturnkalender', 'All declined') }}
 					</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'All declined: all participants declined') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'All declined: all participants declined') }}</span>
 			</li>
 		</ul>
 
 		<!-- Icons -->
 		<h3 class="event-legend__heading">
-			{{ t('calendar', 'Icons') }}
+			{{ t('nocturnkalender', 'Icons') }}
 		</h3>
 		<ul class="event-legend__list">
 			<li class="event-legend__item">
@@ -84,23 +84,23 @@
 						<svg class="event-legend__icon" viewBox="0 -960 960 960" aria-hidden="true">
 							<path d="M40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm640 0v-112q0-51-26-95.5T586-441q51 6 98 20.5t84 35.5q36 20 57 44.5t21 52.5v112H680ZM360-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm400-160q0 66-47 113t-113 47q-11 0-28-2.5t-28-5.5q27-32 41.5-71t14.5-81q0-42-14.5-81T544-792q14-5 28-6.5t28-1.5q66 0 113 47t47 113Z" />
 						</svg>
-						{{ t('calendar', 'Attendees') }}
+						{{ t('nocturnkalender', 'Attendees') }}
 					</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'This event has one or more attendees') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'This event has one or more attendees') }}</span>
 			</li>
 		</ul>
 
 		<!-- Past events -->
 		<h3 class="event-legend__heading">
-			{{ t('calendar', 'Past events') }}
+			{{ t('nocturnkalender', 'Past events') }}
 		</h3>
 		<ul class="event-legend__list">
 			<li class="event-legend__item">
 				<div class="event-legend__demo event-legend__demo--past">
-					<span class="event-legend__demo-title">{{ t('calendar', 'Past event') }}</span>
+					<span class="event-legend__demo-title">{{ t('nocturnkalender', 'Past event') }}</span>
 				</div>
-				<span class="event-legend__label">{{ t('calendar', 'Events that have already ended are shown with a more faded background') }}</span>
+				<span class="event-legend__label">{{ t('nocturnkalender', 'Events that have already ended are shown with a more faded background') }}</span>
 			</li>
 		</ul>
 	</NcAppSettingsSection>

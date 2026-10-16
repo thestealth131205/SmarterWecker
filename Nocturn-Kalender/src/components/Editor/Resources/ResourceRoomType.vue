@@ -11,7 +11,7 @@
 				:options="options"
 				:placeholder="placeholder"
 				:clearable="false"
-				:ariaLabelCombobox="$t('calendar', 'Room type')"
+				:ariaLabelCombobox="$t('nocturnkalender', 'Room type')"
 				inputId="resource-room-type"
 				label="label">
 				<template #option="option">
@@ -43,12 +43,12 @@ export default {
 
 	computed: {
 		placeholder() {
-			return this.$t('calendar', 'Room type')
+			return this.$t('nocturnkalender', 'Room type')
 		},
 
 		options() {
 			return [
-				{ value: '', label: this.$t('calendar', 'Any') },
+				{ value: '', label: this.$t('nocturnkalender', 'Any') },
 				...getAllRoomTypes(),
 			]
 		},

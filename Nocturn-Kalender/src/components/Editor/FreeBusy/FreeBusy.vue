@@ -6,7 +6,7 @@
 <template>
 	<NcModal
 		size="full"
-		:name="dialogName || $t('calendar', 'Availability of attendees, resources and rooms')"
+		:name="dialogName || $t('nocturnkalender', 'Availability of attendees, resources and rooms')"
 		@close="$emit('close')">
 		<div class="modal">
 			<div class="modal__content">
@@ -20,13 +20,13 @@
 							:options="freeSlots"
 							:placeholder="placeholder"
 							:clearable="false"
-							:ariaLabelCombobox="$t('calendar', 'Available time slots')"
+							:ariaLabelCombobox="$t('nocturnkalender', 'Available time slots')"
 							inputId="free-busy-slot-mobile"
 							label="displayStart"
 							:modelValue="selectedSlot"
 							@update:modelValue="setSlotSuggestion">
 							<template #selected-option="{}">
-								{{ $t('calendar', 'Suggestion accepted') }}
+								{{ $t('nocturnkalender', 'Suggestion accepted') }}
 							</template>
 						</NcSelect>
 					</p>
@@ -58,13 +58,13 @@
 					<div v-if="isMobile" class="modal__content__actions__date date-navigation">
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'Today')"
+							:aria-label="t('nocturnkalender', 'Today')"
 							@click="handleActions('today')">
-							{{ $t('calendar', 'Today') }}
+							{{ $t('nocturnkalender', 'Today') }}
 						</NcButton>
 						<NcButton
 							variant="secondary"
-							:aria-label="isRTL ? t('calendar', 'Previous date') : t('calendar', 'Next date')"
+							:aria-label="isRTL ? t('nocturnkalender', 'Previous date') : t('nocturnkalender', 'Next date')"
 							@click="handleActions(isRTL ? 'next' : 'prev')">
 							<template #icon>
 								<ChevronRightIcon v-if="isRTL" :size="22" />
@@ -77,7 +77,7 @@
 							@update:modelValue="(date) => handleActions('picker', date)" />
 						<NcButton
 							variant="secondary"
-							:aria-label="isRTL ? t('calendar', 'Next date') : t('calendar', 'Previous date')"
+							:aria-label="isRTL ? t('nocturnkalender', 'Next date') : t('nocturnkalender', 'Previous date')"
 							@click="handleActions(isRTL ? 'prev' : 'next')">
 							<template #icon>
 								<ChevronLeftIcon v-if="isRTL" :size="22" />
@@ -88,7 +88,7 @@
 							<template #trigger>
 								<NcButton
 									variant="tertiary-no-background"
-									:aria-label="t('calendar', 'Legend')">
+									:aria-label="t('nocturnkalender', 'Legend')">
 									<template #icon>
 										<HelpCircleIcon :size="20" />
 									</template>
@@ -103,7 +103,7 @@
 											<div
 												class="
 											freebusy-caption-item__label">
-												{{ $t('calendar', 'Out of office') }}
+												{{ $t('nocturnkalender', 'Out of office') }}
 											</div>
 										</div>
 									</div>
@@ -116,13 +116,13 @@
 					<div v-if="!isMobile" class="modal__content__actions__title__date date-navigation">
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'Today')"
+							:aria-label="t('nocturnkalender', 'Today')"
 							@click="handleActions('today')">
-							{{ $t('calendar', 'Today') }}
+							{{ $t('nocturnkalender', 'Today') }}
 						</NcButton>
 						<NcButton
 							variant="secondary"
-							:aria-label="isRTL ? t('calendar', 'Previous date') : t('calendar', 'Next date')"
+							:aria-label="isRTL ? t('nocturnkalender', 'Previous date') : t('nocturnkalender', 'Next date')"
 							@click="handleActions(isRTL ? 'next' : 'prev')">
 							<template #icon>
 								<ChevronRightIcon v-if="isRTL" :size="22" />
@@ -135,7 +135,7 @@
 							@update:modelValue="(date) => handleActions('picker', date)" />
 						<NcButton
 							variant="secondary"
-							:aria-label="isRTL ? t('calendar', 'Next date') : t('calendar', 'Previous date')"
+							:aria-label="isRTL ? t('nocturnkalender', 'Next date') : t('nocturnkalender', 'Previous date')"
 							@click="handleActions(isRTL ? 'prev' : 'next')">
 							<template #icon>
 								<ChevronLeftIcon v-if="isRTL" :size="22" />
@@ -159,7 +159,7 @@
 											<div
 												class="
 											freebusy-caption-item__label">
-												{{ $t('calendar', 'Out of office') }}
+												{{ $t('nocturnkalender', 'Out of office') }}
 											</div>
 										</div>
 									</div>
@@ -173,13 +173,13 @@
 							:variant="view === 'timeGridWeek' ? 'secondary' : 'tertiary'"
 							:disabled="view === 'timeGridWeek'"
 							@click="updateView('timeGridWeek')">
-							{{ t('calendar', 'Week') }}
+							{{ t('nocturnkalender', 'Week') }}
 						</NcButton>
 						<NcButton
 							:variant="view === 'timeGridDay' ? 'secondary' : 'tertiary'"
 							:disabled="view === 'timeGridDay'"
 							@click="updateView('timeGridDay')">
-							{{ t('calendar', 'Day') }}
+							{{ t('nocturnkalender', 'Day') }}
 						</NcButton>
 					</div>
 				</div>
@@ -191,7 +191,7 @@
 								:options="freeSlots"
 								:placeholder="placeholder"
 								:clearable="false"
-								:ariaLabelCombobox="$t('calendar', 'Available time slots')"
+								:ariaLabelCombobox="$t('nocturnkalender', 'Available time slots')"
 								inputId="free-busy-slot-desktop"
 								label="displayStart"
 								:modelValue="selectedSlot"
@@ -199,12 +199,12 @@
 								:disabled="loadingIndicator"
 								@update:modelValue="setSlotSuggestion">
 								<template #selected-option="{}">
-									{{ $t('calendar', 'Suggestion accepted') }}
+									{{ $t('nocturnkalender', 'Suggestion accepted') }}
 								</template>
 							</NcSelect>
 						</p>
 						<div class="modal__content__body__sidebar__attendees">
-							{{ $t('calendar', 'Attendees:') }}
+							{{ $t('nocturnkalender', 'Attendees:') }}
 							<InviteesListSearch
 								class="modal__content__actions__select"
 								:alreadyInvitedEmails="alreadyInvitedEmails"
@@ -218,7 +218,7 @@
 								:key="attendee.id"
 								:name="attendee.commonName"
 								:subname="attendeeDetails[attendee.uri]?.localTime
-									? attendeeDetails[attendee.uri]?.localTime + ' ' + t('calendar', 'local time')
+									? attendeeDetails[attendee.uri]?.localTime + ' ' + t('nocturnkalender', 'local time')
 									: ''"
 								class="modal__content__body__sidebar__attendees__item">
 								<NcActions>
@@ -226,7 +226,7 @@
 										<template #icon>
 											<Close :size="20" />
 										</template>
-										{{ t('calendar', 'Delete') }}
+										{{ t('nocturnkalender', 'Delete') }}
 									</NcActionButton>
 								</NcActions>
 							</NcListItemIcon>
@@ -250,7 +250,7 @@
 					<NcButton
 						variant="primary"
 						@click="save">
-						{{ $t('calendar', 'Done') }}
+						{{ $t('nocturnkalender', 'Done') }}
 						<template #icon>
 							<CheckIcon :size="20" />
 						</template>
@@ -421,7 +421,7 @@ export default {
 		},
 
 		placeholder() {
-			return this.$t('calendar', 'Suggested times')
+			return this.$t('nocturnkalender', 'Suggested times')
 		},
 
 		/**
@@ -474,19 +474,19 @@ export default {
 		resources() {
 			const resources = []
 			const roles = {
-				CHAIR: this.$t('calendar', 'chairperson'),
-				'REQ-PARTICIPANT': this.$t('calendar', 'required participant'),
-				'NON-PARTICIPANT': this.$t('calendar', 'non-participant'),
-				'OPT-PARTICIPANT': this.$t('calendar', 'optional participant'),
+				CHAIR: this.$t('nocturnkalender', 'chairperson'),
+				'REQ-PARTICIPANT': this.$t('nocturnkalender', 'required participant'),
+				'NON-PARTICIPANT': this.$t('nocturnkalender', 'non-participant'),
+				'OPT-PARTICIPANT': this.$t('nocturnkalender', 'optional participant'),
 			}
 			for (const attendee of [this.organizer, ...this.attendees]) {
 				let title = attendee.commonName || attendee.uri.slice(7)
 				if (attendee === this.organizer) {
-					title = this.$t('calendar', '{organizer} (organizer)', {
+					title = this.$t('nocturnkalender', '{organizer} (organizer)', {
 						organizer: title,
 					})
 				} else {
-					title = this.$t('calendar', '{attendee} ({role})', {
+					title = this.$t('nocturnkalender', '{attendee} ({role})', {
 						attendee: title,
 						role: roles[attendee.role],
 					})
@@ -570,7 +570,7 @@ export default {
 		}
 		calendar.addEvent({
 			id: 'selected-event-slot',
-			title: t('calendar', 'Selected slot'),
+			title: t('nocturnkalender', 'Selected slot'),
 			start: this.currentStart,
 			end: this.currentEnd,
 			textColor: 'var(--color-main-text)',

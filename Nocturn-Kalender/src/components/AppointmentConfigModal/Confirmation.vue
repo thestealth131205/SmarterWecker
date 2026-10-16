@@ -20,10 +20,10 @@ const props = defineProps<{
 
 const title = computed<string>(() => {
 	if (props.isNew) {
-		return t('calendar', 'Appointment schedule successfully created')
+		return t('nocturnkalender', 'Appointment schedule successfully created')
 	}
 
-	return t('calendar', 'Appointment schedule successfully updated')
+	return t('nocturnkalender', 'Appointment schedule successfully updated')
 })
 
 function hasClipboard(): boolean {
@@ -33,10 +33,10 @@ function hasClipboard(): boolean {
 async function copyLink(): Promise<void> {
 	try {
 		await navigator.clipboard.writeText(props.config.bookingUrl)
-		showSuccess(t('calendar', 'Appointment link was copied to clipboard'))
+		showSuccess(t('nocturnkalender', 'Appointment link was copied to clipboard'))
 	} catch (error) {
 		logger.error('Failed to copy appointment link to clipboard', { error })
-		showError(t('calendar', 'Appointment link could not be copied to clipboard'))
+		showError(t('nocturnkalender', 'Appointment link could not be copied to clipboard'))
 	}
 }
 </script>
@@ -53,12 +53,12 @@ async function copyLink(): Promise<void> {
 				:href="config.bookingUrl"
 				target="_blank"
 				rel="noopener noreferrer">
-				{{ t('calendar', 'Preview') }}
+				{{ t('nocturnkalender', 'Preview') }}
 			</NcButton>
 			<NcButton
 				v-if="hasClipboard()"
 				@click="copyLink">
-				{{ t('calendar', 'Copy link') }}
+				{{ t('nocturnkalender', 'Copy link') }}
 			</NcButton>
 		</div>
 	</div>

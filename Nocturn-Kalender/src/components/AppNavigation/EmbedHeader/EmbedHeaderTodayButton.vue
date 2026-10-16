@@ -10,7 +10,7 @@
 			class="button"
 			:name="title"
 			@click="today()">
-			{{ $t('calendar', 'Today') }}
+			{{ $t('nocturnkalender', 'Today') }}
 		</NcButton>
 	</div>
 </template>

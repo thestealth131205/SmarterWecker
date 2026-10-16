@@ -16,7 +16,7 @@
 			<NcAppSettingsDialog
 				id="app-settings-modal"
 				class="app-settings-modal"
-				:name="t('calendar', 'Calendar settings')"
+				:name="t('nocturnkalender', 'Calendar settings')"
 				:legacy="false"
 				:showNavigation="true"
 				:additionalTrapElements="[]"
@@ -24,64 +24,64 @@
 				@update:open="(val) => showSettingsModal = val">
 				<NcAppSettingsSection
 					id="settings-modal-general"
-					:name="t('calendar', 'General')">
+					:name="t('nocturnkalender', 'General')">
 					<SettingsTimezoneSelect />
 					<CalendarPicker
 						:value="defaultCalendar"
 						:calendars="defaultCalendarOptions"
 						:disabled="savingDefaultCalendarId"
-						:inputLabel="$t('calendar', 'Default calendar for incoming invitations')"
+						:inputLabel="$t('nocturnkalender', 'Default calendar for incoming invitations')"
 						:clearable="false"
 						@selectCalendar="changeDefaultCalendar" />
 					<NcFormBox>
 						<NcFormBoxButton
 							target="_blank"
 							:href="availabilitySettingsUrl">
-							{{ $t('calendar', 'Availability settings') }}
+							{{ $t('nocturnkalender', 'Availability settings') }}
 						</NcFormBoxButton>
 					</NcFormBox>
 					<SettingsImportSection
 						:isDisabled="loadingCalendars" />
-					<NcFormGroup :label="t('calendar', 'CalDAV')" :description="t('calendar', 'Access Nextcloud calendars from other apps and devices')">
+					<NcFormGroup :label="t('nocturnkalender', 'CalDAV')" :description="t('nocturnkalender', 'Access Nextcloud calendars from other apps and devices')">
 						<NcFormBox>
-							<NcFormBoxCopyButton :label="t('calendar', 'CalDAV URL')" :value="primaryCalDAV" />
-							<NcFormBoxCopyButton :label="t('calendar', 'Server Address for iOS and macOS')" :value="appleCalDAV" />
+							<NcFormBoxCopyButton :label="t('nocturnkalender', 'CalDAV URL')" :value="primaryCalDAV" />
+							<NcFormBoxCopyButton :label="t('nocturnkalender', 'Server Address for iOS and macOS')" :value="appleCalDAV" />
 						</NcFormBox>
 					</NcFormGroup>
 				</NcAppSettingsSection>
 				<NcAppSettingsSection
 					id="settings-modal-appearance"
-					:name="t('calendar', 'Appearance')">
+					:name="t('nocturnkalender', 'Appearance')">
 					<NcFormBox>
 						<NcFormBoxSwitch
 							v-model="hasBirthdayCalendar"
 							:disabled="isBirthdayCalendarDisabled"
 							@update:modelValue="toggleBirthdayEnabled">
-							{{ $t('calendar', 'Birthday calendar') }}
+							{{ $t('nocturnkalender', 'Birthday calendar') }}
 						</NcFormBoxSwitch>
 						<NcFormBoxSwitch
 							v-model="showTasksBinding"
 							:disabled="savingTasks"
 							@update:modelValue="toggleTasksEnabled">
-							{{ $t('calendar', 'Tasks in calendar') }}
+							{{ $t('nocturnkalender', 'Tasks in calendar') }}
 						</NcFormBoxSwitch>
 						<NcFormBoxSwitch
 							v-model="showDeclinedBinding"
 							:disabled="savingShowDeclined"
 							@update:modelValue="toggleShowDeclined">
-							{{ $t('calendar', 'Show declined appointments') }}
+							{{ $t('nocturnkalender', 'Show declined appointments') }}
 						</NcFormBoxSwitch>
 						<NcFormBoxSwitch
 							v-model="showWeekendsBinding"
 							:disabled="savingWeekend"
 							@update:modelValue="toggleWeekendsEnabled">
-							{{ $t('calendar', 'Weekends') }}
+							{{ $t('nocturnkalender', 'Weekends') }}
 						</NcFormBoxSwitch>
 						<NcFormBoxSwitch
 							v-model="showWeekNumbersBinding"
 							:disabled="savingWeekNumber"
 							@update:modelValue="toggleWeekNumberEnabled">
-							{{ $t('calendar', 'Week numbers') }}
+							{{ $t('nocturnkalender', 'Week numbers') }}
 						</NcFormBoxSwitch>
 					</NcFormBox>
 
@@ -90,7 +90,7 @@
 							v-model="eventLimitBinding"
 							:disabled="savingEventLimit"
 							@update:modelValue="toggleEventLimitEnabled">
-							{{ $t('calendar', 'Limit number of events shown in Month view') }}
+							{{ $t('nocturnkalender', 'Limit number of events shown in Month view') }}
 						</NcFormBoxSwitch>
 					</NcFormBox>
 
@@ -100,19 +100,19 @@
 						:options="slotDurationOptions"
 						:disabled="savingSlotDuration"
 						:clearable="false"
-						:inputLabel="$t('calendar', 'Density in Day and Week View')"
+						:inputLabel="$t('nocturnkalender', 'Density in Day and Week View')"
 						inputId="settings-slot-duration"
 						label="label" />
 				</NcAppSettingsSection>
 				<NcAppSettingsSection
 					id="app-settings-modal-editing"
-					:name="t('calendar', 'Editing')">
+					:name="t('nocturnkalender', 'Editing')">
 					<NcSelect
 						:options="defaultReminderPartDayOptions"
 						:modelValue="selectedDefaultReminderPartDayOption"
 						:disabled="savingDefaultReminderPartDay"
 						:clearable="false"
-						:inputLabel="$t('calendar', 'Default reminder for part-day events')"
+						:inputLabel="$t('nocturnkalender', 'Default reminder for part-day events')"
 						inputId="settings-reminder-part-day"
 						label="label"
 						@option:selected="changeDefaultReminderPartDay" />
@@ -121,7 +121,7 @@
 						:modelValue="selectedDefaultReminderFullDayOption"
 						:disabled="savingDefaultReminderFullDay"
 						:clearable="false"
-						:inputLabel="$t('calendar', 'Default reminder for full-day events')"
+						:inputLabel="$t('nocturnkalender', 'Default reminder for full-day events')"
 						inputId="settings-reminder-full-day"
 						label="label"
 						@option:selected="changeDefaultReminderFullDay" />
@@ -129,21 +129,21 @@
 						<NcFormBoxSwitch
 							v-model="simpleEventEditorBinding"
 							:disabled="savingPopover"
-							:label="t('calendar', 'Simple event editor')"
+							:label="t('nocturnkalender', 'Simple event editor')"
 							@update:modelValue="togglePopoverEnabled">
 							<template #description>
-								{{ $t('calendar', '"More details" opens the detailed editor') }}
+								{{ $t('nocturnkalender', '"More details" opens the detailed editor') }}
 							</template>
 						</NcFormBoxSwitch>
 					</NcFormBox>
-					<NcFormGroup :label="t('calendar', 'Files')">
+					<NcFormGroup :label="t('nocturnkalender', 'Files')">
 						<SettingsAttachmentsFolder />
 					</NcFormGroup>
 				</NcAppSettingsSection>
 				<NcAppSettingsSection
 					v-if="isDelegationSupported"
 					id="settings-modal-delegation"
-					:name="t('calendar', 'Delegation')">
+					:name="t('nocturnkalender', 'Delegation')">
 					<SettingsDelegationSection />
 				</NcAppSettingsSection>
 				<EventLegend />
@@ -304,7 +304,7 @@ export default {
 		},
 
 		settingsTitle() {
-			return this.$t('calendar', 'Calendar settings')
+			return this.$t('nocturnkalender', 'Calendar settings')
 		},
 
 		slotDurationOptions() {
@@ -423,7 +423,7 @@ export default {
 				this.savingBirthdayCalendar = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingBirthdayCalendar = false
 			}
 		},
@@ -436,7 +436,7 @@ export default {
 				this.savingEventLimit = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingEventLimit = false
 			}
 		},
@@ -449,7 +449,7 @@ export default {
 				this.savingTasks = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingTasks = false
 			}
 		},
@@ -462,7 +462,7 @@ export default {
 				this.savingShowDeclined = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingShowDeclined = false
 			}
 		},
@@ -475,7 +475,7 @@ export default {
 				this.savingPopover = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingPopover = false
 			}
 		},
@@ -488,7 +488,7 @@ export default {
 				this.savingWeekend = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingWeekend = false
 			}
 		},
@@ -504,7 +504,7 @@ export default {
 				this.savingWeekNumber = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingWeekNumber = false
 			}
 		},
@@ -527,7 +527,7 @@ export default {
 				this.savingSlotDuration = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingSlotDuration = false
 			}
 		},
@@ -545,7 +545,7 @@ export default {
 			}))
 
 			return [{
-				label: this.$t('calendar', 'No reminder'),
+				label: this.$t('nocturnkalender', 'No reminder'),
 				value: 'none',
 			}].concat(defaultAlarms)
 		},
@@ -560,7 +560,7 @@ export default {
 		getDefaultReminderLabel(seconds, allDay) {
 			if (!allDay) {
 				return seconds === 0
-					? this.$t('calendar', 'At event start')
+					? this.$t('nocturnkalender', 'At event start')
 					: moment.duration(Math.abs(seconds) * 1000).locale(this.locale).humanize()
 			}
 
@@ -614,7 +614,7 @@ export default {
 				this.savingDefaultReminderPartDay = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingDefaultReminderPartDay = false
 			}
 		},
@@ -639,7 +639,7 @@ export default {
 				this.savingDefaultReminderFullDay = false
 			} catch (error) {
 				logger.error(error)
-				showError(this.$t('calendar', 'New setting was not saved successfully.'))
+				showError(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				this.savingDefaultReminderFullDay = false
 			}
 		},
@@ -667,7 +667,7 @@ export default {
 					calendarUrl: selectedCalendar.url,
 					selectedCalendar,
 				})
-				showError(this.$t('calendar', 'Failed to save default calendar'))
+				showError(this.$t('nocturnkalender', 'Failed to save default calendar'))
 			} finally {
 				this.savingDefaultCalendar = false
 			}

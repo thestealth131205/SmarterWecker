@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "User-Session unexpectedly expired" : "La sesión de usuario ha expirado inesperadamente",
     "Provided email-address is not valid" : "El email provisto no es valido",

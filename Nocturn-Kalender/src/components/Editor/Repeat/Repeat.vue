@@ -8,7 +8,7 @@
 		<div class="property-repeat__summary">
 			<RepeatIcon
 				class="property-repeat__summary__icon"
-				:name="$t('calendar', 'Repeat')"
+				:name="$t('nocturnkalender', 'Repeat')"
 				:size="20" />
 			<RepeatSummary
 				class="property-repeat__summary__content"
@@ -29,9 +29,9 @@
 		<NcModal
 			v-model:show="showOptions"
 			size="small"
-			:name="$t('calendar', 'Repeat event')">
+			:name="$t('nocturnkalender', 'Repeat event')">
 			<div class="property-repeat__options">
-				<h2>{{ $t('calendar', 'Repeat event') }}</h2>
+				<h2>{{ $t('nocturnkalender', 'Repeat event') }}</h2>
 				<RepeatFreqInterval
 					v-if="!isEditingExceptionInstance && !isReadOnly"
 					:frequency="recurrenceRule.frequency"
@@ -84,7 +84,7 @@
 				v-if="!isEditingExceptionInstance && !isReadOnly"
 				class="property-repeat__options__footer">
 				<NcButton variant="primary" @click="saveAndClose">
-					{{ $t('calendar', 'Set repetition') }}
+					{{ $t('nocturnkalender', 'Set repetition') }}
 				</NcButton>
 			</div>
 		</NcModal>
@@ -225,9 +225,9 @@ export default {
 		 */
 		toggleTitle() {
 			if (this.showOptions) {
-				return this.t('calendar', 'Save')
+				return this.t('nocturnkalender', 'Save')
 			}
-			return this.t('calendar', 'Edit')
+			return this.t('nocturnkalender', 'Edit')
 		},
 	},
 

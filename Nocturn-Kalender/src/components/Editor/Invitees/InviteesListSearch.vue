@@ -13,7 +13,7 @@
 		:placeholder="placeholder"
 		:class="{ showContent: inputGiven, 'icon-loading': isLoading }"
 		:clearable="false"
-		:ariaLabelCombobox="$t('calendar', 'Search for attendees')"
+		:ariaLabelCombobox="$t('nocturnkalender', 'Search for attendees')"
 		inputId="invitees-search-uid"
 		label="dropdownName"
 		@search="findAttendees"
@@ -105,11 +105,11 @@ export default {
 
 	computed: {
 		placeholder() {
-			return this.$t('calendar', 'Search for emails, users, contacts, contact groups or teams')
+			return this.$t('nocturnkalender', 'Search for emails, users, contacts, contact groups or teams')
 		},
 
 		noResult() {
-			return this.$t('calendar', 'No match found')
+			return this.$t('nocturnkalender', 'No match found')
 		},
 	},
 
@@ -175,11 +175,11 @@ export default {
 
 		addAttendee(selectedValue) {
 			if (selectedValue.type === 'circle') {
-				showInfo(this.$t('calendar', 'Note that members of circles get invited but are not synced yet.'))
+				showInfo(this.$t('nocturnkalender', 'Note that members of circles get invited but are not synced yet.'))
 				this.resolveCircleMembers(selectedValue.id)
 			}
 			if (selectedValue.type === 'contactsgroup') {
-				showInfo(this.$t('calendar', 'Note that members of contact groups get invited but are not synced yet.'))
+				showInfo(this.$t('nocturnkalender', 'Note that members of contact groups get invited but are not synced yet.'))
 				this.getContactGroupMembers(selectedValue.commonName)
 				const group = {
 					calendarUserType: 'GROUP',
@@ -217,7 +217,7 @@ export default {
 		async getContactGroupMembers(groupName) {
 			let results
 			try {
-				results = await HttpClient.post(linkTo('calendar', 'index.php') + '/v1/autocompletion/groupmembers', {
+				results = await HttpClient.post(linkTo('nocturnkalender', 'index.php') + '/v1/autocompletion/groupmembers', {
 					groupName,
 				})
 			} catch (error) {
@@ -236,7 +236,7 @@ export default {
 			let response
 
 			try {
-				response = await HttpClient.post(linkTo('calendar', 'index.php') + '/v1/autocompletion/attendee', {
+				response = await HttpClient.post(linkTo('nocturnkalender', 'index.php') + '/v1/autocompletion/attendee', {
 					search: query,
 				})
 			} catch (error) {
@@ -266,7 +266,7 @@ export default {
 						arr.push({
 							calendarUserType: 'GROUP',
 							commonName: result.name,
-							subtitle: this.$n('calendar', '%n member', '%n members', result.members),
+							subtitle: this.$n('nocturnkalender', '%n member', '%n members', result.members),
 							members: { length: result.members },
 							email,
 							isUser: false,
@@ -315,7 +315,7 @@ export default {
 					dropdownName: circle.displayname,
 					type: 'circle',
 					id: circle.id,
-					subtitle: this.$n('calendar', '%n member', '%n members', circle.population),
+					subtitle: this.$n('nocturnkalender', '%n member', '%n members', circle.population),
 				}
 			})
 		},

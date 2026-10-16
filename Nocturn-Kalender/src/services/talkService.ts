@@ -155,7 +155,7 @@ export async function createRoomFromProposal(proposal: ProposalInterface): Promi
 
 	const payload: TalkRoomCreateRequest = {
 		roomType: 3,
-		roomName: proposal.title || t('calendar', 'Talk conversation for proposal'),
+		roomName: proposal.title || t('nocturnkalender', 'Talk conversation for proposal'),
 		objectType: 'event',
 		objectId: proposal.uuid || md5(String(Date.now())),
 		description: proposal.description ?? '',
@@ -366,7 +366,7 @@ export async function updateRoomParticipantsFromEvent(eventComponent: object): P
  * @throws Error if the request fails or OCS response is invalid
  */
 async function transceiveGet<TRequest extends object | undefined, TResponse>(path: string, params?: TRequest): Promise<TResponse> {
-	const apiVersion = loadState('calendar', 'talk_api_version')
+	const apiVersion = loadState('nocturnkalender', 'talk_api_version')
 	const url = generateOcsUrl('/apps/spreed/api/{apiVersion}', { apiVersion }) + `/${path}`
 
 	let response: AxiosResponse<TResponse>
@@ -427,7 +427,7 @@ async function transceiveGet<TRequest extends object | undefined, TResponse>(pat
  * @throws Error if the request fails or OCS response is invalid
  */
 async function transceivePost<TRequest extends object, TResponse>(path: string, data: TRequest): Promise<TResponse> {
-	const apiVersion = loadState('calendar', 'talk_api_version')
+	const apiVersion = loadState('nocturnkalender', 'talk_api_version')
 	const url = generateOcsUrl('/apps/spreed/api/{apiVersion}', { apiVersion }) + `/${path}`
 
 	let response: AxiosResponse<TResponse>

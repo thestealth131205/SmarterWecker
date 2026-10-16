@@ -100,7 +100,7 @@ function save(): void {
 				<div class="name-details">
 					<NcTextField
 						v-model="displayName"
-						:label="$t('calendar', 'Your name')"
+						:label="$t('nocturnkalender', 'Your name')"
 						required
 						:disabled="isLoading" />
 				</div>
@@ -108,7 +108,7 @@ function save(): void {
 					<NcTextField
 						v-model="email"
 						type="email"
-						:label="$t('calendar', 'Your email address')"
+						:label="$t('nocturnkalender', 'Your email address')"
 						autocapitalize="none"
 						autocomplete="on"
 						:disabled="isLoading"
@@ -117,7 +117,7 @@ function save(): void {
 				<div class="meeting-info">
 					<NcTextArea
 						v-model="description"
-						:label="$t('calendar', 'Please share anything that will help prepare for our meeting')"
+						:label="$t('nocturnkalender', 'Please share anything that will help prepare for our meeting')"
 						:rows="8"
 						autocapitalize="none"
 						autocomplete="off"
@@ -127,12 +127,12 @@ function save(): void {
 				<NcNoteCard
 					v-if="showRateLimitingWarning"
 					type="warning">
-					{{ $t('calendar', 'It seems a rate limit has been reached. Please try again later.') }}
+					{{ $t('nocturnkalender', 'It seems a rate limit has been reached. Please try again later.') }}
 				</NcNoteCard>
 				<NcNoteCard
 					v-if="showError"
 					type="error">
-					{{ $t('calendar', 'Could not book the appointment. Please try again later or contact the organizer.') }}
+					{{ $t('nocturnkalender', 'Could not book the appointment. Please try again later or contact the organizer.') }}
 				</NcNoteCard>
 			</div>
 		</div>
@@ -141,14 +141,14 @@ function save(): void {
 				<template #icon>
 					<IconBack :size="16" />
 				</template>
-				{{ $t('calendar', 'Back') }}
+				{{ $t('nocturnkalender', 'Back') }}
 			</NcButton>
 			<NcLoadingIcon v-if="isLoading" :size="32" class="loading-icon" />
 			<NcButton variant="primary" :disabled="isLoading" @click="save">
 				<template #icon>
 					<IconCheck :size="16" />
 				</template>
-				{{ $t('calendar', 'Book appointment') }}
+				{{ $t('nocturnkalender', 'Book appointment') }}
 			</NcButton>
 		</div>
 	</div>

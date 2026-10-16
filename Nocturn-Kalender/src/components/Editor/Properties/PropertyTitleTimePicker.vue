@@ -21,19 +21,19 @@
 				<div class="property-title-time-picker__time-pickers-from">
 					<!-- TRANSLATORS Start of an event -->
 					<div class="datepicker-label">
-						{{ $t('calendar', 'From') }}
+						{{ $t('nocturnkalender', 'From') }}
 					</div>
 					<div class="property-title-time-picker__time-pickers-from-inner">
 						<div class="property-title-time-picker__time-pickers-from-inner__selectors">
 							<DatePicker
 								:date="startDate"
-								:ariaLabel="$t('calendar', 'Start date')"
+								:ariaLabel="$t('nocturnkalender', 'Start date')"
 								@change="changeStartDate" />
 							<DatePicker
 								v-if="!isAllDay"
 								:date="startDate"
 								type="time"
-								:ariaLabel="$t('calendar', 'Start time')"
+								:ariaLabel="$t('nocturnkalender', 'Start time')"
 								@change="changeStartTime" />
 						</div>
 						<div v-if="showTimezoneSelect && !isAllDay" class="property-title-time-picker__time-pickers-from-inner__timezone">
@@ -57,19 +57,19 @@
 				<div class="property-title-time-picker__time-pickers-to">
 					<!-- TRANSLATORS End of an event -->
 					<div class="datepicker-label">
-						{{ $t('calendar', 'To') }}
+						{{ $t('nocturnkalender', 'To') }}
 					</div>
 					<div class="property-title-time-picker__time-pickers-to-inner">
 						<div class="property-title-time-picker__time-pickers-from-inner__selectors">
 							<DatePicker
 								:date="endDate"
-								:ariaLabel="$t('calendar', 'End date')"
+								:ariaLabel="$t('nocturnkalender', 'End date')"
 								@change="changeEndDate" />
 							<DatePicker
 								v-if="!isAllDay"
 								:date="endDate"
 								type="time"
-								:ariaLabel="$t('calendar', 'End time')"
+								:ariaLabel="$t('nocturnkalender', 'End time')"
 								@change="changeEndTime" />
 						</div>
 						<div v-if="showTimezoneSelect && !isAllDay" class="property-title-time-picker__time-pickers-to-inner__timezone">
@@ -106,7 +106,7 @@
 					</div>
 				</div>
 				<div v-if="subtitleStart" class="property-title-time-picker-read-only-wrapper__subtitle">
-					{{ subtitleStart }} {{ t('calendar', 'Your Time') }}
+					{{ subtitleStart }} {{ t('nocturnkalender', 'Your Time') }}
 				</div>
 			</div>
 			<template v-if="!isAllDayOneDayEvent">
@@ -125,7 +125,7 @@
 						</div>
 					</div>
 					<div v-if="subtitleEnd" class="property-title-time-picker-read-only-wrapper__subtitle">
-						{{ subtitleEnd }} {{ t('calendar', 'Your Time') }}
+						{{ subtitleEnd }} {{ t('nocturnkalender', 'Your Time') }}
 					</div>
 				</div>
 			</template>
@@ -260,7 +260,7 @@ export default {
 				return null
 			}
 
-			return this.$t('calendar', 'Cannot modify all-day setting for events that are part of a recurrence-set.')
+			return this.$t('nocturnkalender', 'Cannot modify all-day setting for events that are part of a recurrence-set.')
 		},
 
 		/**

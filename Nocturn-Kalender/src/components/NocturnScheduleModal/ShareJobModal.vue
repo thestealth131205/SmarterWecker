@@ -50,7 +50,7 @@ async function reloadShares(): Promise<void> {
 		shares.value = raw.map((share) => new NocturnJobShare(share))
 	} catch (error) {
 		logger.error('Failed to load NocTurn job shares', { error })
-		showError(t('calendar', 'Could not load shares for this job'))
+		showError(t('nocturnkalender', 'Could not load shares for this job'))
 	}
 }
 
@@ -95,7 +95,7 @@ async function addShare(candidate: { userId: string }): Promise<void> {
 		await reloadShares()
 	} catch (error) {
 		logger.error('Failed to share NocTurn job', { error })
-		showError(t('calendar', 'Could not share this job'))
+		showError(t('nocturnkalender', 'Could not share this job'))
 	} finally {
 		isLoading.value = false
 		searchResults.value = []
@@ -108,7 +108,7 @@ async function updatePermission(share: NocturnJobShare, isWriteable: boolean): P
 		await reloadShares()
 	} catch (error) {
 		logger.error('Failed to update NocTurn job share permission', { error })
-		showError(t('calendar', 'Could not update this share'))
+		showError(t('nocturnkalender', 'Could not update this share'))
 	}
 }
 
@@ -118,7 +118,7 @@ async function removeShare(share: NocturnJobShare): Promise<void> {
 		shares.value = shares.value.filter((existing) => existing.sharedWith !== share.sharedWith)
 	} catch (error) {
 		logger.error('Failed to unshare NocTurn job', { error })
-		showError(t('calendar', 'Could not remove this share'))
+		showError(t('nocturnkalender', 'Could not remove this share'))
 	}
 }
 </script>
@@ -126,12 +126,12 @@ async function removeShare(share: NocturnJobShare): Promise<void> {
 <template>
 	<NcModal
 		size="small"
-		:name="t('calendar', 'Share “{name}”', { name: job.name })"
+		:name="t('nocturnkalender', 'Share “{name}”', { name: job.name })"
 		@close="$emit('close')">
 		<div class="nocturn-share-job-modal">
-			<h2>{{ t('calendar', 'Share “{name}”', { name: job.name }) }}</h2>
+			<h2>{{ t('nocturnkalender', 'Share “{name}”', { name: job.name }) }}</h2>
 			<p class="nocturn-share-job-modal__hint">
-				{{ t('calendar', 'Lets another Nextcloud user see this job’s shifts, rotations and calendar entries from their own NocTurn shifts & rotations list - read-only, or read/write so they can enter shift swaps themselves.') }}
+				{{ t('nocturnkalender', 'Lets another Nextcloud user see this job’s shifts, rotations and calendar entries from their own NocTurn shifts & rotations list - read-only, or read/write so they can enter shift swaps themselves.') }}
 			</p>
 
 			<NcSelect
@@ -142,12 +142,12 @@ async function removeShare(share: NocturnJobShare): Promise<void> {
 				:loading="isSearching"
 				label="displayName"
 				trackBy="userId"
-				:placeholder="t('calendar', 'Share with user …')"
+				:placeholder="t('nocturnkalender', 'Share with user …')"
 				:clearable="false"
 				@search="findUsers"
 				@option:selected="addShare">
 				<template #no-options>
-					<span>{{ t('calendar', 'No users found') }}</span>
+					<span>{{ t('nocturnkalender', 'No users found') }}</span>
 				</template>
 				<template #option="candidate">
 					<div class="nocturn-share-job-modal__option">
@@ -164,11 +164,11 @@ async function removeShare(share: NocturnJobShare): Promise<void> {
 				class="nocturn-share-job-modal__default-permission"
 				:modelValue="newSharePermission === 'WRITE'"
 				@update:modelValue="newSharePermission = $event ? 'WRITE' : 'READ'">
-				{{ t('calendar', 'New shares can edit (enter shift swaps)') }}
+				{{ t('nocturnkalender', 'New shares can edit (enter shift swaps)') }}
 			</NcCheckboxRadioSwitch>
 
 			<div v-if="shares.length === 0" class="nocturn-share-job-modal__empty">
-				{{ t('calendar', 'Not shared with anyone yet') }}
+				{{ t('nocturnkalender', 'Not shared with anyone yet') }}
 			</div>
 
 			<div
@@ -181,14 +181,14 @@ async function removeShare(share: NocturnJobShare): Promise<void> {
 					:modelValue="share.permission === 'WRITE'"
 					:disabled="isLoading"
 					@update:modelValue="updatePermission(share, $event)">
-					{{ t('calendar', 'can edit') }}
+					{{ t('nocturnkalender', 'can edit') }}
 				</NcCheckboxRadioSwitch>
 				<Actions>
 					<ActionButton :closeAfterClick="true" @click="removeShare(share)">
 						<template #icon>
 							<DeleteIcon :size="20" />
 						</template>
-						{{ t('calendar', 'Unshare') }}
+						{{ t('nocturnkalender', 'Unshare') }}
 					</ActionButton>
 				</Actions>
 			</div>

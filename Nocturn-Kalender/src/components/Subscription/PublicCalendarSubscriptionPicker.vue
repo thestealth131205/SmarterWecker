@@ -6,30 +6,30 @@
 <template>
 	<NcModal
 		size="small"
-		:name="$t('calendar', 'Public calendar subscriptions selection')"
+		:name="$t('nocturnkalender', 'Public calendar subscriptions selection')"
 		@close="$emit('close', $event)">
 		<div class="public-calendar-subscription-picker">
 			<h2 v-if="showHolidays">
-				{{ t('calendar', 'Public holiday calendars') }}
+				{{ t('nocturnkalender', 'Public holiday calendars') }}
 			</h2>
 			<h2 v-else>
-				{{ t('calendar', 'Public calendars') }}
+				{{ t('nocturnkalender', 'Public calendars') }}
 			</h2>
 			<NcEmptyContent
 				v-if="!calendars.length"
-				:title="$t('calendar', 'No valid public calendars configured')"
-				:description="$t('calendar', 'Contact your server administrator to resolve this issue.')">
+				:title="$t('nocturnkalender', 'No valid public calendars configured')"
+				:description="$t('nocturnkalender', 'Contact your server administrator to resolve this issue.')">
 				<template #icon>
 					<CalendarBlank decorative />
 				</template>
 			</NcEmptyContent>
 			<p v-else-if="showHolidays" class="holiday-subscription-picker__attribution">
-				{{ t('calendar',
+				{{ t('nocturnkalender',
 					'Public holiday calendars are provided by Thunderbird. Calendar data will be downloaded from {website}',
 					{ website: 'thunderbird.net' }) }}
 			</p>
 			<p v-else class="holiday-subscription-picker__attribution">
-				{{ t('calendar', 'These public calendars are suggested by the server administrator. Calendar data will be downloaded from the respective website.') }}
+				{{ t('nocturnkalender', 'These public calendars are suggested by the server administrator. Calendar data will be downloaded from the respective website.') }}
 			</p>
 			<div v-for="calendar in calendars" :key="calendar.source" class="public-calendar-subscription-picker__region">
 				<div class="public-calendar-subscription-picker__region__name">
@@ -38,14 +38,14 @@
 						{{ calendar.description }}
 					</div>
 					<div v-if="calendar.authors" class="public-calendar-subscription-picker__region__name__subline">
-						{{ t('calendar', 'By {authors}', { authors: calendar.authors }) }}
+						{{ t('nocturnkalender', 'By {authors}', { authors: calendar.authors }) }}
 					</div>
 				</div>
 				<div class="public-calendar-subscription-picker__region__subcribe">
 					<NcButton
 						:disabled="loading || subscribing[calendar.source] || subscribed[calendar.source]"
 						@click="subscribe(calendar)">
-						{{ subscribed[calendar.source] ? t('calendar', 'Subscribed') : t('calendar', 'Subscribe') }}
+						{{ subscribed[calendar.source] ? t('nocturnkalender', 'Subscribed') : t('nocturnkalender', 'Subscribe') }}
 					</NcButton>
 				</div>
 			</div>
@@ -97,7 +97,7 @@ export default {
 		if (this.showHolidays) {
 			calendars = holidayCalendars.map((calendar) => ({
 				...calendar,
-				displayName: t('calendar', 'Holidays in {region}', {
+				displayName: t('nocturnkalender', 'Holidays in {region}', {
 					region: calendar.country,
 				}),
 				name: calendar.country,
@@ -106,7 +106,7 @@ export default {
 			}))
 		} else {
 			try {
-				const state = loadState('calendar', 'publicCalendars')
+				const state = loadState('nocturnkalender', 'publicCalendars')
 				calendars = JSON.parse(state).filter((calendar) => {
 					const isValid = isValidString(calendar.name)
 						&& isValidURL(calendar.source)
@@ -120,7 +120,7 @@ export default {
 				})
 			} catch (error) {
 				logger.error('Could not read public calendars', { error })
-				showError(this.$t('calendar', 'An error occurred, unable to read public calendars.'))
+				showError(this.$t('nocturnkalender', 'An error occurred, unable to read public calendars.'))
 			}
 		}
 		const subscribing = {}
@@ -161,7 +161,7 @@ export default {
 				this.subscribed[calendar.source] = true
 			} catch (error) {
 				logger.error('Could not add calendar subscription', { error })
-				showError(this.$t('calendar', 'An error occurred, unable to subscribe to calendar.'))
+				showError(this.$t('nocturnkalender', 'An error occurred, unable to subscribe to calendar.'))
 			} finally {
 				this.subscribing[calendar.source] = false
 			}

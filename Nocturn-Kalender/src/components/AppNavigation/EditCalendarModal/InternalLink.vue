@@ -10,9 +10,9 @@
 		</div>
 
 		<p class="internal-link__label">
-			{{ t('calendar', 'Internal link') }}
+			{{ t('nocturnkalender', 'Internal link') }}
 			<span class="internal-link__label__hint">
-				{{ t('calendar', 'A private link that can be used with external clients') }}
+				{{ t('nocturnkalender', 'A private link that can be used with external clients') }}
 			</span>
 		</p>
 
@@ -21,7 +21,7 @@
 				<template #icon>
 					<ContentCopy :size="20" />
 				</template>
-				{{ t('calendar', 'Copy internal link') }}
+				{{ t('nocturnkalender', 'Copy internal link') }}
 			</NcActionButton>
 		</NcActions>
 	</div>
@@ -62,10 +62,10 @@ export default {
 
 			try {
 				await navigator.clipboard.writeText(url)
-				showSuccess(this.$t('calendar', 'Calendar link copied to clipboard.'))
+				showSuccess(this.$t('nocturnkalender', 'Calendar link copied to clipboard.'))
 			} catch (error) {
 				logger.debug(error)
-				showError(this.$t('calendar', 'Calendar link could not be copied to clipboard.'))
+				showError(this.$t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 			}
 		},
 	},

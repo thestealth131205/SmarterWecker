@@ -54,15 +54,15 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
 	modelValue: 0,
 	format: 'minutes',
-	label: () => t('calendar', 'Duration'),
+	label: () => t('nocturnkalender', 'Duration'),
 	labelOutside: false,
 	predefinedOptions: () => [
-		{ value: 15, label: t('calendar', '15 minutes') },
-		{ value: 30, label: t('calendar', '30 minutes') },
-		{ value: 45, label: t('calendar', '45 minutes') },
-		{ value: 60, label: t('calendar', '1 hour') },
-		{ value: 90, label: t('calendar', '1 hour 30 minutes') },
-		{ value: 120, label: t('calendar', '2 hours') },
+		{ value: 15, label: t('nocturnkalender', '15 minutes') },
+		{ value: 30, label: t('nocturnkalender', '30 minutes') },
+		{ value: 45, label: t('nocturnkalender', '45 minutes') },
+		{ value: 60, label: t('nocturnkalender', '1 hour') },
+		{ value: 90, label: t('nocturnkalender', '1 hour 30 minutes') },
+		{ value: 120, label: t('nocturnkalender', '2 hours') },
 	],
 	showCustom: true,
 	showDays: true,
@@ -101,7 +101,7 @@ const allOptions = computed<SelectOption[]>(() => {
 	if (props.showCustom) {
 		options.push({
 			id: 'custom',
-			label: t('calendar', 'Custom'),
+			label: t('nocturnkalender', 'Custom'),
 		})
 	}
 
@@ -129,7 +129,7 @@ const selectedOption = computed<SelectOption | null>({
 		if (props.showCustom && internalMinutes.value > 0) {
 			const customOption = {
 				id: 'custom',
-				label: t('calendar', 'Custom'),
+				label: t('nocturnkalender', 'Custom'),
 			}
 			return customOption
 		}
@@ -150,7 +150,7 @@ const daysOptions = computed<SelectOption[]>(() => {
 	for (let i = 0; i <= props.maxDays; i++) {
 		options.push({
 			id: i,
-			label: n('calendar', '{i} day', '{i} days', i, { i }),
+			label: n('nocturnkalender', '{i} day', '{i} days', i, { i }),
 		})
 	}
 	return options
@@ -161,7 +161,7 @@ const hoursOptions = computed<SelectOption[]>(() => {
 	for (let i = 0; i <= props.maxHours; i++) {
 		options.push({
 			id: i,
-			label: n('calendar', '{i} hour', '{i} hours', i, { i }),
+			label: n('nocturnkalender', '{i} hour', '{i} hours', i, { i }),
 		})
 	}
 	return options
@@ -172,7 +172,7 @@ const minutesOptions = computed<SelectOption[]>(() => {
 	for (let i = 0; i < 60; i += props.minuteStep) {
 		options.push({
 			id: i,
-			label: n('calendar', '{i} minute', '{i} minutes', i, { i }),
+			label: n('nocturnkalender', '{i} minute', '{i} minutes', i, { i }),
 		})
 	}
 	return options
@@ -192,7 +192,7 @@ watch(() => props.modelValue, (newValue: number | string) => {
 	} else if (props.showCustom && minutes > 0) {
 		predefinedSelected.value = {
 			id: 'custom',
-			label: t('calendar', 'Custom'),
+			label: t('nocturnkalender', 'Custom'),
 		}
 		// Also update custom fields
 		updateCustomFields(minutes)
@@ -393,8 +393,8 @@ function minutesToISO8601(totalMinutes: number): string {
 				v-if="showDays"
 				:modelValue="customDays"
 				:options="daysOptions"
-				:ariaLabelCombobox="t('calendar', 'Days')"
-				:placeholder="t('calendar', 'Days')"
+				:ariaLabelCombobox="t('nocturnkalender', 'Days')"
+				:placeholder="t('nocturnkalender', 'Days')"
 				:clearable="false"
 				class="duration-selector__custom-select"
 				@update:modelValue="onCustomDaysChange">
@@ -407,8 +407,8 @@ function minutesToISO8601(totalMinutes: number): string {
 				v-if="showHours"
 				:modelValue="customHours"
 				:options="hoursOptions"
-				:ariaLabelCombobox="t('calendar', 'Hours')"
-				:placeholder="t('calendar', 'Hours')"
+				:ariaLabelCombobox="t('nocturnkalender', 'Hours')"
+				:placeholder="t('nocturnkalender', 'Hours')"
 				:clearable="false"
 				class="duration-selector__custom-select"
 				@update:modelValue="onCustomHoursChange">
@@ -421,8 +421,8 @@ function minutesToISO8601(totalMinutes: number): string {
 				v-if="showMinutes"
 				:modelValue="customMinutes"
 				:options="minutesOptions"
-				:ariaLabelCombobox="t('calendar', 'Minutes')"
-				:placeholder="t('calendar', 'Minutes')"
+				:ariaLabelCombobox="t('nocturnkalender', 'Minutes')"
+				:placeholder="t('nocturnkalender', 'Minutes')"
 				:clearable="false"
 				class="duration-selector__custom-select"
 				@update:modelValue="onCustomMinutesChange">

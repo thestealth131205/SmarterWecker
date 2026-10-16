@@ -40,7 +40,7 @@ const capacityLabel = computed<string | null>(() => {
 		return null
 	}
 
-	return n('calendar', '%n seat', '%n seats', capacity)
+	return n('nocturnkalender', '%n seat', '%n seats', capacity)
 })
 
 const metaLabels = computed<string[]>(() => {
@@ -107,7 +107,7 @@ function onToggle(): void {
 				</span>
 			</span>
 			<span v-if="isUnavailable" class="room-card__status">
-				{{ t('calendar', 'Unavailable') }}
+				{{ t('nocturnkalender', 'Unavailable') }}
 			</span>
 			<Check v-else-if="isSelected" class="room-card__check" :size="20" />
 
@@ -115,8 +115,8 @@ function onToggle(): void {
 				<NcButton
 					v-if="canCheckAvailability"
 					variant="tertiary"
-					:ariaLabel="t('calendar', 'Check room availability')"
-					:title="t('calendar', 'Check room availability')"
+					:ariaLabel="t('nocturnkalender', 'Check room availability')"
+					:title="t('nocturnkalender', 'Check room availability')"
 					@click.stop="emit('checkAvailability', room)">
 					<template #icon>
 						<CalendarClock :size="20" />

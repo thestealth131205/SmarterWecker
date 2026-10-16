@@ -16,10 +16,10 @@ function getFullCalendarLocale() {
 		locale: getLanguage(),
 		direction: isRTL() ? 'rtl' : 'ltr',
 		// TRANSLATORS W is an abbreviation for Week
-		weekText: t('calendar', 'W'),
-		allDayText: t('calendar', 'All day'),
-		moreLinkText: (n) => t('calendar', '%n more', {}, n),
-		noEventsText: t('calendar', 'No events to display'),
+		weekText: t('nocturnkalender', 'W'),
+		allDayText: t('nocturnkalender', 'All day'),
+		moreLinkText: (n) => t('nocturnkalender', '%n more', {}, n),
+		noEventsText: t('nocturnkalender', 'No events to display'),
 	}
 }
 

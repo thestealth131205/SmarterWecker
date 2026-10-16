@@ -34,7 +34,7 @@ export default {
 
 	computed: {
 		placeholder() {
-			return this.$t('calendar', 'Minimum seating capacity')
+			return this.$t('nocturnkalender', 'Minimum seating capacity')
 		},
 	},
 

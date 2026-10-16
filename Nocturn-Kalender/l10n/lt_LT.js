@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "Pateiktas el. pašto adresas yra per ilgas",
     "User-Session unexpectedly expired" : "Netikėtai pasibaigė vartotojo seanso galiojimas",

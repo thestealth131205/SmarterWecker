@@ -116,32 +116,32 @@ export default {
 
 		acceptLabel() {
 			if (this.responseScope === 'occurrence') {
-				return this.t('calendar', 'Accept this occurrence')
+				return this.t('nocturnkalender', 'Accept this occurrence')
 			}
 			if (this.responseScope === 'series') {
-				return this.t('calendar', 'Accept entire series')
+				return this.t('nocturnkalender', 'Accept entire series')
 			}
-			return this.t('calendar', 'Accept')
+			return this.t('nocturnkalender', 'Accept')
 		},
 
 		declineLabel() {
 			if (this.responseScope === 'occurrence') {
-				return this.t('calendar', 'Decline this occurrence')
+				return this.t('nocturnkalender', 'Decline this occurrence')
 			}
 			if (this.responseScope === 'series') {
-				return this.t('calendar', 'Decline entire series')
+				return this.t('nocturnkalender', 'Decline entire series')
 			}
-			return this.t('calendar', 'Decline')
+			return this.t('nocturnkalender', 'Decline')
 		},
 
 		tentativeLabel() {
 			if (this.responseScope === 'occurrence') {
-				return this.t('calendar', 'Tentative for this occurrence')
+				return this.t('nocturnkalender', 'Tentative for this occurrence')
 			}
 			if (this.responseScope === 'series') {
-				return this.t('calendar', 'Tentative for entire series')
+				return this.t('nocturnkalender', 'Tentative for entire series')
 			}
-			return this.t('calendar', 'Tentative')
+			return this.t('nocturnkalender', 'Tentative')
 		},
 	},
 
@@ -149,33 +149,33 @@ export default {
 		async accept() {
 			try {
 				await this.setParticipationStatus('ACCEPTED')
-				showSuccess(this.t('calendar', 'The invitation has been accepted successfully.'))
+				showSuccess(this.t('nocturnkalender', 'The invitation has been accepted successfully.'))
 				this.$emit('close')
 			} catch (error) {
 				logger.error('Failed to accept the invitation', { error })
-				showError(this.t('calendar', 'Failed to accept the invitation.'))
+				showError(this.t('nocturnkalender', 'Failed to accept the invitation.'))
 			}
 		},
 
 		async decline() {
 			try {
 				await this.setParticipationStatus('DECLINED')
-				showSuccess(this.t('calendar', 'The invitation has been declined successfully.'))
+				showSuccess(this.t('nocturnkalender', 'The invitation has been declined successfully.'))
 				this.$emit('close')
 			} catch (error) {
 				logger.error('Failed to decline the invitation', { error })
-				showError(this.t('calendar', 'Failed to decline the invitation.'))
+				showError(this.t('nocturnkalender', 'Failed to decline the invitation.'))
 			}
 		},
 
 		async tentative() {
 			try {
 				await this.setParticipationStatus('TENTATIVE')
-				showSuccess(this.t('calendar', 'Your participation has been marked as tentative.'))
+				showSuccess(this.t('nocturnkalender', 'Your participation has been marked as tentative.'))
 				this.$emit('close')
 			} catch (error) {
 				logger.error('Failed to set the participation status to tentative', { error })
-				showError(this.t('calendar', 'Failed to set the participation status to tentative.'))
+				showError(this.t('nocturnkalender', 'Failed to set the participation status to tentative.'))
 			}
 		},
 

@@ -65,7 +65,7 @@
 							<template #icon>
 								<PlaylistCheckIcon :size="20" />
 							</template>
-							{{ t('calendar', 'Show unscheduled tasks') }}
+							{{ t('nocturnkalender', 'Show unscheduled tasks') }}
 						</NcActionButton>
 					</NcActions>
 				</div>
@@ -82,7 +82,7 @@
 			v-if="isAuthenticatedUser"
 			:open="tasksSidebar && tasksSidebarEnabled"
 			noToggle
-			:name="t('calendar', 'Unscheduled tasks')"
+			:name="t('nocturnkalender', 'Unscheduled tasks')"
 			@close="toggletasksSidebar()">
 			<NcAppSidebarTab id="settings-tab" name="Settings">
 				<!-- Task without End Date List -->
@@ -364,8 +364,8 @@ export default {
 				logger.info('User has no writable calendar, a new personal calendar will be created')
 				this.loadingCalendars = true
 				await this.calendarsStore.appendCalendar({
-					displayName: this.$t('calendar', 'Personal'),
-					color: uidToHexColor(this.$t('calendar', 'Personal')),
+					displayName: this.$t('nocturnkalender', 'Personal'),
+					color: uidToHexColor(this.$t('nocturnkalender', 'Personal')),
 					order: 0,
 				})
 			}
@@ -383,13 +383,13 @@ export default {
 	async mounted() {
 		if (this.timezone === 'automatic' && this.timezoneId === 'UTC') {
 			const { toastElement }
-				= showWarning(this.$t('calendar', 'The automatic time zone detection determined your time zone to be UTC.\nThis is most likely the result of security measures of your web browser.\nPlease set your time zone manually in the calendar settings.'), { timeout: 60000 })
+				= showWarning(this.$t('nocturnkalender', 'The automatic time zone detection determined your time zone to be UTC.\nThis is most likely the result of security measures of your web browser.\nPlease set your time zone manually in the calendar settings.'), { timeout: 60000 })
 
 			toastElement.classList.add('toast-calendar-multiline')
 		}
 		if (getTimezoneManager().getTimezoneForId(this.timezoneId) === null) {
 			const { toastElement }
-				= showWarning(this.$t('calendar', 'Your configured time zone ({timezoneId}) was not found. Falling back to UTC.\nPlease change your time zone in the settings and report this issue.', { timezoneId: this.timezoneId }), { timeout: 60000 })
+				= showWarning(this.$t('nocturnkalender', 'Your configured time zone ({timezoneId}) was not found. Falling back to UTC.\nPlease change your time zone in the settings and report this issue.', { timezoneId: this.timezoneId }), { timeout: 60000 })
 
 			toastElement.classList.add('toast-calendar-multiline')
 		}

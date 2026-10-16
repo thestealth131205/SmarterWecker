@@ -60,21 +60,21 @@ const isTalkEnabled = computed<boolean>(() => settingsStore.talkEnabled)
 
 const formTitle = computed<string>(() => {
 	if (showConfirmation.value) {
-		return t('calendar', 'Appointment schedule saved')
+		return t('nocturnkalender', 'Appointment schedule saved')
 	}
 	if (props.isNew) {
-		return t('calendar', 'Create appointment schedule')
+		return t('nocturnkalender', 'Create appointment schedule')
 	}
 
-	return t('calendar', 'Edit appointment schedule')
+	return t('nocturnkalender', 'Edit appointment schedule')
 })
 
 const saveButtonText = computed<string>(() => {
 	if (props.isNew) {
-		return t('calendar', 'Save')
+		return t('nocturnkalender', 'Save')
 	}
 
-	return t('calendar', 'Update')
+	return t('nocturnkalender', 'Update')
 })
 
 // TODO: Can be removed after NC version 30 support is dropped
@@ -117,7 +117,7 @@ function reset(): void {
 	editing.value = props.config.clone()
 
 	if (props.isDuplicate) {
-		editing.value.name = `${editing.value.name} ${t('calendar', '(copy)')}`
+		editing.value.name = `${editing.value.name} ${t('nocturnkalender', '(copy)')}`
 	}
 
 	// The target calendar may have been deleted since the config was saved.
@@ -226,20 +226,20 @@ reset()
 						<NcTextField
 							v-model="editing.name"
 							class="appointment-config-modal__form__row"
-							:label="t('calendar', 'Appointment name')" />
+							:label="t('nocturnkalender', 'Appointment name')" />
 						<NcTextField
 							v-model="editing.location"
 							class="appointment-config-modal__form__row"
-							:label="t('calendar', 'Location')"
+							:label="t('nocturnkalender', 'Location')"
 							:disabled="isTalkEnabled && editing.createTalkRoom" />
 						<div v-if="isTalkEnabled" class="appointment-config-modal__form__row">
 							<NcCheckboxRadioSwitch v-model="editing.createTalkRoom">
-								{{ t('calendar', 'Create a Talk room') }}
+								{{ t('nocturnkalender', 'Create a Talk room') }}
 							</NcCheckboxRadioSwitch>
-							<span class="appointment-config-modal__talk-room-description">{{ t('calendar', 'A unique link will be generated for every booked appointment and sent via the confirmation email') }}</span>
+							<span class="appointment-config-modal__talk-room-description">{{ t('nocturnkalender', 'A unique link will be generated for every booked appointment and sent via the confirmation email') }}</span>
 						</div>
 						<div class="appointment-config-modal__form__row">
-							<label>{{ t('calendar', 'Description') }}</label>
+							<label>{{ t('nocturnkalender', 'Description') }}</label>
 							<NcTextArea
 								v-model="editing.description"
 								class="appointment-config-modal__form__row"
@@ -250,15 +250,15 @@ reset()
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--wrapped">
 							<DurationInput
 								v-model="editing.length"
-								:label="t('calendar', 'Duration (minutes)')" />
+								:label="t('nocturnkalender', 'Duration (minutes)')" />
 							<DurationSelect
 								v-model="editing.increment"
-								:label="t('calendar', 'Increments')" />
+								:label="t('nocturnkalender', 'Increments')" />
 						</div>
 
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--wrapped">
 							<div class="calendar-select">
-								<label>{{ t('calendar', 'Booking calendar') }}</label>
+								<label>{{ t('nocturnkalender', 'Booking calendar') }}</label>
 								<CalendarPicker
 									v-if="calendar !== undefined"
 									:value="calendar"
@@ -267,7 +267,7 @@ reset()
 									@selectCalendar="changeCalendar" />
 							</div>
 							<div class="calendar-select">
-								<label>{{ t('calendar', 'Calendars to check for conflicts') }}</label>
+								<label>{{ t('nocturnkalender', 'Calendars to check for conflicts') }}</label>
 								<CalendarPicker
 									:value="selectedConflictCalendars"
 									:calendars="selectableConflictCalendars"
@@ -280,53 +280,53 @@ reset()
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--local">
 							<VisibilitySelect
 								v-model="editing.visibility"
-								:label="t('calendar', 'Visibility')" />
+								:label="t('nocturnkalender', 'Visibility')" />
 						</div>
 					</fieldset>
 
 					<fieldset>
-						<header><h3>{{ t('calendar', 'Booking availability') }}</h3></header>
+						<header><h3>{{ t('nocturnkalender', 'Booking availability') }}</h3></header>
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--wrapped">
 							<CalendarAvailability
 								v-model:slots="editing.availability.slots"
-								:l10nTo="t('calendar', 'to')"
-								:l10nDeleteSlot="t('calendar', 'Delete slot')"
-								:l10nEmptyDay="t('calendar', 'No times set')"
-								:l10nAddSlot="t('calendar', 'Add')"
-								:l10nMonday="t('calendar', 'Monday')"
-								:l10nTuesday="t('calendar', 'Tuesday')"
-								:l10nWednesday="t('calendar', 'Wednesday')"
-								:l10nThursday="t('calendar', 'Thursday')"
-								:l10nFriday="t('calendar', 'Friday')"
-								:l10nSaturday="t('calendar', 'Saturday')"
-								:l10nSunday="t('calendar', 'Sunday')"
-								:l10nWeekDayListLabel="t('calendar', 'Weekdays')" />
+								:l10nTo="t('nocturnkalender', 'to')"
+								:l10nDeleteSlot="t('nocturnkalender', 'Delete slot')"
+								:l10nEmptyDay="t('nocturnkalender', 'No times set')"
+								:l10nAddSlot="t('nocturnkalender', 'Add')"
+								:l10nMonday="t('nocturnkalender', 'Monday')"
+								:l10nTuesday="t('nocturnkalender', 'Tuesday')"
+								:l10nWednesday="t('nocturnkalender', 'Wednesday')"
+								:l10nThursday="t('nocturnkalender', 'Thursday')"
+								:l10nFriday="t('nocturnkalender', 'Friday')"
+								:l10nSaturday="t('nocturnkalender', 'Saturday')"
+								:l10nSunday="t('nocturnkalender', 'Sunday')"
+								:l10nWeekDayListLabel="t('nocturnkalender', 'Weekdays')" />
 						</div>
 					</fieldset>
 
 					<fieldset>
-						<header><h3>{{ t('calendar', 'Planning restrictions') }}</h3></header>
+						<header><h3>{{ t('nocturnkalender', 'Planning restrictions') }}</h3></header>
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--wrapped">
 							<CheckedDurationSelect
 								v-model="editing.preparationDuration"
 								:enabled="enablePreparationDuration"
-								:label="t('calendar', 'Buffer before the event')"
+								:label="t('nocturnkalender', 'Buffer before the event')"
 								@update:enabled="enablePreparationDuration = $event" />
 							<CheckedDurationSelect
 								v-model="editing.followupDuration"
 								:enabled="enableFollowupDuration"
-								:label="t('calendar', 'Buffer after the event')"
+								:label="t('nocturnkalender', 'Buffer after the event')"
 								@update:enabled="enableFollowupDuration = $event" />
 						</div>
 
 						<div class="appointment-config-modal__form__row appointment-config-modal__form__row--wrapped">
 							<DurationSelect
 								v-model="editing.timeBeforeNextSlot"
-								:label="t('calendar', 'Minimum time before next slot')"
+								:label="t('nocturnkalender', 'Minimum time before next slot')"
 								:max="7 * 24 * 60 * 60" />
 							<NumberInput
 								v-model="editing.dailyMax"
-								:label="t('calendar', 'Max slots per day')"
+								:label="t('nocturnkalender', 'Max slots per day')"
 								:allowEmpty="true" />
 						</div>
 
@@ -334,7 +334,7 @@ reset()
 							<CheckedDurationSelect
 								v-model="editing.futureLimit"
 								:enabled="enableFutureLimit"
-								:label="t('calendar', 'Limit how far in the future appointments can be booked')"
+								:label="t('nocturnkalender', 'Limit how far in the future appointments can be booked')"
 								:defaultValue="defaultConfig.futureLimit"
 								:min="7 * 24 * 60 * 60"
 								:max="null"
@@ -345,7 +345,7 @@ reset()
 				<NcNoteCard
 					v-if="rateLimitingReached"
 					type="warning">
-					{{ t('calendar', 'It seems a rate limit has been reached. Please try again later.') }}
+					{{ t('nocturnkalender', 'It seems a rate limit has been reached. Please try again later.') }}
 				</NcNoteCard>
 				<NcButton
 					class="appointment-config-modal__submit-button"

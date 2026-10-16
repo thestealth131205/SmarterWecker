@@ -8,14 +8,14 @@
 		<div class="resource-list__header">
 			<span class="resource-list__header__title">
 				<DoorOpenIcon :size="20" />
-				<span class="resource-list__header__title__text">{{ t('calendar', 'Resources') }}</span>
+				<span class="resource-list__header__title__text">{{ t('nocturnkalender', 'Resources') }}</span>
 			</span>
 
 			<NcButton
 				v-if="!isReadOnly && hasUserEmailAddress && resourceBookingEnabled && roomPrincipals.length > 0"
 				class="resource-list__header__button"
 				@click="openRoomAvailability">
-				{{ $t('calendar', 'Show rooms') }}
+				{{ $t('nocturnkalender', 'Show rooms') }}
 			</NcButton>
 		</div>
 
@@ -115,7 +115,7 @@ export default {
 		},
 
 		noResourcesMessage() {
-			return this.$t('calendar', 'No rooms or resources yet')
+			return this.$t('nocturnkalender', 'No rooms or resources yet')
 		},
 
 		isListEmpty() {
@@ -146,7 +146,7 @@ export default {
 
 		resourceBookingEnabled() {
 			// The editor can be opened on pages without the calendar initial state
-			return loadState('calendar', 'resource_booking_enabled', false)
+			return loadState('nocturnkalender', 'resource_booking_enabled', false)
 		},
 
 		/**

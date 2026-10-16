@@ -14,7 +14,7 @@ import Plus from 'vue-material-design-icons/Plus.vue'
 const route = useRoute()
 const router = useRouter()
 
-const newEventButtonAriaLabel = computed(() => t('calendar', 'Create new event'))
+const newEventButtonAriaLabel = computed(() => t('nocturnkalender', 'Create new event'))
 
 /**
  * Opens the new event dialog
@@ -35,6 +35,6 @@ useHotKey('c', () => newEvent())
 		<template #icon>
 			<Plus :size="20" />
 		</template>
-		{{ t('calendar', 'Event') }}
+		{{ t('nocturnkalender', 'Event') }}
 	</NcButton>
 </template>

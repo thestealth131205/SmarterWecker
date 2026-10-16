@@ -31,13 +31,13 @@
 				@submit="changeColor">
 				<NcButton
 					class="property-color__color-preview"
-					:ariaLabel="$t('calendar', 'Open color picker')"
+					:ariaLabel="$t('nocturnkalender', 'Open color picker')"
 					:style="{ 'background-color': selectedColor }" />
 			</NcColorPicker>
 			<NcButton
 				v-if="!isReadOnly && !!value"
 				variant="tertiary"
-				:ariaLabel="$t('calendar', 'Remove color')"
+				:ariaLabel="$t('nocturnkalender', 'Remove color')"
 				@click="deleteColor">
 				<template #icon>
 					<Undo :size="20" decorative />

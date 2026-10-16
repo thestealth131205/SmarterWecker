@@ -240,7 +240,7 @@ export default {
 			if (calendar.isDelegated) {
 				const delegator = this.getDelegatorDisplayName(calendar)
 				if (delegator) {
-					return this.$t('calendar', '{name} (delegated by {delegator})', {
+					return this.$t('nocturnkalender', '{name} (delegated by {delegator})', {
 						name: calendar.displayName,
 						delegator,
 					})

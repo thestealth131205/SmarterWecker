@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.AppSettingsAlt
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -49,6 +50,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val weatherEnabled by viewModel.weatherEnabled.collectAsState()
     val manualLocation by viewModel.manualLocation.collectAsState()
     val liveLocationEnabled by viewModel.liveLocationEnabled.collectAsState()
+    val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsState()
     val locationQuery by viewModel.locationQuery.collectAsState()
     val suggestions by viewModel.suggestions.collectAsState()
     val searching by viewModel.searching.collectAsState()
@@ -181,6 +183,27 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                             }
                         }
                     }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(Icons.Filled.Palette, contentDescription = null)
+                    Column(modifier = Modifier.weight(1f).padding(start = 16.dp, end = 16.dp)) {
+                        Text("App-Design", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Dynamic Color übernimmt statt des festen Neon-Gelb-Designs die " +
+                                "Akzentfarbe aus deinem Geräte-Hintergrundbild (Material You, " +
+                                "ab Android 12).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = dynamicColorEnabled, onCheckedChange = viewModel::setDynamicColorEnabled)
                 }
             }
 

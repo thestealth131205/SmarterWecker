@@ -6,7 +6,7 @@
 <template>
 	<div class="repeat-option-warning">
 		<strong>
-			{{ $t('calendar', 'The recurrence definition of this event is not fully supported by Nextcloud. If you edit the recurrence-options, certain recurrences may be lost.') }}
+			{{ $t('nocturnkalender', 'The recurrence definition of this event is not fully supported by Nextcloud. If you edit the recurrence-options, certain recurrences may be lost.') }}
 		</strong>
 	</div>
 </template>

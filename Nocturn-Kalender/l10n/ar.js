@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "عنوان البريد طويل جداً",
     "User-Session unexpectedly expired" : "إنتهت صلاحية جلسة المستخدم بشكل غير متوقع",

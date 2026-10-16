@@ -520,7 +520,7 @@ export default {
 			} catch (error) {
 				logger.error('[Editor] Error loading event:', { error })
 				this.isError = true
-				this.error = this.$t('calendar', 'It might have been deleted, or there was a typo in a link')
+				this.error = this.$t('nocturnkalender', 'It might have been deleted, or there was a typo in a link')
 			} finally {
 				this.isLoading = false
 				logger.debug('[Editor] isLoading set to false')
@@ -723,7 +723,7 @@ export default {
 				logger.error(`Failed to save event: ${error}`, {
 					error,
 				})
-				showError(t('calendar', 'Failed to save event'))
+				showError(t('nocturnkalender', 'Failed to save event'))
 				this.calendarObjectInstance.eventComponent.markDirty()
 				throw error
 			} finally {
@@ -812,10 +812,10 @@ export default {
 
 			try {
 				await navigator.clipboard.writeText(this.eventLink)
-				showSuccess(t('calendar', 'Event link copied to clipboard'))
+				showSuccess(t('nocturnkalender', 'Event link copied to clipboard'))
 			} catch (error) {
 				logger.error('Failed to copy event link to clipboard', { error })
-				showError(t('calendar', 'Failed to copy event link'))
+				showError(t('nocturnkalender', 'Failed to copy event link'))
 			}
 		},
 
@@ -1065,7 +1065,7 @@ export default {
 				} catch (error) {
 					logger.debug(error)
 					vm.isError = true
-					vm.error = t('calendar', 'It might have been deleted, or there was a typo in a link')
+					vm.error = t('nocturnkalender', 'It might have been deleted, or there was a typo in a link')
 				} finally {
 					vm.isLoading = false
 				}
@@ -1091,7 +1091,7 @@ export default {
 					} catch (error) {
 						logger.debug(error)
 						vm.isError = true
-						vm.error = t('calendar', 'It might have been deleted, or there was a typo in a link')
+						vm.error = t('nocturnkalender', 'It might have been deleted, or there was a typo in a link')
 						return // if we cannot resolve next to an actual recurrenceId, return here to avoid further processing.
 					} finally {
 						vm.isLoading = false
@@ -1107,7 +1107,7 @@ export default {
 				} catch (error) {
 					logger.debug(error)
 					vm.isError = true
-					vm.error = t('calendar', 'It might have been deleted, or there was a typo in a link')
+					vm.error = t('nocturnkalender', 'It might have been deleted, or there was a typo in a link')
 				} finally {
 					vm.isLoading = false
 				}
@@ -1187,7 +1187,7 @@ export default {
 			} catch (error) {
 				logger.debug(error)
 				this.isError = true
-				this.error = t('calendar', 'It might have been deleted, or there was a typo in the link')
+				this.error = t('nocturnkalender', 'It might have been deleted, or there was a typo in the link')
 			} finally {
 				this.isLoading = false
 				next()

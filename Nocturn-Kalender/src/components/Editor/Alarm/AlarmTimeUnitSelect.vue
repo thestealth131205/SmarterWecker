@@ -10,7 +10,7 @@
 		:options="options"
 		:disabled="disabled"
 		:clearable="false"
-		:ariaLabelCombobox="$t('calendar', 'Time unit')"
+		:ariaLabelCombobox="$t('nocturnkalender', 'Time unit')"
 		inputId="alarm-time-unit"
 		label="label" />
 </template>
@@ -57,28 +57,28 @@ export default {
 
 			if (this.unit === 'seconds') {
 				options.push({
-					label: this.$t('calendar', 'seconds'),
+					label: this.$t('nocturnkalender', 'seconds'),
 					unit: 'seconds',
 				})
 			}
 
 			if (!this.isAllDay || ['minutes', 'hours'].indexOf(this.unit) !== -1) {
 				options.push({
-					label: this.$t('calendar', 'minutes'),
+					label: this.$t('nocturnkalender', 'minutes'),
 					unit: 'minutes',
 				})
 				options.push({
-					label: this.$t('calendar', 'hours'),
+					label: this.$t('nocturnkalender', 'hours'),
 					unit: 'hours',
 				})
 			}
 
 			options.push({
-				label: this.$t('calendar', 'days'),
+				label: this.$t('nocturnkalender', 'days'),
 				unit: 'days',
 			})
 			options.push({
-				label: this.$t('calendar', 'weeks'),
+				label: this.$t('nocturnkalender', 'weeks'),
 				unit: 'weeks',
 			})
 

@@ -7,21 +7,21 @@
 	<NcModal
 		size="small"
 		class="modal add-talk-modal"
-		:name="t('calendar', 'Select a Talk Room')"
+		:name="t('nocturnkalender', 'Select a Talk Room')"
 		@close="$emit('close', $event)">
 		<div class="modal-content">
 			<NcEmptyContent
 				v-if="loading"
 				class="modal__content__loading"
-				:description="t('calendar', 'Fetching Talk rooms…')">
+				:description="t('nocturnkalender', 'Fetching Talk rooms…')">
 				<template #icon>
 					<NcLoadingIcon decorative />
 				</template>
 			</NcEmptyContent>
 			<NcEmptyContent
 				v-else-if="talkConversations.length === 0"
-				:description="t('calendar', 'No Talk room available')" />
-			<NcFormGroup v-else :label="t('calendar', 'Select existing conversation')">
+				:description="t('nocturnkalender', 'No Talk room available')" />
+			<NcFormGroup v-else :label="t('nocturnkalender', 'Select existing conversation')">
 				<div class="talk-room__wrapper">
 					<NcListItem
 						v-for="conversation in sortedTalkConversations"
@@ -44,11 +44,11 @@
 					wide
 					:disabled="!selectedRoom"
 					@click="selectConversation(selectedRoom)">
-					{{ t('calendar', 'Select conversation') }}
+					{{ t('nocturnkalender', 'Select conversation') }}
 				</NcButton>
 			</NcFormGroup>
 			<div class="spacer" />
-			<NcFormGroup :label="t('calendar', 'Or create a new conversation')">
+			<NcFormGroup :label="t('nocturnkalender', 'Or create a new conversation')">
 				<NcFormBox>
 					<NcFormBoxButton
 						v-if="canCreateConversations"
@@ -59,7 +59,7 @@
 						<template #icon>
 							<IconAdd :size="20" />
 						</template>
-						{{ t('calendar', 'Create public conversation') }}
+						{{ t('nocturnkalender', 'Create public conversation') }}
 					</NcFormBoxButton>
 					<NcFormBoxButton
 						v-if="canCreateConversations"
@@ -70,7 +70,7 @@
 						<template #icon>
 							<IconAdd :size="20" />
 						</template>
-						{{ t('calendar', 'Create private conversation') }}
+						{{ t('nocturnkalender', 'Create private conversation') }}
 					</NcFormBoxButton>
 				</NcFormBox>
 			</NcFormGroup>
@@ -182,7 +182,7 @@ export default {
 					&& conversation.objectType !== CONVERSATION_OBJECT_TYPE_EVENT)
 			} catch (error) {
 				logger.error('Error fetching Talk conversations:', { error })
-				showError(this.$t('calendar', 'Error fetching Talk conversations.'))
+				showError(this.$t('nocturnkalender', 'Error fetching Talk conversations.'))
 			} finally {
 				this.loading = false
 			}
@@ -206,12 +206,12 @@ export default {
 					eventComponent.deleteProperty(conference)
 				}
 
-				eventComponent.addConference(url, this.$t('calendar', 'Nextcloud Talk'), ['AUDIO', 'VIDEO', 'CHAT'])
+				eventComponent.addConference(url, this.$t('nocturnkalender', 'Nextcloud Talk'), ['AUDIO', 'VIDEO', 'CHAT'])
 			}
 
 			if ((this.calendarObjectInstance.location ?? '').trim() === '') {
 				this.$emit('updateLocation', url)
-				showSuccess(this.$t('calendar', 'Successfully added Talk conversation link to location.'))
+				showSuccess(this.$t('nocturnkalender', 'Successfully added Talk conversation link to location.'))
 				return
 			}
 
@@ -221,7 +221,7 @@ export default {
 				: url
 
 			this.$emit('updateDescription', description)
-			showSuccess(this.$t('calendar', 'Successfully added Talk conversation link to description.'))
+			showSuccess(this.$t('nocturnkalender', 'Successfully added Talk conversation link to description.'))
 		},
 
 		async selectConversation(conversation) {
@@ -229,7 +229,7 @@ export default {
 				const url = generateRoomUrl(conversation)
 
 				if (!url) {
-					showError(this.$t('calendar', 'Conversation does not have a valid URL.'))
+					showError(this.$t('nocturnkalender', 'Conversation does not have a valid URL.'))
 					return
 				}
 
@@ -237,7 +237,7 @@ export default {
 				this.selectedConversation = conversation
 			} catch (error) {
 				logger.error('Error applying conversation to event:', { error })
-				showError(this.$t('calendar', 'Failed to apply Talk room.'))
+				showError(this.$t('nocturnkalender', 'Failed to apply Talk room.'))
 			} finally {
 				this.closeModal()
 			}
@@ -250,7 +250,7 @@ export default {
 				const roomType = type === 'private' ? CONVERSATION_TYPE_GROUP : CONVERSATION_TYPE_PUBLIC
 				const room = await createRoom({
 					roomType,
-					roomName: this.calendarObjectInstance.title || this.$t('calendar', 'Talk conversation for event'),
+					roomName: this.calendarObjectInstance.title || this.$t('nocturnkalender', 'Talk conversation for event'),
 					objectType: 'event',
 					objectId: md5(String(Date.now())),
 					description: this.calendarObjectInstance.description || '',
@@ -277,7 +277,7 @@ export default {
 				this.closeModal()
 			} catch (error) {
 				logger.error('Error creating Talk room:', { error })
-				showError(this.$t('calendar', 'Error creating Talk conversation'))
+				showError(this.$t('nocturnkalender', 'Error creating Talk conversation'))
 			} finally {
 				this.creatingTalkRoom = false
 			}

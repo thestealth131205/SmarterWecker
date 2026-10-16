@@ -23,9 +23,10 @@ import androidx.room.RoomDatabase
         WearVisibleSourceEntity::class,
         NocturnSyncMappingEntity::class,
         ImportedCalendarEntity::class,
-        ImportedCalendarEventEntity::class
+        ImportedCalendarEventEntity::class,
+        AppointmentAttachmentEntity::class
     ],
-    version = 18,
+    version = 19,
     // Es existieren bereits reale Nutzdaten (Alarme, Jobs, Schichten, Rotationen, Kalender-
     // einträge) auf installierten Geräten — Schema-Export ist jetzt an, damit künftige
     // Versionsbumps per echter Migration (androidx.room.migration.Migration) statt eines

@@ -21,7 +21,7 @@
 			v-model="isWriteable"
 			:disabled="updatingSharee"
 			@update:modelValue="updatePermission">
-			{{ $t('calendar', 'can edit and see confidential events') }}
+			{{ $t('nocturnkalender', 'can edit and see confidential events') }}
 		</NcCheckboxRadioSwitch>
 
 		<NcActions>
@@ -31,7 +31,7 @@
 				<template #icon>
 					<Delete :size="20" decorative />
 				</template>
-				{{ $t('calendar', 'Unshare with {displayName}', { displayName: sharee.displayName }) }}
+				{{ $t('nocturnkalender', 'Unshare with {displayName}', { displayName: sharee.displayName }) }}
 			</NcActionButton>
 		</NcActions>
 	</div>
@@ -92,7 +92,7 @@ export default {
 		 */
 		displayName() {
 			if (this.sharee.isCircle) {
-				return t('calendar', '{teamDisplayName} (Team)', {
+				return t('nocturnkalender', '{teamDisplayName} (Team)', {
 					teamDisplayName: this.sharee.displayName,
 				})
 			}
@@ -129,7 +129,7 @@ export default {
 				this.updatingSharee = false
 			} catch (error) {
 				logger.error(error)
-				showInfo(this.$t('calendar', 'An error occurred while unsharing the calendar.'))
+				showInfo(this.$t('nocturnkalender', 'An error occurred while unsharing the calendar.'))
 
 				this.updatingSharee = false
 			}
@@ -150,7 +150,7 @@ export default {
 				this.updatingSharee = false
 			} catch (error) {
 				logger.error(error)
-				showInfo(this.$t('calendar', 'An error occurred, unable to change the permission of the share.'))
+				showInfo(this.$t('nocturnkalender', 'An error occurred, unable to change the permission of the share.'))
 
 				this.updatingSharee = false
 			}

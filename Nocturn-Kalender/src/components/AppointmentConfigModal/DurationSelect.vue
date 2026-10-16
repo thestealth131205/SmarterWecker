@@ -40,13 +40,13 @@ const availableOptions = computed<DurationOption[]>(() => {
 	let options: DurationOption[] = []
 
 	if (props.allowZero) {
-		options.push({ value: 0, label: t('calendar', '0 minutes') })
+		options.push({ value: 0, label: t('nocturnkalender', '0 minutes') })
 	}
 
 	options.push(...[
 		// Minutes
 		...[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((duration) => {
-			const label = n('calendar', '{duration} minute', '{duration} minutes', duration, {
+			const label = n('nocturnkalender', '{duration} minute', '{duration} minutes', duration, {
 				duration,
 			})
 			return { value: duration * 60, label }
@@ -54,7 +54,7 @@ const availableOptions = computed<DurationOption[]>(() => {
 
 		// Hours
 		...[1, 2, 6].map((duration) => {
-			const label = n('calendar', '{duration} hour', '{duration} hours', duration, {
+			const label = n('nocturnkalender', '{duration} hour', '{duration} hours', duration, {
 				duration,
 			})
 			return { value: duration * 60 * 60, label }
@@ -62,7 +62,7 @@ const availableOptions = computed<DurationOption[]>(() => {
 
 		// Days
 		...[1, 2].map((duration) => {
-			const label = n('calendar', '{duration} day', '{duration} days', duration, {
+			const label = n('nocturnkalender', '{duration} day', '{duration} days', duration, {
 				duration,
 			})
 			return { value: duration * 60 * 60 * 24, label }
@@ -70,7 +70,7 @@ const availableOptions = computed<DurationOption[]>(() => {
 
 		// Weeks
 		...[1, 2, 4, 6].map((duration) => {
-			const label = n('calendar', '{duration} week', '{duration} weeks', duration, {
+			const label = n('nocturnkalender', '{duration} week', '{duration} weeks', duration, {
 				duration,
 			})
 			return { value: duration * 60 * 60 * 24 * 7, label }
@@ -78,7 +78,7 @@ const availableOptions = computed<DurationOption[]>(() => {
 
 		// Months
 		...[1, 2, 3, 6, 9].map((duration) => {
-			const label = n('calendar', '{duration} month', '{duration} months', duration, {
+			const label = n('nocturnkalender', '{duration} month', '{duration} months', duration, {
 				duration,
 			})
 			return { value: duration * 60 * 60 * 24 * 30, label }
@@ -86,7 +86,7 @@ const availableOptions = computed<DurationOption[]>(() => {
 
 		// Years
 		...[1].map((duration) => {
-			const label = n('calendar', '{duration} year', '{duration} years', duration, {
+			const label = n('nocturnkalender', '{duration} year', '{duration} years', duration, {
 				duration,
 			})
 			return { value: duration * 60 * 60 * 24 * 365, label }

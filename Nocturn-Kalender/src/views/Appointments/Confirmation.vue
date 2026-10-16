@@ -57,8 +57,8 @@ async function confirm(): Promise<void> {
 <template>
 	<div class="guest-box">
 		<div v-if="status === 'expired'" class="update">
-			<h2>{{ $t('calendar', 'This booking link is no longer valid') }}</h2>
-			<p>{{ $t('calendar', 'The confirmation link has expired or has already been used. Please contact the organizer to rebook.') }}</p>
+			<h2>{{ $t('nocturnkalender', 'This booking link is no longer valid') }}</h2>
+			<p>{{ $t('nocturnkalender', 'The confirmation link has expired or has already been used. Please contact the organizer to rebook.') }}</p>
 		</div>
 
 		<BookingResult
@@ -69,7 +69,7 @@ async function confirm(): Promise<void> {
 			:end="booking.end" />
 
 		<div v-else class="update">
-			<h2>{{ $t('calendar', 'Confirm your appointment') }}</h2>
+			<h2>{{ $t('nocturnkalender', 'Confirm your appointment') }}</h2>
 			<div class="booking__date">
 				<IconCalendar :size="16" />
 				{{ date }}
@@ -87,7 +87,7 @@ async function confirm(): Promise<void> {
 				{{ booking.displayName }} ({{ booking.email }})
 			</div>
 			<NcNoteCard v-if="error" type="error">
-				{{ $t('calendar', 'Could not confirm the appointment. Please try again later or contact the organizer.') }}
+				{{ $t('nocturnkalender', 'Could not confirm the appointment. Please try again later or contact the organizer.') }}
 			</NcNoteCard>
 			<div class="buttons">
 				<NcButton variant="primary" :disabled="loading" @click="confirm">
@@ -95,7 +95,7 @@ async function confirm(): Promise<void> {
 						<NcLoadingIcon v-if="loading" :size="16" />
 						<IconCheck v-else :size="16" />
 					</template>
-					{{ $t('calendar', 'Confirm') }}
+					{{ $t('nocturnkalender', 'Confirm') }}
 				</NcButton>
 			</div>
 		</div>

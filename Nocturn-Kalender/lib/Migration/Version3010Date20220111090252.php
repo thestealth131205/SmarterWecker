@@ -26,9 +26,11 @@ class Version3010Date20220111090252 extends SimpleMigrationStep {
 		$schema = $schemaClosure();
 
 		$table = $schema->getTable('calendar_appt_configs');
-		$table->addColumn('future_limit', 'integer', [
-			'notnull' => false,
-		]);
+		if (!$table->hasColumn('future_limit')) {
+			$table->addColumn('future_limit', 'integer', [
+				'notnull' => false,
+			]);
+		}
 
 		return $schema;
 	}

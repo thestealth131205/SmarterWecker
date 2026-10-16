@@ -13,7 +13,7 @@
 			:searchable="true"
 			:internalSearch="false"
 			:max-height="600"
-			:placeholder="$t('calendar', 'Share with users or groups')"
+			:placeholder="$t('nocturnkalender', 'Share with users or groups')"
 			class="sharing-search__select"
 			:class="{ showContent: inputGiven, 'icon-loading': isLoading }"
 			:userSelect="true"
@@ -22,11 +22,11 @@
 			openDirection="above"
 			trackBy="user"
 			label="displayName"
-			:ariaLabelCombobox="$t('calendar', 'Share with users or groups')"
+			:ariaLabelCombobox="$t('nocturnkalender', 'Share with users or groups')"
 			@search="findSharee"
 			@option:selected="shareCalendar">
 			<template #no-options>
-				<span>{{ $t('calendar', 'No users or groups') }}</span>
+				<span>{{ $t('nocturnkalender', 'No users or groups') }}</span>
 			</template>
 			<template #option="sharee">
 				<div class="share-item">
@@ -93,7 +93,7 @@ export default {
 		 * @return {boolean}
 		 */
 		supportsFederatedCalendars() {
-			return loadState('calendar', 'calendar_federation_enabled')
+			return loadState('nocturnkalender', 'calendar_federation_enabled')
 		},
 	},
 

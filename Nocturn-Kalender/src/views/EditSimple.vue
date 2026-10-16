@@ -19,7 +19,7 @@
 			class="event-popover"
 			role="dialog"
 			aria-modal="true"
-			:aria-label="t('calendar', 'Simple event editor')"
+			:aria-label="t('nocturnkalender', 'Simple event editor')"
 			:style="{
 				...popoverStyle,
 				pointerEvents: popoverReady ? 'auto' : 'none',
@@ -39,12 +39,12 @@
 								<template #icon>
 									<Close :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Close') }}
+								{{ $t('nocturnkalender', 'Close') }}
 							</ActionButton>
 						</Actions>
 					</div>
 
-					<EmptyContent :name="$t('calendar', 'Event does not exist')" :description="error">
+					<EmptyContent :name="$t('nocturnkalender', 'Event does not exist')" :description="error">
 						<template #icon>
 							<CalendarBlank decorative />
 						</template>
@@ -63,7 +63,7 @@
 							</template>
 							<template #default>
 								<p class="warning-text">
-									{{ $t('calendar', 'Modifications will not get propagated to the organizer and other attendees') }}
+									{{ $t('nocturnkalender', 'Modifications will not get propagated to the organizer and other attendees') }}
 								</p>
 							</template>
 						</NcPopover>
@@ -72,7 +72,7 @@
 								<template #icon>
 									<ContentCopy :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Copy link') }}
+								{{ $t('nocturnkalender', 'Copy link') }}
 							</ActionButton>
 							<ActionLink
 								v-if="!hideEventExport && hasDownloadURL"
@@ -80,37 +80,37 @@
 								<template #icon>
 									<Download :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Export') }}
+								{{ $t('nocturnkalender', 'Export') }}
 							</ActionLink>
 							<ActionButton v-if="canDuplicate" @click="duplicateEvent()">
 								<template #icon>
 									<ContentDuplicate :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Duplicate') }}
+								{{ $t('nocturnkalender', 'Duplicate') }}
 							</ActionButton>
 							<ActionButton v-if="!isRecurringInstance && canDelete('occurrence')" @click="deleteAndLeave('occurrence')">
 								<template #icon>
 									<Delete :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Delete') }}
+								{{ $t('nocturnkalender', 'Delete') }}
 							</ActionButton>
 							<ActionButton v-if="isRecurringInstance && canDelete('occurrence')" @click="deleteAndLeave('occurrence')">
 								<template #icon>
 									<Delete :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Delete this occurrence') }}
+								{{ $t('nocturnkalender', 'Delete this occurrence') }}
 							</ActionButton>
 							<ActionButton v-if="isRecurringInstance && canDelete('future')" @click="deleteAndLeave('future')">
 								<template #icon>
 									<Delete :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Delete this and future occurrences') }}
+								{{ $t('nocturnkalender', 'Delete this and future occurrences') }}
 							</ActionButton>
 							<ActionButton v-if="isRecurringInstance && canDelete('series')" @click="deleteAndLeave('series')">
 								<template #icon>
 									<Delete :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Delete entire series') }}
+								{{ $t('nocturnkalender', 'Delete entire series') }}
 							</ActionButton>
 						</Actions>
 						<Actions>
@@ -118,7 +118,7 @@
 								<template #icon>
 									<Close :size="20" decorative />
 								</template>
-								{{ $t('calendar', 'Close') }}
+								{{ $t('nocturnkalender', 'Close') }}
 							</ActionButton>
 						</Actions>
 					</div>
@@ -139,7 +139,7 @@
 							@update:value="updateTitle" />
 
 						<div v-if="isCancelled" class="event-popover__cancelled">
-							{{ $t('calendar', 'This event was cancelled') }}
+							{{ $t('nocturnkalender', 'This event was cancelled') }}
 						</div>
 					</div>
 
@@ -168,7 +168,7 @@
 								:modelValue="isAllDay"
 								:disabled="isViewedByOrganizer === false || isReadOnlyOrViewing || !canModifyAllDay"
 								@update:modelValue="toggleAllDayPreliminary">
-								{{ $t('calendar', 'All day') }}
+								{{ $t('nocturnkalender', 'All day') }}
 							</NcCheckboxRadioSwitch>
 							<Repeat
 								:isReadOnly="isReadOnlyOrViewing || isViewedByOrganizer === false"
@@ -187,8 +187,8 @@
 								v-if="isCreateTalkRoomButtonVisible && !isReadOnlyOrViewing"
 								variant="secondary"
 								:disabled="isCreateTalkRoomButtonDisabled"
-								:ariaLabel="t('calendar', 'Add Talk conversation')"
-								:title="t('calendar', 'Add Talk conversation')"
+								:ariaLabel="t('nocturnkalender', 'Add Talk conversation')"
+								:title="t('nocturnkalender', 'Add Talk conversation')"
 								@click="openTalkModal">
 								<template #icon>
 									<IconVideo :size="20" />
@@ -261,7 +261,7 @@
 								<template #icon>
 									<EditIcon :size="20" />
 								</template>
-								{{ $t('calendar', 'Edit') }}
+								{{ $t('nocturnkalender', 'Edit') }}
 							</NcButton>
 						</SaveButtons>
 					</div>
@@ -271,8 +271,8 @@
 		<NcDialog
 			:open="showCancelDialog"
 			class="cancel-confirmation-dialog"
-			:name="t('calendar', 'Discard changes?')"
-			:message="t('calendar', 'Are you sure you want to discard the changes made to this event?')"
+			:name="t('nocturnkalender', 'Discard changes?')"
+			:message="t('nocturnkalender', 'Are you sure you want to discard the changes made to this event?')"
 			:buttons="cancelButtons"
 			@update:open="showCancelDialog = $event" />
 	</div>
@@ -386,13 +386,13 @@ export default {
 			showCancelDialog: false,
 			cancelButtons: [
 				{
-					label: t('calendar', 'Discard'),
+					label: t('nocturnkalender', 'Discard'),
 					variant: 'secondary',
 					icon: IconDelete,
 					callback: () => { this.cancel(true) },
 				},
 				{
-					label: t('calendar', 'Cancel'),
+					label: t('nocturnkalender', 'Cancel'),
 					variant: 'primary',
 					icon: IconCancel,
 					callback: () => { this.closeCancelDialog() },
@@ -439,7 +439,7 @@ export default {
 		 */
 		titleOrPlaceholder() {
 			if (this.title === '' && this.isReadOnlyOrViewing && !this.isLoading) {
-				return t('calendar', 'Untitled event')
+				return t('nocturnkalender', 'Untitled event')
 			}
 
 			return this.title

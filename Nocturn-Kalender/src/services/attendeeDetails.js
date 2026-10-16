@@ -44,7 +44,7 @@ export async function getAttendeeDetails(email) {
 	// Attempt 2, if the attendee isn't a nextcloud user, see if it's a contact
 
 	try {
-		response = await HttpClient.post(linkTo('calendar', 'index.php') + '/v1/autocompletion/attendee', {
+		response = await HttpClient.post(linkTo('nocturnkalender', 'index.php') + '/v1/autocompletion/attendee', {
 			search: email,
 		})
 	} catch (error) {
@@ -113,9 +113,9 @@ export function adjustAttendeeTime(startDate, timezone) {
 
 	let dayOffset = ''
 	if (tzDayNum > localDay) {
-		dayOffset = ' (+1 ' + t('calendar', 'day') + ')'
+		dayOffset = ' (+1 ' + t('nocturnkalender', 'day') + ')'
 	} else if (tzDayNum < localDay) {
-		dayOffset = ' (-1 ' + t('calendar', 'day') + ')'
+		dayOffset = ' (-1 ' + t('nocturnkalender', 'day') + ')'
 	}
 
 	return `${formattedTime}${dayOffset}`

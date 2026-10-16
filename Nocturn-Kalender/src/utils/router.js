@@ -16,7 +16,7 @@ import logger from '@/utils/logger.js'
  */
 export function getInitialView() {
 	try {
-		return loadState('calendar', 'initial_view')
+		return loadState('nocturnkalender', 'initial_view')
 	} catch (error) {
 		logger.error('Failed to load initial view state', { error })
 		return 'dayGridMonth'
@@ -31,7 +31,7 @@ export function getInitialView() {
 export function getPreferredEditorRoute() {
 	let skipPopover
 	try {
-		skipPopover = loadState('calendar', 'skip_popover')
+		skipPopover = loadState('nocturnkalender', 'skip_popover')
 	} catch (error) {
 		logger.error('Failed to load skip-popover state', { error })
 		skipPopover = false

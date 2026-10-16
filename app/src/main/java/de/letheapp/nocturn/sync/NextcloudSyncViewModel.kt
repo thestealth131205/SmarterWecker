@@ -18,6 +18,14 @@ sealed interface DiscoveryState {
     data class Error(val message: String) : DiscoveryState
 }
 
+/** `null` = noch nicht geprüft/unbekannt (z. B. während der Prüfung oder ohne Verbindung). */
+sealed interface NocturnKalenderAvailability {
+    data object Unknown : NocturnKalenderAvailability
+    data object Checking : NocturnKalenderAvailability
+    data object Available : NocturnKalenderAvailability
+    data object NotAvailable : NocturnKalenderAvailability
+}
+
 @HiltViewModel
 class NextcloudSyncViewModel @Inject constructor(
     private val syncRepository: NextcloudSyncRepository
@@ -31,6 +39,10 @@ class NextcloudSyncViewModel @Inject constructor(
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing
+
+    private val _nocturnKalenderAvailability =
+        MutableStateFlow<NocturnKalenderAvailability>(NocturnKalenderAvailability.Unknown)
+    val nocturnKalenderAvailability: StateFlow<NocturnKalenderAvailability> = _nocturnKalenderAvailability
 
     private var pendingServerUrl: String = ""
     private var pendingUsername: String = ""
@@ -53,23 +65,47 @@ class NextcloudSyncViewModel @Inject constructor(
                 DiscoveryState.Error(e.message ?: "Verbindung fehlgeschlagen")
             }
         }
+        recheckNocturnKalenderAvailability()
+    }
+
+    /**
+     * Prüft erneut, ob die NocTurn-Kalender-App verfügbar ist — sowohl für den bereits
+     * verbundenen Zustand (Passwort kommt dann aus dem verschlüsselten Store) als auch während
+     * des Verbinden-Formulars (Passwort noch nicht gespeichert, kommt aus den Eingabefeldern).
+     * Wird beim Betreten des Screens sowie über einen "Erneut prüfen"-Button aufgerufen.
+     */
+    fun recheckNocturnKalenderAvailability() {
+        val isConnected = account.value != null
+        if (!isConnected && (pendingServerUrl.isBlank() || pendingUsername.isBlank() || pendingPassword.isBlank())) return
+        _nocturnKalenderAvailability.value = NocturnKalenderAvailability.Checking
+        viewModelScope.launch {
+            val available = runCatching {
+                if (isConnected) {
+                    syncRepository.checkNocturnKalenderAvailableForConnectedAccount()
+                } else {
+                    syncRepository.checkNocturnKalenderAvailable(pendingServerUrl, pendingUsername, pendingPassword)
+                }
+            }.getOrDefault(false)
+            _nocturnKalenderAvailability.value =
+                if (available) NocturnKalenderAvailability.Available else NocturnKalenderAvailability.NotAvailable
+        }
     }
 
     fun resetDiscovery() {
         _discoveryState.value = DiscoveryState.Idle
     }
 
-    fun connect(calendar: CalDavCalendarInfo, syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean) {
+    fun connect(calendar: CalDavCalendarInfo, syncAppointments: Boolean, syncNocturnSchedule: Boolean) {
         viewModelScope.launch {
-            syncRepository.connect(pendingServerUrl, pendingUsername, pendingPassword, calendar, syncAppointments, syncShifts, syncNocturnSchedule)
+            syncRepository.connect(pendingServerUrl, pendingUsername, pendingPassword, calendar, syncAppointments, syncNocturnSchedule)
             _discoveryState.value = DiscoveryState.Idle
             syncNow()
         }
     }
 
-    fun updateSyncOptions(syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean) {
+    fun updateSyncOptions(syncAppointments: Boolean, syncNocturnSchedule: Boolean) {
         val current = account.value ?: return
-        viewModelScope.launch { syncRepository.updateSyncOptions(current, syncAppointments, syncShifts, syncNocturnSchedule) }
+        viewModelScope.launch { syncRepository.updateSyncOptions(current, syncAppointments, syncNocturnSchedule) }
     }
 
     fun syncNow() {

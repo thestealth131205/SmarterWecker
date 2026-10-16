@@ -19,10 +19,10 @@ __webpack_nonce__ = btoa(getRequestToken())
 // OC.generateUrl ensure the index.php (or not)
 // We do not want the index.php since we're loading files
 // eslint-disable-next-line
-__webpack_public_path__ = linkTo('calendar', 'js/')
+__webpack_public_path__ = linkTo('nocturnkalender', 'js/')
 
-const configs = loadState('calendar', 'appointmentConfigs')
-const userInfo = loadState('calendar', 'userInfo')
+const configs = loadState('nocturnkalender', 'appointmentConfigs')
+const userInfo = loadState('nocturnkalender', 'userInfo')
 
 const app = createApp(Overview, {
 	configs,

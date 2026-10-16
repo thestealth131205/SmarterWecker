@@ -44,10 +44,10 @@ async function copySubscriptionLink(calendar: CalendarInterface): Promise<void> 
 	// copy link for calendar to clipboard
 	try {
 		await navigator.clipboard.writeText(url.toString())
-		showSuccess(t('calendar', 'Calendar link copied to clipboard.'))
+		showSuccess(t('nocturnkalender', 'Calendar link copied to clipboard.'))
 	} catch (error) {
 		logger.debug(error)
-		showError(t('calendar', 'Calendar link could not be copied to clipboard.'))
+		showError(t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 	}
 }
 </script>
@@ -75,7 +75,7 @@ async function copySubscriptionLink(calendar: CalendarInterface): Promise<void> 
 					<template #icon>
 						<Download :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Export {name}', { name: calendar.displayName || t('calendar', 'Untitled calendar') }) }}
+					{{ t('nocturnkalender', 'Export {name}', { name: calendar.displayName || t('nocturnkalender', 'Untitled calendar') }) }}
 				</ActionLink>
 			</Actions>
 			<Actions>
@@ -89,7 +89,7 @@ async function copySubscriptionLink(calendar: CalendarInterface): Promise<void> 
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Subscribe to {name}', { name: calendar.displayName || t('calendar', 'Untitled calendar') }) }}
+					{{ t('nocturnkalender', 'Subscribe to {name}', { name: calendar.displayName || t('nocturnkalender', 'Untitled calendar') }) }}
 				</ActionButton>
 			</Actions>
 		</div>

@@ -81,7 +81,7 @@ async function copySubscriptionLink(): Promise<void> {
 		showCopySubscriptionLinkSuccess.value = true
 		showCopySubscriptionLinkError.value = false
 
-		showSuccess(t('calendar', 'Calendar link copied to clipboard.'))
+		showSuccess(t('nocturnkalender', 'Calendar link copied to clipboard.'))
 	} catch (error) {
 		logger.debug(error)
 		menuOpen.value = true
@@ -90,7 +90,7 @@ async function copySubscriptionLink(): Promise<void> {
 		showCopySubscriptionLinkSuccess.value = false
 		showCopySubscriptionLinkError.value = true
 
-		showError(t('calendar', 'Calendar link could not be copied to clipboard.'))
+		showError(t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 	} finally {
 		setTimeout(() => {
 			showCopySubscriptionLinkLabel.value = true
@@ -106,7 +106,7 @@ async function copySubscriptionLink(): Promise<void> {
 	<AppNavigationItem
 		v-model:menuOpen="menuOpen"
 		:loading="calendar.loading"
-		:name="calendar.displayName || t('calendar', 'Untitled calendar')">
+		:name="calendar.displayName || t('nocturnkalender', 'Untitled calendar')">
 		<template #icon>
 			<AppNavigationIconBullet :color="calendar.color" />
 		</template>
@@ -126,24 +126,24 @@ async function copySubscriptionLink(): Promise<void> {
 				<template #icon>
 					<LinkIcon :size="20" decorative />
 				</template>
-				{{ t('calendar', 'Copy subscription link') }}
+				{{ t('nocturnkalender', 'Copy subscription link') }}
 			</ActionButton>
 			<ActionText
 				v-if="showCopySubscriptionLinkSpinner"
 				icon="icon-loading-small">
-				{{ t('calendar', 'Copying link …') }}
+				{{ t('nocturnkalender', 'Copying link …') }}
 			</ActionText>
 			<ActionText v-if="showCopySubscriptionLinkSuccess">
 				<template #icon>
 					<LinkIcon :size="20" decorative />
 				</template>
-				{{ t('calendar', 'Copied link') }}
+				{{ t('nocturnkalender', 'Copied link') }}
 			</ActionText>
 			<ActionText v-if="showCopySubscriptionLinkError">
 				<template #icon>
 					<LinkIcon :size="20" decorative />
 				</template>
-				{{ t('calendar', 'Could not copy link') }}
+				{{ t('nocturnkalender', 'Could not copy link') }}
 			</ActionText>
 
 			<ActionLink
@@ -152,7 +152,7 @@ async function copySubscriptionLink(): Promise<void> {
 				<template #icon>
 					<Download :size="20" decorative />
 				</template>
-				{{ t('calendar', 'Export') }}
+				{{ t('nocturnkalender', 'Export') }}
 			</ActionLink>
 		</template>
 	</AppNavigationItem>

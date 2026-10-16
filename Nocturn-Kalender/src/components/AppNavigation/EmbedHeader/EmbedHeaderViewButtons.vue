@@ -9,31 +9,31 @@
 			:variant="isAgendaDayViewSelected ? 'primary' : 'secondary'"
 			class="button"
 			@click="view('timeGridDay')">
-			{{ $t('calendar', 'Day') }}
+			{{ $t('nocturnkalender', 'Day') }}
 		</NcButton>
 		<NcButton
 			:variant="isAgendaWeekViewSelected ? 'primary' : 'secondary'"
 			class="button"
 			@click="view('timeGridWeek')">
-			{{ $t('calendar', 'Week') }}
+			{{ $t('nocturnkalender', 'Week') }}
 		</NcButton>
 		<NcButton
 			:variant="isMonthViewSelected ? 'primary' : 'secondary'"
 			class="button"
 			@click="view('dayGridMonth')">
-			{{ $t('calendar', 'Month') }}
+			{{ $t('nocturnkalender', 'Month') }}
 		</NcButton>
 		<NcButton
 			:variant="isYearViewSelected ? 'primary' : 'secondary'"
 			class="button"
 			@click="view('multiMonthYear')">
-			{{ $t('calendar', 'Year') }}
+			{{ $t('nocturnkalender', 'Year') }}
 		</NcButton>
 		<NcButton
 			:variant="isMonthListViewSelected ? 'primary' : 'secondary'"
 			class="button"
 			@click="view('listMonth')">
-			{{ $t('calendar', 'List') }}
+			{{ $t('nocturnkalender', 'List') }}
 		</NcButton>
 	</div>
 </template>

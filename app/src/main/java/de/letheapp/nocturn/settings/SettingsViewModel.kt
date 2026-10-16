@@ -23,6 +23,7 @@ class SettingsViewModel @Inject constructor(
     val weatherEnabled: StateFlow<Boolean> = appPreferences.weatherEnabled
     val manualLocation: StateFlow<AppPreferences.ManualLocation?> = appPreferences.manualLocation
     val liveLocationEnabled: StateFlow<Boolean> = appPreferences.liveLocationEnabled
+    val dynamicColorEnabled: StateFlow<Boolean> = appPreferences.dynamicColorEnabled
 
     private val _locationQuery = MutableStateFlow("")
     val locationQuery: StateFlow<String> = _locationQuery
@@ -58,6 +59,10 @@ class SettingsViewModel @Inject constructor(
     fun setLiveLocationEnabled(enabled: Boolean) {
         appPreferences.setLiveLocationEnabled(enabled)
         weatherRepository.clearCache()
+    }
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        appPreferences.setDynamicColorEnabled(enabled)
     }
 
     fun onLocationQueryChange(text: String) {

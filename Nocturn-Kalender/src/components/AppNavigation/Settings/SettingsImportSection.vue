@@ -18,7 +18,7 @@
 			<template #icon>
 				<Upload :size="20" />
 			</template>
-			{{ $n('calendar', 'Import calendar', 'Import calendars', 1) }}
+			{{ $n('nocturnkalender', 'Import calendar', 'Import calendars', 1) }}
 		</NcButton>
 		<input
 			ref="importInput"
@@ -27,7 +27,7 @@
 			:accept="supportedFileTypes"
 			:disabled="disableImport"
 			multiple
-			:aria-label="$t('calendar', 'Import calendar file')"
+			:aria-label="$t('nocturnkalender', 'Import calendar file')"
 			@change="processFiles">
 
 		<ImportScreen
@@ -197,7 +197,7 @@ export default {
 					parser.parse(contents)
 				} catch (error) {
 					logger.error(error)
-					showError(this.$t('calendar', '{filename} could not be parsed', {
+					showError(this.$t('nocturnkalender', '{filename} could not be parsed', {
 						filename: name,
 					}))
 					continue
@@ -215,7 +215,7 @@ export default {
 			}
 
 			if (!addedFiles) {
-				showError(this.$t('calendar', 'No valid files found, aborting import'))
+				showError(this.$t('nocturnkalender', 'No valid files found, aborting import'))
 				this.importFilesStore.removeAllFiles()
 				this.importStateStore.resetState()
 				return
@@ -232,9 +232,9 @@ export default {
 			await this.calendarsStore.importEventsIntoCalendar()
 
 			if (this.total === this.accepted) {
-				showSuccess(this.$n('calendar', 'Successfully imported %n event', 'Successfully imported %n events', this.total))
+				showSuccess(this.$n('nocturnkalender', 'Successfully imported %n event', 'Successfully imported %n events', this.total))
 			} else {
-				showWarning(this.$t('calendar', 'Import partially failed. Imported {accepted} out of {total}.', {
+				showWarning(this.$t('nocturnkalender', 'Import partially failed. Imported {accepted} out of {total}.', {
 					accepted: this.accepted,
 					total: this.total,
 				}))

@@ -33,11 +33,11 @@ const id = randomId()
 const options: VisibilityOption[] = [
 	{
 		value: 'PUBLIC',
-		label: t('calendar', 'Public – shown on profile page'),
+		label: t('nocturnkalender', 'Public – shown on profile page'),
 	},
 	{
 		value: 'PRIVATE',
-		label: t('calendar', 'Private – only accessible via link'),
+		label: t('nocturnkalender', 'Private – only accessible via link'),
 	},
 ]
 

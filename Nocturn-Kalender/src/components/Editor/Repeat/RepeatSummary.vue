@@ -8,7 +8,7 @@
 		{{ formattedRecurrenceRule }}
 	</span>
 	<span v-else>
-		{{ $t('calendar', 'Does not repeat') }}
+		{{ $t('nocturnkalender', 'Does not repeat') }}
 	</span>
 </template>
 

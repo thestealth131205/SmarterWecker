@@ -5,7 +5,7 @@
 
 <template>
 	<NcFormBoxButton
-		:label="$t('calendar', 'Attachments folder')"
+		:label="$t('nocturnkalender', 'Attachments folder')"
 		:description="attachmentsFolder"
 		invertedAccent
 		@click="selectCalendarFolder">
@@ -43,10 +43,10 @@ export default {
 	methods: {
 		async selectCalendarFolder() {
 			const userId = this.principalsStore.getCurrentUserPrincipal.dav.userId
-			const picker = getFilePickerBuilder(t('calendar', 'Select the default location for attachments'))
+			const picker = getFilePickerBuilder(t('nocturnkalender', 'Select the default location for attachments'))
 				.setMultiSelect(false)
 				.addButton({
-					label: t('calendar', 'Pick'),
+					label: t('nocturnkalender', 'Pick'),
 					type: 'primary',
 					callback: (nodes) => logger.debug('Picked attachment folder', { nodes }),
 				})
@@ -65,7 +65,7 @@ export default {
 
 		saveAttachmentsFolder(path) {
 			if (typeof path !== 'string' || path.trim() === '' || !path.startsWith('/')) {
-				showError(t('calendar', 'Invalid location selected'))
+				showError(t('nocturnkalender', 'Invalid location selected'))
 				return
 			}
 
@@ -75,11 +75,11 @@ export default {
 
 			this.settingsStore.setAttachmentsFolder({ attachmentsFolder: path })
 				.then(() => {
-					showSuccess(this.$t('calendar', 'Attachments folder successfully saved.'))
+					showSuccess(this.$t('nocturnkalender', 'Attachments folder successfully saved.'))
 				})
 				.catch((error) => {
 					logger.error(error)
-					showError(this.$t('calendar', 'Error on saving attachments folder.'))
+					showError(this.$t('nocturnkalender', 'Error on saving attachments folder.'))
 				})
 		},
 

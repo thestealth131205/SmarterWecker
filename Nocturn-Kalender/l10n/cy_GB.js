@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "User-Session unexpectedly expired" : "Daeth y Sesiwn-Defnyddiwr i ben yn annisgwyl",
     "Provided email-address is not valid" : "Nid yw'r cyfeiriad e-bost hwn yn ddilys",

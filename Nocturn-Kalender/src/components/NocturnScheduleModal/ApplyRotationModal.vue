@@ -49,11 +49,11 @@ async function apply(): Promise<void> {
 	isLoading.value = true
 	try {
 		const result = await nocturnScheduleStore.applyRotation(props.rotation.uid, toEpochDay(startDate.value), months.value)
-		showSuccess(t('calendar', '{count} days generated', { count: result.generatedDays }))
+		showSuccess(t('nocturnkalender', '{count} days generated', { count: result.generatedDays }))
 		emit('close')
 	} catch (error) {
 		logger.error('Failed to apply NocTurn rotation', { error })
-		showError(t('calendar', 'Could not apply rotation'))
+		showError(t('nocturnkalender', 'Could not apply rotation'))
 	} finally {
 		isLoading.value = false
 	}
@@ -63,16 +63,16 @@ async function apply(): Promise<void> {
 <template>
 	<NcModal
 		size="small"
-		:name="t('calendar', 'Apply rotation')"
+		:name="t('nocturnkalender', 'Apply rotation')"
 		@close="$emit('close')">
 		<div class="nocturn-apply-rotation-modal">
-			<h2>{{ t('calendar', 'Apply “{name}”', { name: rotation.name }) }}</h2>
+			<h2>{{ t('nocturnkalender', 'Apply “{name}”', { name: rotation.name }) }}</h2>
 			<p class="nocturn-apply-rotation-modal__hint">
-				{{ t('calendar', 'Generates calendar entries for this rotation’s pattern, repeated over the chosen time range. Re-applying overwrites previously generated entries in the same range.') }}
+				{{ t('nocturnkalender', 'Generates calendar entries for this rotation’s pattern, repeated over the chosen time range. Re-applying overwrites previously generated entries in the same range.') }}
 			</p>
 
 			<div class="nocturn-apply-rotation-modal__row">
-				<label>{{ t('calendar', 'Start date') }}</label>
+				<label>{{ t('nocturnkalender', 'Start date') }}</label>
 				<NcDateTimePickerNative
 					v-model="startDate"
 					:hideLabel="true"
@@ -82,7 +82,7 @@ async function apply(): Promise<void> {
 			<NumberInput
 				v-model="months"
 				class="nocturn-apply-rotation-modal__row"
-				:label="t('calendar', 'Months to generate')" />
+				:label="t('nocturnkalender', 'Months to generate')" />
 
 			<NcButton
 				class="nocturn-apply-rotation-modal__submit"
@@ -92,7 +92,7 @@ async function apply(): Promise<void> {
 				<template #icon>
 					<CheckIcon :size="20" />
 				</template>
-				{{ t('calendar', 'Apply') }}
+				{{ t('nocturnkalender', 'Apply') }}
 			</NcButton>
 		</div>
 	</NcModal>

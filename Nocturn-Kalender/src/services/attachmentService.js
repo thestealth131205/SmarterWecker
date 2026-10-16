@@ -31,7 +31,7 @@ async function shareFile(path) {
 			throw error
 		} else {
 			logger.error('Error while sharing file: Unknown error')
-			showError(t('calendar', 'Error while sharing file'))
+			showError(t('nocturnkalender', 'Error while sharing file'))
 			throw error
 		}
 	}
@@ -63,7 +63,7 @@ async function shareFileWith(path, sharedWith, permissions = 17) {
 			throw error
 		} else {
 			logger.error('Error while sharing file with user: Unknown error')
-			showError(t('calendar', 'Error while sharing file with user'))
+			showError(t('nocturnkalender', 'Error while sharing file with user'))
 			throw error
 		}
 	}
@@ -78,7 +78,7 @@ async function createFolder(folderName, userId) {
 		})
 	} catch (e) {
 		if (e?.response?.status !== 405) {
-			showError(t('calendar', 'Error creating a folder {folder}', {
+			showError(t('nocturnkalender', 'Error creating a folder {folder}', {
 				folder: folderName,
 			}))
 			// Maybe the actual upload succeeds -> keep going
@@ -119,7 +119,7 @@ async function uploadLocalAttachment(folder, files, dav, componentAttachments) {
 		// temp fix, until we decide where to save the attachments
 		if (componentAttachments.map((attachment) => attachment.fileName.split('/').pop()).indexOf(file.name) !== -1) {
 			// TODO may be show user confirmation dialog to create a file named Existing_File_(2) ?
-			showError(t('calendar', 'Attachment {fileName} already exists!', {
+			showError(t('nocturnkalender', 'Attachment {fileName} already exists!', {
 				fileName: file.name,
 			}))
 		} else {
@@ -133,7 +133,7 @@ async function uploadLocalAttachment(folder, files, dav, componentAttachments) {
 					path: `/${file.name}`,
 				}
 				if (resp.status === 204 || resp.status === 201) {
-					showSuccess(t('calendar', 'Attachment {fileName} added!', {
+					showSuccess(t('nocturnkalender', 'Attachment {fileName} added!', {
 						fileName: file.name,
 					}))
 					attachments.push(data)
@@ -144,7 +144,7 @@ async function uploadLocalAttachment(folder, files, dav, componentAttachments) {
 					if (message) {
 						showError(message)
 					} else {
-						showError(t('calendar', 'An error occurred during uploading file {fileName}', {
+						showError(t('nocturnkalender', 'An error occurred during uploading file {fileName}', {
 							fileName: file.name,
 						}))
 					}
@@ -178,7 +178,7 @@ async function getFileInfo(path, userId) {
 				</d:prop>
 			</d:propfind>`,
 	}).catch(() => {
-		showError(t('calendar', 'An error occurred during getting file information'))
+		showError(t('nocturnkalender', 'An error occurred during getting file information'))
 	})
 	return res.data
 }

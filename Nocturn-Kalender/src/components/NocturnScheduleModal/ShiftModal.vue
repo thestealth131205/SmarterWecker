@@ -33,8 +33,8 @@ const nocturnScheduleStore = useNocturnScheduleStore()
 const isLoading = ref(false)
 const editing = ref<NocturnShift>(props.shift.clone())
 
-const formTitle = props.isNew ? t('calendar', 'Create shift') : t('calendar', 'Edit shift')
-const saveButtonText = props.isNew ? t('calendar', 'Create') : t('calendar', 'Save')
+const formTitle = props.isNew ? t('nocturnkalender', 'Create shift') : t('nocturnkalender', 'Edit shift')
+const saveButtonText = props.isNew ? t('nocturnkalender', 'Create') : t('nocturnkalender', 'Save')
 
 const startAsDate = computed<Date>(() => {
 	const date = new Date()
@@ -78,31 +78,31 @@ async function save(): Promise<void> {
 				<NcTextField
 					v-model="editing.name"
 					class="nocturn-shift-modal__name"
-					:label="t('calendar', 'Name')"
-					:placeholder="t('calendar', 'e.g. Early shift')" />
+					:label="t('nocturnkalender', 'Name')"
+					:placeholder="t('nocturnkalender', 'e.g. Early shift')" />
 			</div>
 
 			<div class="nocturn-shift-modal__row nocturn-shift-modal__row--wrapped">
 				<div>
-					<label>{{ t('calendar', 'Start time') }}</label>
+					<label>{{ t('nocturnkalender', 'Start time') }}</label>
 					<TimePicker :date="startAsDate" @change="onStartTimeChanged" />
 				</div>
 				<NumberInput
 					v-model="editing.durationMinutes"
-					:label="t('calendar', 'Duration (minutes)')" />
+					:label="t('nocturnkalender', 'Duration (minutes)')" />
 			</div>
 
 			<p class="nocturn-shift-modal__hint">
-				{{ t('calendar', 'Ends at {time}', { time: editing.endTimeLabel }) }}
+				{{ t('nocturnkalender', 'Ends at {time}', { time: editing.endTimeLabel }) }}
 			</p>
 
 			<div class="nocturn-shift-modal__row nocturn-shift-modal__row--wrapped">
 				<NumberInput
 					v-model="editing.earliestWakeOffsetMinutes"
-					:label="t('calendar', 'Earliest wake-up (minutes before start)')" />
+					:label="t('nocturnkalender', 'Earliest wake-up (minutes before start)')" />
 				<NumberInput
 					v-model="editing.latestWakeupOffsetMinutes"
-					:label="t('calendar', 'Latest wake-up (minutes before start)')" />
+					:label="t('nocturnkalender', 'Latest wake-up (minutes before start)')" />
 			</div>
 
 			<NcButton

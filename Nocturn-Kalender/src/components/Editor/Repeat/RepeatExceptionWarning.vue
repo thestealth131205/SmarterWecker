@@ -6,7 +6,7 @@
 <template>
 	<div class="repeat-option-warning">
 		<strong>
-			{{ $t('calendar', 'This event is the recurrence-exception of a recurrence-set. You cannot add a recurrence-rule to it.') }}
+			{{ $t('nocturnkalender', 'This event is the recurrence-exception of a recurrence-set. You cannot add a recurrence-rule to it.') }}
 		</strong>
 	</div>
 </template>

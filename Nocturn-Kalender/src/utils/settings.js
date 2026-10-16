@@ -15,28 +15,28 @@ import { linkTo } from '@nextcloud/router'
  */
 export function getSettingsFromInitialState() {
 	return {
-		appVersion: loadState('calendar', 'app_version', ''),
-		eventLimit: loadState('calendar', 'event_limit', true),
-		firstRun: loadState('calendar', 'first_run', false),
-		showWeekends: loadState('calendar', 'show_weekends', true),
-		showWeekNumbers: loadState('calendar', 'show_week_numbers', false),
-		skipPopover: loadState('calendar', 'skip_popover', false),
-		slotDuration: loadState('calendar', 'slot_duration', '00:30:00'),
-		defaultReminderPartDay: loadState('calendar', 'default_reminder_part_day', 'none'),
-		defaultReminderFullDay: loadState('calendar', 'default_reminder_full_day', 'none'),
-		talkEnabled: loadState('calendar', 'talk_enabled', false),
-		tasksEnabled: loadState('calendar', 'tasks_enabled', false),
-		timezone: loadState('calendar', 'timezone', 'automatic'),
-		showTasks: loadState('calendar', 'show_tasks', false),
-		showDeclined: loadState('calendar', 'show_declined', true),
-		hideEventExport: loadState('calendar', 'hide_event_export', false),
-		forceEventAlarmType: loadState('calendar', 'force_event_alarm_type', false),
-		disableAppointments: loadState('calendar', 'disable_appointments', false),
-		canSubscribeLink: loadState('calendar', 'can_subscribe_link', false),
-		attachmentsFolder: loadState('calendar', 'attachments_folder', '/Calendar'),
-		showResources: loadState('calendar', 'show_resources', true),
-		publicCalendars: loadState('calendar', 'publicCalendars', []),
-		tasksSidebar: loadState('calendar', 'tasks_sidebar', true),
+		appVersion: loadState('nocturnkalender', 'app_version', ''),
+		eventLimit: loadState('nocturnkalender', 'event_limit', true),
+		firstRun: loadState('nocturnkalender', 'first_run', false),
+		showWeekends: loadState('nocturnkalender', 'show_weekends', true),
+		showWeekNumbers: loadState('nocturnkalender', 'show_week_numbers', false),
+		skipPopover: loadState('nocturnkalender', 'skip_popover', false),
+		slotDuration: loadState('nocturnkalender', 'slot_duration', '00:30:00'),
+		defaultReminderPartDay: loadState('nocturnkalender', 'default_reminder_part_day', 'none'),
+		defaultReminderFullDay: loadState('nocturnkalender', 'default_reminder_full_day', 'none'),
+		talkEnabled: loadState('nocturnkalender', 'talk_enabled', false),
+		tasksEnabled: loadState('nocturnkalender', 'tasks_enabled', false),
+		timezone: loadState('nocturnkalender', 'timezone', 'automatic'),
+		showTasks: loadState('nocturnkalender', 'show_tasks', false),
+		showDeclined: loadState('nocturnkalender', 'show_declined', true),
+		hideEventExport: loadState('nocturnkalender', 'hide_event_export', false),
+		forceEventAlarmType: loadState('nocturnkalender', 'force_event_alarm_type', false),
+		disableAppointments: loadState('nocturnkalender', 'disable_appointments', false),
+		canSubscribeLink: loadState('nocturnkalender', 'can_subscribe_link', false),
+		attachmentsFolder: loadState('nocturnkalender', 'attachments_folder', '/Calendar'),
+		showResources: loadState('nocturnkalender', 'show_resources', true),
+		publicCalendars: loadState('nocturnkalender', 'publicCalendars', []),
+		tasksSidebar: loadState('nocturnkalender', 'tasks_sidebar', true),
 	}
 }
 
@@ -48,7 +48,7 @@ export function getSettingsFromInitialState() {
  */
 export function getLinkToConfig(key) {
 	return [
-		linkTo('calendar', 'index.php'),
+		linkTo('nocturnkalender', 'index.php'),
 		'v1/config',
 		key,
 	].join('/')

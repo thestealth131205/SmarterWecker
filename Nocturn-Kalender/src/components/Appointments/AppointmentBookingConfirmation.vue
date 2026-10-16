@@ -10,7 +10,7 @@ import EmailIcon from 'vue-material-design-icons/EmailOutline.vue'
 
 <template>
 	<div class="appointment-booking-confirmation">
-		<EmptyContent :name="$t('calendar', 'Please confirm your reservation')" :description="$t('calendar', 'We sent you an email with details. Please confirm your appointment using the link in the email. You can close this page now.')">
+		<EmptyContent :name="$t('nocturnkalender', 'Please confirm your reservation')" :description="$t('nocturnkalender', 'We sent you an email with details. Please confirm your appointment using the link in the email. You can close this page now.')">
 			<template #icon>
 				<EmailIcon decorative />
 			</template>

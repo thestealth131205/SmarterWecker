@@ -116,6 +116,13 @@ SCP_PORT_OPT=(-P "${MAIN_SERVER_PORT:-22}")
 ssh_remote() { sshpass -p "$MAIN_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${SSH_PORT_OPT[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_IP}" "$@"; }
 scp_to_remote() { sshpass -p "$MAIN_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${SCP_PORT_OPT[@]}" "$@"; }
 
+# Zweiter Satz Helper für den (optionalen) Nextcloud-Testserver -- separater Host, daher
+# eigenes Passwort/eigene Port-Optionen statt der MAIN_SERVER_*-Variablen oben.
+NC_SSH_PORT_OPT=(-p "${NEXTCLOUD_SERVER_PORT:-22}")
+NC_SCP_PORT_OPT=(-P "${NEXTCLOUD_SERVER_PORT:-22}")
+ssh_nc() { sshpass -p "$NEXTCLOUD_SERVER_PASSWORD" ssh "${COMMON_SSH_OPTS[@]}" "${NC_SSH_PORT_OPT[@]}" "${NEXTCLOUD_SERVER_USER}@${NEXTCLOUD_SERVER_IP}" "$@"; }
+scp_to_nc() { sshpass -p "$NEXTCLOUD_SERVER_PASSWORD" scp "${COMMON_SSH_OPTS[@]}" "${NC_SCP_PORT_OPT[@]}" "$@"; }
+
 retry() {
     # retry <Versuche> <Wartezeit-Sekunden> -- <Befehl...>
     # Für Netzwerk-Operationen (ssh/scp), die bei einer wackeligen Verbindung
@@ -411,4 +418,53 @@ done
 
 log "NocTurn im F-Droid-Repo aktualisiert: ${FDROID_APK_NAME}"
 log "F-Droid-Repo-URL (in F-Droid-Client eintragen): https://fdroid.letheapp.de/repo"
+set_phase "fdroid_done"
+
+# ---------- 10. NocTurn-Kalender-App auf dem Nextcloud-Testserver aktualisieren ----------
+# Nextcloud selbst bietet KEIN per-App-Update-Feed (kein <releases>-Tag in info.xml, keine
+# pro-App "appstoreurl") -- das native Update-System ist ein einziger, instanzweiter
+# Appstore-Endpunkt (config.php "appstoreurl", Default https://apps.nextcloud.com/api/v1),
+# der für ALLE Apps gleichzeitig gilt. Einen eigenen Mirror dieses Formats zu bauen, würde
+# bedeuten, auch alle anderen Apps der Instanz darüber zu bedienen -- unverhältnismäßig für
+# eine einzelne private App auf einem selbst kontrollierten Server. Der praktische Ersatz
+# hier: Push-Deploy direkt in diesem Skript, bei jedem Release automatisch, ganz ohne
+# manuellen Klick auf "Update" in der Nextcloud-Apps-Seite.
+if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${NEXTCLOUD_SERVER_PASSWORD:-}" && -n "${NEXTCLOUD_APP_DIR:-}" ]]; then
+    log "Baue NocTurn-Kalender-App (npm/composer) für den Nextcloud-Deploy..."
+    NK_DIR="$REPO_DIR/Nocturn-Kalender"
+    [[ -d "$NK_DIR" ]] || die "Nocturn-Kalender-Ordner nicht gefunden unter $NK_DIR"
+    (cd "$NK_DIR" && npm run build) || die "npm run build für Nocturn-Kalender fehlgeschlagen"
+    (cd "$NK_DIR" && composer install --no-dev --optimize-autoloader) || die "composer install für Nocturn-Kalender fehlgeschlagen"
+    set_phase "nextcloud_app_built"
+
+    log "Packe und lade NocTurn-Kalender-App zum Nextcloud-Server hoch ($NEXTCLOUD_SERVER_IP)..."
+    NK_TAR="$(mktemp --suffix=.tar.gz)"
+    (cd "$NK_DIR" && tar czf "$NK_TAR" \
+        --exclude='node_modules' --exclude='src' --exclude='tests' --exclude='.git' \
+        appinfo composer css img js l10n lib templates vendor) \
+        || die "Packen der Nocturn-Kalender-App fehlgeschlagen"
+    NK_REMOTE_TMP="/tmp/nocturn-kalender-deploy.tar.gz"
+    retry 5 20 -- scp_to_nc "$NK_TAR" "${NEXTCLOUD_SERVER_USER}@${NEXTCLOUD_SERVER_IP}:${NK_REMOTE_TMP}" \
+        || die "scp-Upload der Nocturn-Kalender-App zum Nextcloud-Server fehlgeschlagen"
+    rm -f "$NK_TAR"
+    set_phase "nextcloud_app_uploaded"
+
+    # Wartung an/aus statt eines reinen Datei-Austauschs ohne Absicherung: verhindert, dass
+    # ein Nutzer mitten im Austausch halbe/inkonsistente App-Dateien ausgeliefert bekommt,
+    # und zwingt Nextcloud danach zu einem sauberen Cache-Rebuild der App-Routen/Scripts.
+    NK_DEPLOY_CMD="set -e; sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --on; \
+        sudo rm -rf '${NEXTCLOUD_APP_DIR}.old' && sudo cp -a '${NEXTCLOUD_APP_DIR}' '${NEXTCLOUD_APP_DIR}.old' 2>/dev/null || true; \
+        sudo mkdir -p '${NEXTCLOUD_APP_DIR}'; \
+        sudo tar xzf '${NK_REMOTE_TMP}' -C '${NEXTCLOUD_APP_DIR}'; \
+        sudo rm -f '${NK_REMOTE_TMP}'; \
+        sudo chown -R www-data:www-data '${NEXTCLOUD_APP_DIR}'; \
+        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --off"
+    retry 3 15 -- ssh_nc "$NK_DEPLOY_CMD" \
+        || die "Deploy der Nocturn-Kalender-App auf dem Nextcloud-Server fehlgeschlagen (Wartungsmodus ggf. manuell prüfen/ausschalten: occ maintenance:mode --off)"
+    set_phase "nextcloud_app_deployed"
+    log "NocTurn-Kalender-App auf ${NEXTCLOUD_SERVER_IP}:${NEXTCLOUD_APP_DIR} aktualisiert (Version ${NEW_NAME})."
+else
+    log "Keine NEXTCLOUD_SERVER_*-Zugangsdaten in $CREDENTIALS_FILE hinterlegt -- Nextcloud-Kalender-Deploy übersprungen."
+fi
+
 set_phase "SUCCESS"

@@ -34,7 +34,7 @@ export default {
 		 * @return {string}
 		 */
 		htmlCaption() {
-			return this.$t('calendar', 'To send out invitations and handle responses, [linkopen]add your email address in personal settings[linkclose].')
+			return this.$t('nocturnkalender', 'To send out invitations and handle responses, [linkopen]add your email address in personal settings[linkclose].')
 				.replace('[linkopen]', `<a target="_blank" href="${generateUrl('settings/user')}">`)
 				.replace('[linkclose]', '</a>')
 		},

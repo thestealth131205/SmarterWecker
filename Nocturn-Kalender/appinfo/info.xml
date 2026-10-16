@@ -28,7 +28,7 @@
 	<author homepage="https://github.com/GVodyanov">Grigory Vodyanov</author>
 	<author homepage="https://github.com/SebastianKrupinski">Sebastian Krupinski </author>
 	<author homepage="https://github.com/tcitworld">Thomas Citharel</author>
-	<namespace>Calendar</namespace>
+	<namespace>NocturnKalender</namespace>
 	<documentation>
 		<user>https://docs.nextcloud.com/server/latest/user_manual/en/groupware/calendar.html</user>
 		<admin>https://docs.nextcloud.com/server/latest/admin_manual/groupware/calendar.html</admin>
@@ -48,7 +48,7 @@
 		<backend>caldav</backend>
 	</dependencies>
 	<background-jobs>
-		<job>OCA\Calendar\BackgroundJob\CleanUpOutdatedBookingsJob</job>
+		<job>OCA\NocturnKalender\BackgroundJob\CleanUpOutdatedBookingsJob</job>
 	</background-jobs>
 	<navigations>
 		<navigation>

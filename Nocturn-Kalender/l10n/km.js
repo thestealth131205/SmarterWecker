@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Calendar" : "ប្រតិទិន",
     "Location:" : "ទីតាំងៈ",

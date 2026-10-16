@@ -99,7 +99,7 @@ const selectedFeatureOptions = computed<RoomFilterOption[]>({
 })
 
 const dialogButtons = computed(() => [{
-	label: t('calendar', 'Done'),
+	label: t('nocturnkalender', 'Done'),
 	variant: 'primary' as const,
 	callback: () => applySelection(),
 }])
@@ -141,7 +141,7 @@ function toggleGroup(name: string): void {
  */
 function availabilityLabel(available: number, total: number): string {
 	// Translators: %n is the total number of rooms in the building, {available} how many of them are free
-	return n('calendar', '{available} of %n room available', '{available} of %n rooms available', total, { available })
+	return n('nocturnkalender', '{available} of %n room available', '{available} of %n rooms available', total, { available })
 }
 
 /**
@@ -272,19 +272,19 @@ watch(
 <template>
 	<NcDialog
 		:open="true"
-		:name="t('calendar', 'Rooms')"
+		:name="t('nocturnkalender', 'Rooms')"
 		size="normal"
 		contentClasses="room-picker"
 		:buttons="dialogButtons"
 		@update:open="emit('close')">
 		<div class="room-picker__filters">
 			<!-- The placeholder carries the design, the label carries the accessible name -->
-			<label :for="searchInputId" class="hidden-visually">{{ t('calendar', 'Search rooms') }}</label>
+			<label :for="searchInputId" class="hidden-visually">{{ t('nocturnkalender', 'Search rooms') }}</label>
 			<NcTextField
 				:id="searchInputId"
 				v-model="searchText"
 				:labelOutside="true"
-				:placeholder="t('calendar', 'Name, building or room number')"
+				:placeholder="t('nocturnkalender', 'Name, building or room number')"
 				:showTrailingButton="searchText.length > 0"
 				trailingButtonIcon="close"
 				@trailingButtonClick="searchText = ''">
@@ -296,33 +296,33 @@ watch(
 			<div class="room-picker__filters__row">
 				<div v-if="buildingOptions.length > 0" class="room-picker__field">
 					<label class="room-picker__field__label" :for="buildingInputId">
-						{{ t('calendar', 'Building') }}
+						{{ t('nocturnkalender', 'Building') }}
 					</label>
 					<NcSelect
 						v-model="selectedBuilding"
 						:inputId="buildingInputId"
 						:labelOutside="true"
 						:options="buildingOptions.map((option) => option.id)"
-						:placeholder="t('calendar', 'Any')" />
+						:placeholder="t('nocturnkalender', 'Any')" />
 				</div>
 
 				<div v-if="storyOptions.length > 0" class="room-picker__field">
 					<label class="room-picker__field__label" :for="storyInputId">
-						{{ t('calendar', 'Floor') }}
+						{{ t('nocturnkalender', 'Floor') }}
 					</label>
 					<NcSelect
 						v-model="selectedStory"
 						:inputId="storyInputId"
 						:labelOutside="true"
 						:options="storyOptions.map((option) => option.id)"
-						:placeholder="t('calendar', 'Any')" />
+						:placeholder="t('nocturnkalender', 'Any')" />
 				</div>
 			</div>
 
 			<div class="room-picker__filters__row">
 				<div class="room-picker__field">
 					<label class="room-picker__field__label" :for="capacityInputId">
-						{{ t('calendar', 'Minimum capacity') }}
+						{{ t('nocturnkalender', 'Minimum capacity') }}
 					</label>
 					<NcTextField
 						:id="capacityInputId"
@@ -334,7 +334,7 @@ watch(
 
 				<div v-if="featureOptions.length > 0" class="room-picker__field">
 					<label class="room-picker__field__label" :for="featureInputId">
-						{{ t('calendar', 'Features') }}
+						{{ t('nocturnkalender', 'Features') }}
 					</label>
 					<NcSelect
 						v-model="selectedFeatureOptions"
@@ -344,20 +344,20 @@ watch(
 						:multiple="true"
 						:keepOpen="true"
 						label="label"
-						:placeholder="t('calendar', 'Any')" />
+						:placeholder="t('nocturnkalender', 'Any')" />
 				</div>
 			</div>
 		</div>
 
 		<div v-if="isLoadingAvailability" class="room-picker__loading">
 			<NcLoadingIcon :size="20" />
-			{{ t('calendar', 'Checking availability…') }}
+			{{ t('nocturnkalender', 'Checking availability…') }}
 		</div>
 
 		<div v-if="roomsFiltered.length === 0" class="room-picker__empty">
-			<p>{{ hasActiveFilters ? t('calendar', 'No rooms match the filters') : t('calendar', 'No rooms found') }}</p>
+			<p>{{ hasActiveFilters ? t('nocturnkalender', 'No rooms match the filters') : t('nocturnkalender', 'No rooms found') }}</p>
 			<NcButton v-if="hasActiveFilters" variant="tertiary" @click="resetFilters">
-				{{ t('calendar', 'Clear filters') }}
+				{{ t('nocturnkalender', 'Clear filters') }}
 			</NcButton>
 		</div>
 

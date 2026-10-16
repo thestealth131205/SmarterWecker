@@ -31,8 +31,8 @@ const nocturnScheduleStore = useNocturnScheduleStore()
 const isLoading = ref(false)
 const editing = ref<NocturnJob>(props.job.clone())
 
-const formTitle = props.isNew ? t('calendar', 'Create job') : t('calendar', 'Edit job')
-const saveButtonText = props.isNew ? t('calendar', 'Create') : t('calendar', 'Save')
+const formTitle = props.isNew ? t('nocturnkalender', 'Create job') : t('nocturnkalender', 'Edit job')
+const saveButtonText = props.isNew ? t('nocturnkalender', 'Create') : t('nocturnkalender', 'Save')
 
 async function save(): Promise<void> {
 	isLoading.value = true
@@ -57,13 +57,13 @@ async function save(): Promise<void> {
 			<NcTextField
 				v-model="editing.name"
 				class="nocturn-job-modal__row"
-				:label="t('calendar', 'Name')"
-				:placeholder="t('calendar', 'e.g. Main job, school, ...')" />
+				:label="t('nocturnkalender', 'Name')"
+				:placeholder="t('nocturnkalender', 'e.g. Main job, school, ...')" />
 			<NcCheckboxRadioSwitch
 				class="nocturn-job-modal__row"
 				:modelValue="editing.mode === 'STUDENT'"
 				@update:modelValue="editing.mode = $event ? 'STUDENT' : 'SHIFT'">
-				{{ t('calendar', 'Student mode (timetable instead of shifts)') }}
+				{{ t('nocturnkalender', 'Student mode (timetable instead of shifts)') }}
 			</NcCheckboxRadioSwitch>
 			<NcButton
 				class="nocturn-job-modal__submit"

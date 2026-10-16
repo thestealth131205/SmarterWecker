@@ -133,7 +133,7 @@ async function createNewCalendar(event: Event): Promise<void> {
 	const displayName = (event.target as HTMLElement).querySelector<HTMLInputElement>('input[type=text]')?.value ?? ''
 
 	if (!displayName.trim()) {
-		showError(t('calendar', 'Calendar name can not be blank'))
+		showError(t('nocturnkalender', 'Calendar name can not be blank'))
 		return
 	}
 
@@ -147,7 +147,7 @@ async function createNewCalendar(event: Event): Promise<void> {
 		})
 	} catch (error) {
 		logger.debug(error)
-		showError(t('calendar', 'An error occurred, unable to create the calendar.'))
+		showError(t('nocturnkalender', 'An error occurred, unable to create the calendar.'))
 	} finally {
 		showCreateCalendarSaving.value = false
 		showCreateCalendarLabel.value = true
@@ -165,7 +165,7 @@ async function createNewCalendarTaskList(event: Event): Promise<void> {
 	const displayName = (event.target as HTMLElement).querySelector<HTMLInputElement>('input[type=text]')?.value ?? ''
 
 	if (!displayName.trim()) {
-		showError(t('calendar', 'Calendar name can not be blank'))
+		showError(t('nocturnkalender', 'Calendar name can not be blank'))
 		return
 	}
 
@@ -180,7 +180,7 @@ async function createNewCalendarTaskList(event: Event): Promise<void> {
 		})
 	} catch (error) {
 		logger.debug(error)
-		showError(t('calendar', 'An error occurred, unable to create the calendar.'))
+		showError(t('nocturnkalender', 'An error occurred, unable to create the calendar.'))
 	} finally {
 		showCreateCalendarTaskListSaving.value = false
 		showCreateCalendarTaskListLabel.value = true
@@ -203,7 +203,7 @@ async function createNewSubscription(event: Event): Promise<void> {
 		hostname = url.hostname
 	} catch (error) {
 		logger.error(error)
-		showError(t('calendar', 'Please enter a valid link (starting with http://, https://, webcal://, or webcals://)'))
+		showError(t('nocturnkalender', 'Please enter a valid link (starting with http://, https://, webcal://, or webcals://)'))
 		return
 	}
 
@@ -218,7 +218,7 @@ async function createNewSubscription(event: Event): Promise<void> {
 		})
 	} catch (error) {
 		logger.debug(error)
-		showError(t('calendar', 'An error occurred, unable to create the calendar.'))
+		showError(t('nocturnkalender', 'An error occurred, unable to create the calendar.'))
 	} finally {
 		showCreateSubscriptionSaving.value = false
 		showCreateSubscriptionLabel.value = true
@@ -266,12 +266,12 @@ function closeMenu(): void {
 		<NcAppNavigationCaption
 			class="app-navigation-entry-new-calendar"
 			:class="{ 'app-navigation-entry-new-calendar--open': isOpen }"
-			:name="t('calendar', 'My calendars')"
+			:name="t('nocturnkalender', 'My calendars')"
 			:menuOpen="isOpen"
 			@update:menuOpen="setMenuOpen"
 			@click.prevent.stop="toggleDialog">
 			<template #actionsTriggerIcon>
-				<Plus :size="20" :title="t('calendar', 'Add new')" decorative />
+				<Plus :size="20" :title="t('nocturnkalender', 'Add new')" decorative />
 			</template>
 			<template #actions>
 				<ActionButton
@@ -280,11 +280,11 @@ function closeMenu(): void {
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
 					</template>
-					{{ t('calendar', 'New calendar') }}
+					{{ t('nocturnkalender', 'New calendar') }}
 				</ActionButton>
 				<ActionInput
 					v-if="showCreateCalendarInput"
-					:aria-label="t('calendar', 'Name for new calendar')"
+					:aria-label="t('nocturnkalender', 'Name for new calendar')"
 					@submit.prevent.stop="createNewCalendar">
 					<template #icon>
 						<CalendarBlank :size="20" decorative />
@@ -293,7 +293,7 @@ function closeMenu(): void {
 				<ActionText
 					v-if="showCreateCalendarSaving"
 					icon="icon-loading-small">
-					{{ t('calendar', 'Creating calendar …') }}
+					{{ t('nocturnkalender', 'Creating calendar …') }}
 				</ActionText>
 
 				<ActionButton
@@ -302,11 +302,11 @@ function closeMenu(): void {
 					<template #icon>
 						<CalendarCheck :size="20" decorative />
 					</template>
-					{{ t('calendar', 'New calendar with task list') }}
+					{{ t('nocturnkalender', 'New calendar with task list') }}
 				</ActionButton>
 				<ActionInput
 					v-if="showCreateCalendarTaskListInput"
-					:aria-label="t('calendar', 'Name for new calendar')"
+					:aria-label="t('nocturnkalender', 'Name for new calendar')"
 					@submit.prevent.stop="createNewCalendarTaskList">
 					<template #icon>
 						<CalendarCheck :size="20" decorative />
@@ -315,7 +315,7 @@ function closeMenu(): void {
 				<ActionText
 					v-if="showCreateCalendarTaskListSaving"
 					icon="icon-loading-small">
-					{{ t('calendar', 'Creating calendar …') }}
+					{{ t('nocturnkalender', 'Creating calendar …') }}
 				</ActionText>
 
 				<ActionSeparator v-if="canSubscribeLink" />
@@ -325,11 +325,11 @@ function closeMenu(): void {
 					<template #icon>
 						<LinkIcon :size="20" decorative />
 					</template>
-					{{ t('calendar', 'New subscription from link (read-only)') }}
+					{{ t('nocturnkalender', 'New subscription from link (read-only)') }}
 				</ActionButton>
 				<ActionInput
 					v-if="showCreateSubscriptionInput"
-					:aria-label="t('calendar', 'Name for new calendar')"
+					:aria-label="t('nocturnkalender', 'Name for new calendar')"
 					@submit.prevent.stop="createNewSubscription">
 					<template #icon>
 						<LinkIcon :size="20" decorative />
@@ -338,13 +338,13 @@ function closeMenu(): void {
 				<ActionText
 					v-if="showCreateSubscriptionSaving"
 					icon="icon-loading-small">
-					{{ t('calendar', 'Creating subscription …') }}
+					{{ t('nocturnkalender', 'Creating subscription …') }}
 				</ActionText>
 				<ActionButton
 					v-if="canSubscribeLink"
 					:closeAfterClick="true"
 					@click="openHolidaySubscriptionPicker">
-					{{ t('calendar', 'Add public holiday calendar') }}
+					{{ t('nocturnkalender', 'Add public holiday calendar') }}
 					<template #icon>
 						<Web :size="20" decorative />
 					</template>
@@ -353,7 +353,7 @@ function closeMenu(): void {
 					v-if="hasPublicCalendars"
 					:closeAfterClick="true"
 					@click="openPublicCalendarSubscriptionPicker">
-					{{ t('calendar', 'Add custom public calendar') }}
+					{{ t('nocturnkalender', 'Add custom public calendar') }}
 					<template #icon>
 						<Web :size="20" decorative />
 					</template>

@@ -36,7 +36,7 @@ function linkToConfig(config: PublicAppointmentConfig): string {
 				:disableMenu="true"
 				:size="180" />
 			<h2 class="user-info">
-				{{ $t('calendar', 'Book an appointment with {name}', { name: userInfo.displayName }) }}
+				{{ $t('nocturnkalender', 'Book an appointment with {name}', { name: userInfo.displayName }) }}
 			</h2>
 		</div>
 		<div class="appointment-configs">
@@ -61,7 +61,7 @@ function linkToConfig(config: PublicAppointmentConfig): string {
 				</div>
 			</template>
 			<div v-else>
-				<EmptyContent :name="$t('calendar', 'No public appointments found for {name}', { name: userInfo.displayName })">
+				<EmptyContent :name="$t('nocturnkalender', 'No public appointments found for {name}', { name: userInfo.displayName })">
 					<template #icon>
 						<CalendarBlankIcon decorative />
 					</template>

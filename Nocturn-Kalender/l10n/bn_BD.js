@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Cheers!" : "শুভেচ্ছা!",
     "Calendar" : "দিনপঞ্জী",

@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "Annettu sähköpostiosoite on liian pitkä",
     "User-Session unexpectedly expired" : "Käyttäjäistunto vanheni odottamatta",

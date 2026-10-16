@@ -18,11 +18,11 @@
 					{{ selectedProposal?.title }}
 				</div>
 				<div class="proposal-viewer__content-description">
-					{{ selectedProposal?.description || t('calendar', 'No Description') }}
+					{{ selectedProposal?.description || t('nocturnkalender', 'No Description') }}
 				</div>
 				<div class="proposal-viewer__content-location">
 					<LocationIcon />
-					{{ selectedProposal?.location || t('calendar', 'No Location') }}
+					{{ selectedProposal?.location || t('nocturnkalender', 'No Location') }}
 				</div>
 				<div class="proposal-viewer__content-details">
 					<div class="proposal-viewer__content-duration">
@@ -37,21 +37,21 @@
 						<div class="proposal-viewer__content-actions">
 							<NcButton
 								variant="tertiary"
-								:title="t('calendar', 'Edit this meeting proposal')"
+								:title="t('nocturnkalender', 'Edit this meeting proposal')"
 								@click="onProposalModify()">
 								<template #icon>
 									<EditIcon />
 								</template>
-								{{ t('calendar', 'Edit') }}
+								{{ t('nocturnkalender', 'Edit') }}
 							</NcButton>
 							<NcButton
 								variant="tertiary"
-								:title="t('calendar', 'Delete this meeting proposal')"
+								:title="t('nocturnkalender', 'Delete this meeting proposal')"
 								@click="onProposalDestroy(selectedProposal)">
 								<template #icon>
 									<DeleteIcon />
 								</template>
-								{{ t('calendar', 'Delete') }}
+								{{ t('nocturnkalender', 'Delete') }}
 							</NcButton>
 						</div>
 					</div>
@@ -77,16 +77,16 @@
 						<NcTextField
 							v-model="selectedProposal.title"
 							class="proposal-editor__proposal-title"
-							:label="t('calendar', 'Title')" />
+							:label="t('nocturnkalender', 'Title')" />
 						<NcTextArea
 							v-model="selectedProposal.description"
 							class="proposal-editor__proposal-description"
-							:label="t('calendar', 'Description')" />
+							:label="t('nocturnkalender', 'Description')" />
 						<div class="proposal-editor__proposal-location-container">
 							<NcTextField
 								v-if="!settingsStore.talkEnabled || !modalEditLocationState"
 								class="proposal-editor__proposal-location"
-								:label="t('calendar', 'Location')"
+								:label="t('nocturnkalender', 'Location')"
 								:modelValue="selectedProposal.location" />
 							<NcCheckboxRadioSwitch
 								v-if="settingsStore.talkEnabled"
@@ -94,7 +94,7 @@
 								variant="secondary"
 								:modelValue="modalEditLocationState"
 								@update:modelValue="onProposalLocationTypeToggle">
-								{{ t('calendar', 'Add Talk conversation') }}
+								{{ t('nocturnkalender', 'Add Talk conversation') }}
 							</NcCheckboxRadioSwitch>
 						</div>
 						<DurationSelector
@@ -105,14 +105,14 @@
 							class="proposal-editor__proposal-response-notify"
 							:modelValue="selectedProposal.responseNotify"
 							@update:modelValue="onProposalResponseNotifyToggle">
-							{{ t('calendar', 'Notify me when participants respond') }}
+							{{ t('nocturnkalender', 'Notify me when participants respond') }}
 						</NcCheckboxRadioSwitch>
 						<InviteesListSearch
 							class="proposal-editor__proposal-participants-selector"
 							:alreadyInvitedEmails="existingParticipantAddressess"
 							@addAttendee="onProposalParticipantAdd" />
 						<div v-if="selectedProposal.participants.length > 0" class="proposal-editor__proposal-participants">
-							<h6>{{ t('calendar', 'Participants') }}</h6>
+							<h6>{{ t('nocturnkalender', 'Participants') }}</h6>
 							<ProposalParticipantItem
 								v-for="(participant, idx) in selectedProposal.participants"
 								:key="idx"
@@ -121,7 +121,7 @@
 								@participantRemove="onProposalParticipantRemove(participant.address)" />
 						</div>
 						<div v-if="selectedProposal.dates.length > 0" class="proposal-editor__proposed-dates">
-							<h6>{{ t('calendar', 'Selected times') }}</h6>
+							<h6>{{ t('nocturnkalender', 'Selected times') }}</h6>
 							<ProposalDateItem
 								v-for="(entry, idx) in selectedProposal.dates"
 								:key="idx"
@@ -151,11 +151,11 @@
 				<div class="proposal-editor__column-right">
 					<div class="proposal-editor__calendar-actions">
 						<NcButton variant="secondary" @click="onCalendarFocusToday()">
-							{{ t('calendar', 'Today') }}
+							{{ t('nocturnkalender', 'Today') }}
 						</NcButton>
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'Previous span')"
+							:aria-label="t('nocturnkalender', 'Previous span')"
 							@click="onCalendarSpanPrevious()">
 							<template #icon>
 								<PreviousSpanIcon />
@@ -163,7 +163,7 @@
 						</NcButton>
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'Next span')"
+							:aria-label="t('nocturnkalender', 'Next span')"
 							@click="onCalendarSpanNext()">
 							<template #icon>
 								<NextSpanIcon />
@@ -172,7 +172,7 @@
 						<h2>{{ calendarDateRange }}</h2>
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'Less days')"
+							:aria-label="t('nocturnkalender', 'Less days')"
 							@click="onCalendarSpanIncrease()">
 							<template #icon>
 								<ZoomInIcon />
@@ -180,7 +180,7 @@
 						</NcButton>
 						<NcButton
 							variant="secondary"
-							:aria-label="t('calendar', 'More days')"
+							:aria-label="t('nocturnkalender', 'More days')"
 							@click="onCalendarSpanDecrease()">
 							<template #icon>
 								<ZoomOutIcon />
@@ -197,14 +197,14 @@
 
 		<NcDialog
 			:open="showDeleteDialog"
-			:name="t('calendar', 'Delete proposal')"
+			:name="t('nocturnkalender', 'Delete proposal')"
 			:message="deleteDialogMessage"
 			:buttons="deleteDialogButtons"
 			@update:open="showDeleteDialog = $event" />
 
 		<NcDialog
 			:open="showConvertDialog"
-			:name="t('calendar', 'Create meeting')"
+			:name="t('nocturnkalender', 'Create meeting')"
 			:message="convertDialogMessage"
 			:buttons="convertDialogButtons"
 			@update:open="showConvertDialog = $event" />
@@ -312,22 +312,22 @@ const modalSize = computed<string>(() => modalMode.value === 'view' ? 'normal' :
 const modalTitle = computed<string>(() => {
 	switch (modalMode.value) {
 		case 'view':
-			return t('calendar', 'Meeting proposals overview')
+			return t('nocturnkalender', 'Meeting proposals overview')
 		case 'modify':
-			return t('calendar', 'Edit meeting proposal')
+			return t('nocturnkalender', 'Edit meeting proposal')
 		default:
-			return t('calendar', 'Create meeting proposal')
+			return t('nocturnkalender', 'Create meeting proposal')
 	}
 })
 
-const modalEditLabel = computed<string>(() => !selectedProposal.value || selectedProposal.value.id ? t('calendar', 'Update meeting proposal') : t('calendar', 'Create meeting proposal'))
+const modalEditLabel = computed<string>(() => !selectedProposal.value || selectedProposal.value.id ? t('nocturnkalender', 'Update meeting proposal') : t('nocturnkalender', 'Create meeting proposal'))
 
-const modalEditSaveLabel = computed<string>(() => !selectedProposal.value || selectedProposal.value.id ? t('calendar', 'Update') : t('calendar', 'Create'))
+const modalEditSaveLabel = computed<string>(() => !selectedProposal.value || selectedProposal.value.id ? t('nocturnkalender', 'Update') : t('nocturnkalender', 'Create'))
 
 const participantSummary = computed<string>(() => {
 	const participants = selectedProposal.value?.participants ?? []
 	const responded = participants.filter(({ status }) => status === ProposalParticipantStatus.Responded).length
-	return t('calendar', '{responded} of {invited} responded', {
+	return t('nocturnkalender', '{responded} of {invited} responded', {
 		invited: participants.length,
 		responded,
 	})
@@ -417,20 +417,20 @@ const calendarConfiguration = computed<CalendarOptions>(() => {
 const pendingConvertDateString = computed<string>(() => pendingConvertDate.value ? formatProposalDate(pendingConvertDate.value.date) : '')
 
 const deleteDialogMessage = computed<string>(() => {
-	const title = pendingDeleteProposal.value?.title ?? t('calendar', 'No title')
-	return t('calendar', 'Are you sure you want to delete "{title}"?', { title })
+	const title = pendingDeleteProposal.value?.title ?? t('nocturnkalender', 'No title')
+	return t('nocturnkalender', 'Are you sure you want to delete "{title}"?', { title })
 })
 
-const convertDialogMessage = computed<string>(() => t('calendar', 'Create a meeting for "{date}"? This will create a calendar event with all participants.', { date: pendingConvertDateString.value }))
+const convertDialogMessage = computed<string>(() => t('nocturnkalender', 'Create a meeting for "{date}"? This will create a calendar event with all participants.', { date: pendingConvertDateString.value }))
 
 const deleteDialogButtons = computed(() => [
 	{
-		label: t('calendar', 'Delete'),
+		label: t('nocturnkalender', 'Delete'),
 		variant: 'secondary',
 		callback: () => destroyProposal(),
 	},
 	{
-		label: t('calendar', 'Cancel'),
+		label: t('nocturnkalender', 'Cancel'),
 		variant: 'primary',
 		callback: () => { showDeleteDialog.value = false },
 	},
@@ -438,12 +438,12 @@ const deleteDialogButtons = computed(() => [
 
 const convertDialogButtons = computed(() => [
 	{
-		label: t('calendar', 'Cancel'),
+		label: t('nocturnkalender', 'Cancel'),
 		variant: 'secondary',
 		callback: () => { showConvertDialog.value = false },
 	},
 	{
-		label: t('calendar', 'Create meeting'),
+		label: t('nocturnkalender', 'Create meeting'),
 		variant: 'primary',
 		callback: () => convertProposal(),
 	},
@@ -537,12 +537,12 @@ async function onProposalSave(): Promise<void> {
 		if (!selectedProposal.value) {
 			return logger.error('No proposal selected for this operation')
 		}
-		showSuccess(t('calendar', 'Saving proposal "{title}"', { title: selectedProposal.value.title ?? t('calendar', 'No title') }))
+		showSuccess(t('nocturnkalender', 'Saving proposal "{title}"', { title: selectedProposal.value.title ?? t('nocturnkalender', 'No title') }))
 		await proposalStore.storeProposal(selectedProposal.value)
-		showSuccess(t('calendar', 'Successfully saved proposal'))
+		showSuccess(t('nocturnkalender', 'Successfully saved proposal'))
 		onModalClose()
 	} catch (error) {
-		showError(t('calendar', 'Failed to save proposal'))
+		showError(t('nocturnkalender', 'Failed to save proposal'))
 		logger.error('Failed to save proposal:', { error })
 	}
 }
@@ -605,7 +605,7 @@ function onProposalDateAdd(info: DateSelectArg): void {
 	// validate duration
 	const duration = parseInt(String(selectedProposal.value?.duration ?? ''), 10)
 	if (isNaN(duration) || duration <= 0) {
-		showError(t('calendar', 'Please enter a valid duration in minutes.'))
+		showError(t('nocturnkalender', 'Please enter a valid duration in minutes.'))
 		return
 	}
 	addProposedDate(info.start)
@@ -683,12 +683,12 @@ async function destroyProposal(): Promise<void> {
 		return
 	}
 	try {
-		showSuccess(t('calendar', 'Deleting proposal "{title}"', { title: proposal.title ?? t('calendar', 'No title') }))
+		showSuccess(t('nocturnkalender', 'Deleting proposal "{title}"', { title: proposal.title ?? t('nocturnkalender', 'No title') }))
 		await proposalStore.destroyProposal(proposal)
-		showSuccess(t('calendar', 'Successfully deleted proposal'))
+		showSuccess(t('nocturnkalender', 'Successfully deleted proposal'))
 		onModalClose()
 	} catch (error) {
-		showError(t('calendar', 'Failed to delete proposal'))
+		showError(t('nocturnkalender', 'Failed to delete proposal'))
 		logger.error('Failed to delete proposal:', { error })
 	}
 }
@@ -702,12 +702,12 @@ async function convertProposal(): Promise<void> {
 	}
 	const dateString = formatProposalDate(date.date)
 	try {
-		showSuccess(t('calendar', 'Creating meeting for {date}', { date: dateString }))
+		showSuccess(t('nocturnkalender', 'Creating meeting for {date}', { date: dateString }))
 		await proposalStore.convertProposal(selectedProposal.value, date, userTimezone.value)
-		showSuccess(t('calendar', 'Successfully created meeting for {date}', { date: dateString }))
+		showSuccess(t('nocturnkalender', 'Successfully created meeting for {date}', { date: dateString }))
 		onModalClose()
 	} catch (error) {
-		showError(t('calendar', 'Failed to create a meeting for {date}', { date: dateString }))
+		showError(t('nocturnkalender', 'Failed to create a meeting for {date}', { date: dateString }))
 		logger.error('Failed to create a meeting:', { error })
 	}
 }
@@ -845,7 +845,7 @@ async function fetchParticipantAvailability(participant: ProposalParticipant | n
 	const { events, error } = await getBusySlots(organizer, attendees, start, end, timeZoneId) as { events: ParticipantBusySlotInterface[], error?: unknown }
 	if (error) {
 		logger.error('Failed to fetch free/busy data:', { error })
-		showError(t('calendar', 'Failed to fetch free/busy data'))
+		showError(t('nocturnkalender', 'Failed to fetch free/busy data'))
 		return
 	}
 	// Remove existing availability data for the organizer and participant(s)
@@ -920,7 +920,7 @@ function renderParticipantAvailability(): void {
 		}
 		calendarApi.value?.addEvent({
 			id: `proposed-date-${index}`,
-			title: t('calendar', 'Selected'),
+			title: t('nocturnkalender', 'Selected'),
 			start: proposalDate.date,
 			end: new Date(proposalDate.date.getTime() + duration * 60000),
 			backgroundColor: '#0073e6',

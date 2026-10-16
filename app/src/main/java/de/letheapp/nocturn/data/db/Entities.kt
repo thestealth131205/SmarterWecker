@@ -257,8 +257,41 @@ data class AppointmentEntity(
     val priority: String = AppointmentPriority.NORMAL.name,
     /** Minuten vor [startEpochMillis] für eine Erinnerungs-Benachrichtigung, null = keine Erinnerung. */
     val reminderMinutesBefore: Int? = null,
+    /**
+     * Entspricht dem iCalendar-Feld TRANSP (OPAQUE/TRANSPARENT): true = der Zeitraum gilt als
+     * belegt (z. B. beim Nextcloud-CalDAV-Sync und künftigem Kalender-Teilen für andere sichtbar
+     * "beschäftigt"), false = der Termin blockiert den Zeitraum nicht ("Frei"/"Abwesend" o. Ä.).
+     */
+    val showAsBusy: Boolean = true,
     /** True = seit dem letzten Nextcloud-Sync lokal verändert/neu angelegt, muss noch hochgeladen werden. */
     val dirty: Boolean = true
+)
+
+/**
+ * Angehängte Datei (z. B. eingescanntes Dokument, Bestätigungs-PDF) zu einem [AppointmentEntity].
+ * Es wird nur die vom System-Dateiauswahldialog gelieferte content://-URI persistiert (per
+ * [android.content.ContentResolver.takePersistableUriPermission]) statt die Datei zu kopieren —
+ * spart Speicherplatz und zusätzliche Kopier-Logik, erfordert aber, dass die Quell-App die URI
+ * dauerhaft freigibt (bei den meisten Dokumentenanbietern, z. B. Google Drive/Dateien, der Fall).
+ */
+@Entity(
+    tableName = "appointment_attachments",
+    foreignKeys = [
+        ForeignKey(
+            entity = AppointmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["appointmentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("appointmentId")]
+)
+data class AppointmentAttachmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val appointmentId: Long,
+    val uri: String,
+    val fileName: String,
+    val mimeType: String? = null
 )
 
 /**
@@ -353,6 +386,14 @@ data class CalDavAccountEntity(
     val calendarHref: String,
     val calendarDisplayName: String,
     val syncAppointments: Boolean = true,
+    /**
+     * Veraltet/ungenutzt: früher ein zusätzlicher, rein generischer CalDAV-Export der
+     * Schicht-Vorkommen als normale Termine. Wurde entfernt, da er parallel zum strukturierten
+     * Schedule-Sync ([syncNocturnSchedule]) zu doppelt angezeigten Schichten führte — Schichten
+     * laufen jetzt ausschließlich über die NocTurn-Schedule-REST-API. Spalte bleibt zur
+     * Schema-Kompatibilität bestehen (immer `false` für neue/aktualisierte Konten), ohne eigene
+     * Migration, da sie nie gelesen wird.
+     */
     val syncShifts: Boolean = true,
     val lastSyncEpochMillis: Long = 0,
     val lastSyncError: String? = null,
@@ -363,10 +404,11 @@ data class CalDavAccountEntity(
      */
     val nocturnScheduleSyncToken: Long = 0,
     /**
-     * Opt-in (Default aus): Jobs/Schichten/Rotationen zusätzlich bidirektional mit der NocTurn-
-     * Schedule-REST-API der Nextcloud-Calendar-App abstimmen (siehe
-     * [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]) — unabhängig von [syncShifts], das
-     * weiterhin nur den reinen CalDAV-Ereignis-Export der generierten Schicht-Vorkommen steuert.
+     * Opt-in (Default aus): Jobs/Schichten/Rotationen bidirektional mit der NocTurn-Kalender-App
+     * abstimmen (siehe [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]) — der einzige Weg,
+     * wie Schichten in Nextcloud erscheinen (siehe [syncShifts]). Setzt voraus, dass die
+     * NocTurn-Kalender-App auf dem Zielserver installiert ist (siehe
+     * [de.letheapp.nocturn.sync.NextcloudSyncRepository.checkNocturnKalenderAvailable]).
      */
     val syncNocturnSchedule: Boolean = false
 )

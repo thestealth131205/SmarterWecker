@@ -150,11 +150,35 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Ergänzt [de.letheapp.nocturn.data.db.AppointmentEntity.showAsBusy] (iCalendar-TRANSP-
+     * Äquivalent) sowie die neue Tabelle [de.letheapp.nocturn.data.db.AppointmentAttachmentEntity]
+     * für Termin-Anhänge (siehe [de.letheapp.nocturn.calendar.AddAppointmentScreen]).
+     */
+    private val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE appointments ADD COLUMN showAsBusy INTEGER NOT NULL DEFAULT 1")
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS appointment_attachments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    appointmentId INTEGER NOT NULL,
+                    uri TEXT NOT NULL,
+                    fileName TEXT NOT NULL,
+                    mimeType TEXT,
+                    FOREIGN KEY(appointmentId) REFERENCES appointments(id) ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_appointment_attachments_appointmentId ON appointment_attachments(appointmentId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
-            .addMigrations(MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
+            .addMigrations(MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
             // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN

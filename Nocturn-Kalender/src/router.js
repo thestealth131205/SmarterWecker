@@ -152,11 +152,11 @@ const router = createRouter({
 						try {
 							const found = await proposalStore.openProposal(proposalId)
 							if (!found) {
-								showError(t('calendar', 'This meeting proposal no longer exists'))
+								showError(t('nocturnkalender', 'This meeting proposal no longer exists'))
 							}
 						} catch (error) {
 							logger.error('Failed to open meeting proposal', { error })
-							showError(t('calendar', 'Failed to open meeting proposal'))
+							showError(t('nocturnkalender', 'Failed to open meeting proposal'))
 						}
 
 						return {

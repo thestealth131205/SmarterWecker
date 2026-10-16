@@ -29,7 +29,7 @@ const searchQuery = computed<string>({
 	<header class="app-navigation-header">
 		<NcAppNavigationSearch
 			v-model="searchQuery"
-			:label="t('calendar', 'Filter events …')"
+			:label="t('nocturnkalender', 'Filter events …')"
 			class="app-navigation-header__filter" />
 		<AppNavigationHeaderDatePicker />
 		<div class="new-event-today-view-section">

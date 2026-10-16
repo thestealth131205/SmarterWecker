@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.letheapp.nocturn.contacts.ContactBirthday
 import de.letheapp.nocturn.contacts.ContactBirthdayRepository
+import de.letheapp.nocturn.data.db.AppointmentAttachmentEntity
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.HolidayEntity
 import de.letheapp.nocturn.data.db.HolidayType
@@ -43,7 +44,9 @@ sealed interface DayAgendaItem {
 data class AllDayAgendaItem(
     override val title: String,
     override val subtitle: String?,
-    override val colorArgb: Int
+    override val colorArgb: Int,
+    /** Anhänge (Dateiname zu content://-URI) — nur bei Terminen befüllt, siehe [AppointmentAttachmentEntity]. */
+    val attachments: List<AttachmentRef> = emptyList()
 ) : DayAgendaItem
 
 data class TimedAgendaItem(
@@ -51,8 +54,11 @@ data class TimedAgendaItem(
     override val subtitle: String?,
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
-    override val colorArgb: Int
+    override val colorArgb: Int,
+    val attachments: List<AttachmentRef> = emptyList()
 ) : DayAgendaItem
+
+data class AttachmentRef(val uri: String, val fileName: String)
 
 /** Geburtstag eines Geräte-Kontakts — ganztägig, zusätzlich mit optionalem Kontaktbild. */
 data class BirthdayAgendaItem(
@@ -128,8 +134,14 @@ class CalendarDayViewModel @Inject constructor(
             fromRotation + fromManual
         }
 
-        val appointmentFlow = calendarRepository.observeAppointments(epochDay, epochDay).map { appointments ->
-            appointments.map(::appointmentToItem)
+        val appointmentFlow = combine(
+            calendarRepository.observeAppointments(epochDay, epochDay),
+            calendarRepository.observeAllAppointmentAttachments()
+        ) { appointments, attachments ->
+            val attachmentsByAppointment = attachments.groupBy { it.appointmentId }
+            appointments.map { appointment ->
+                appointmentToItem(appointment, attachmentsByAppointment[appointment.id].orEmpty())
+            }
         }
 
         val holidayFlow = if (settings != null && (settings.showPublicHolidays || settings.showSchoolHolidays)) {
@@ -181,12 +193,14 @@ class CalendarDayViewModel @Inject constructor(
         )
     }
 
-    private fun appointmentToItem(appointment: AppointmentEntity): DayAgendaItem {
+    private fun appointmentToItem(appointment: AppointmentEntity, attachments: List<AppointmentAttachmentEntity>): DayAgendaItem {
+        val attachmentRefs = attachments.map { AttachmentRef(it.uri, it.fileName) }
         if (appointment.allDay) {
             return AllDayAgendaItem(
                 title = appointment.title,
                 subtitle = appointment.location.ifBlank { null },
-                colorArgb = appointment.colorArgb
+                colorArgb = appointment.colorArgb,
+                attachments = attachmentRefs
             )
         }
         val zone = ZoneId.systemDefault()
@@ -197,7 +211,8 @@ class CalendarDayViewModel @Inject constructor(
             subtitle = appointment.location.ifBlank { null },
             startMinuteOfDay = start.hour * 60 + start.minute,
             endMinuteOfDay = end.hour * 60 + end.minute,
-            colorArgb = appointment.colorArgb
+            colorArgb = appointment.colorArgb,
+            attachments = attachmentRefs
         )
     }
 

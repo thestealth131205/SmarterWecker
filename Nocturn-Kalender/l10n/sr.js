@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "Наведена и-мејл адреса је предугачка",
     "User-Session unexpectedly expired" : "Корисничка сесија је неочекивано истекла",

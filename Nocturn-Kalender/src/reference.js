@@ -10,7 +10,7 @@ import { NcCustomPickerRenderResult, registerWidget } from '@nextcloud/vue/funct
 import '@/styles/calendar.scss'
 
 __webpack_nonce__ = btoa(getRequestToken())
-__webpack_public_path__ = linkTo('calendar', 'js/') // eslint-disable-line
+__webpack_public_path__ = linkTo('nocturnkalender', 'js/') // eslint-disable-line
 
 registerWidget('calendar_widget', async (el, { richObject }) => {
 	const { createApp } = await import('vue')

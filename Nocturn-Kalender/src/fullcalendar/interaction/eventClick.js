@@ -113,7 +113,7 @@ function handleToDoClick(event, el, route, window, jsEvent, isWidget = false) {
 
 	if (!settingsStore.tasksEnabled) {
 		jsEvent?.preventDefault()
-		showInfo(t('calendar', 'Please ask your administrator to enable the Tasks App.'))
+		showInfo(t('nocturnkalender', 'Please ask your administrator to enable the Tasks App.'))
 		return
 	}
 

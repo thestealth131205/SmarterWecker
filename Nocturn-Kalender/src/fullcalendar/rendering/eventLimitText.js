@@ -13,5 +13,5 @@ import { translatePlural as n } from '@nextcloud/l10n'
  */
 export default function({ num }) {
 	// TODO: this is broken, because singular and plural are equal
-	return n('calendar', '+%n more', '+%n more', num)
+	return n('nocturnkalender', '+%n more', '+%n more', num)
 }

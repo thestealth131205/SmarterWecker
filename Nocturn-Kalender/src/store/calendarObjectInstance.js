@@ -1484,7 +1484,7 @@ export default defineStore('calendarObjectInstance', {
 							|| eventComponent.isAllDay() !== originalOccurrence.isAllDay()
 
 						if (dateTimeWasChanged) {
-							showWarning(t('calendar', 'We noticed that you adjusted the date or time. Since this is not the first occurrence of the series, the date/time changes have been discarded. To change the date or time of the whole series, please edit the first occurrence.'))
+							showWarning(t('nocturnkalender', 'We noticed that you adjusted the date or time. Since this is not the first occurrence of the series, the date/time changes have been discarded. To change the date or time of the whole series, please edit the first occurrence.'))
 
 							// Revert the editor's own date/time back to the original occurrence
 							eventComponent.startDate = originalOccurrence.startDate.clone()

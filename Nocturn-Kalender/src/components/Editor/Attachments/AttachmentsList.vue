@@ -9,17 +9,17 @@
 			class="attachments-input"
 			type="file"
 			multiple
-			:aria-label="t('calendar', 'Upload files as attachments')"
+			:aria-label="t('nocturnkalender', 'Upload files as attachments')"
 			@change="onLocalAttachmentSelected">
 		<template v-if="!compact">
 			<div class="attachments-summary">
 				<div class="attachments-summary-inner">
 					<Paperclip :size="20" />
 					<div v-if="attachments.length > 0" class="attachments-summary-inner-label">
-						{{ n('calendar', '{count} attachment', '{count} attachments', attachments.length, { count: attachments.length }) }}
+						{{ n('nocturnkalender', '{count} attachment', '{count} attachments', attachments.length, { count: attachments.length }) }}
 					</div>
 					<div v-else class="attachments-summary-inner-label">
-						{{ t('calendar', 'No attachments') }}
+						{{ t('nocturnkalender', 'No attachments') }}
 					</div>
 				</div>
 
@@ -31,13 +31,13 @@
 						<template #icon>
 							<Folder :size="20" />
 						</template>
-						{{ t('calendar', 'Add from Files') }}
+						{{ t('nocturnkalender', 'Add from Files') }}
 					</NcActionButton>
 					<NcActionButton closeAfterClick="true" @click="clickOnUploadButton">
 						<template #icon>
 							<Upload :size="20" />
 						</template>
-						{{ t('calendar', 'Upload from device') }}
+						{{ t('nocturnkalender', 'Upload from device') }}
 					</NcActionButton>
 				</NcActions>
 			</div>
@@ -61,7 +61,7 @@
 								<template #icon>
 									<Close :size="20" />
 								</template>
-								{{ t('calendar', 'Delete file') }}
+								{{ t('nocturnkalender', 'Delete file') }}
 							</NcActionButton>
 						</template>
 					</NcListItem>
@@ -89,7 +89,7 @@
 		<NcDialog
 			v-if="showOpenConfirmation"
 			v-model:open="showOpenConfirmation"
-			:name="t('calendar', 'Confirmation')"
+			:name="t('nocturnkalender', 'Confirmation')"
 			:buttons="openConfirmationButtons">
 			<p class="external-link-message">
 				{{ openConfirmationMessage }}
@@ -187,17 +187,17 @@ export default {
 		},
 
 		async openFilesModal() {
-			const picker = getFilePickerBuilder(t('calendar', 'Choose a file to add as attachment'))
+			const picker = getFilePickerBuilder(t('nocturnkalender', 'Choose a file to add as attachment'))
 				.setMultiSelect(false)
 				.allowDirectories(true)
 				.addButton({
-					label: t('calendar', 'Pick'),
+					label: t('nocturnkalender', 'Pick'),
 					type: 'primary',
 					callback: (nodes) => logger.debug('Picked attachment', { nodes }),
 				})
 				.build()
 			try {
-				const filename = await picker.pick(t('calendar', 'Choose a file to share as a link'))
+				const filename = await picker.pick(t('nocturnkalender', 'Choose a file to share as a link'))
 				if (!this.isDuplicateAttachment(filename)) {
 					// TODO do not share Move this to PHP
 					const data = await getFileInfo(filename, this.currentUser.dav.userId)
@@ -216,7 +216,7 @@ export default {
 		isDuplicateAttachment(path) {
 			return this.attachments.find((attachment) => {
 				if (attachment.fileName === path) {
-					showError(t('calendar', 'Attachment {name} already exist!', { name: this.getBaseName(path) }))
+					showError(t('nocturnkalender', 'Attachment {name} already exist!', { name: this.getBaseName(path) }))
 					return true
 				}
 				return false
@@ -245,7 +245,7 @@ export default {
 				e.target.value = ''
 			} catch (error) {
 				logger.error('Could not upload attachment(s)', { error })
-				showError(t('calendar', 'Could not upload attachment(s)'))
+				showError(t('nocturnkalender', 'Could not upload attachment(s)'))
 			}
 		},
 
@@ -278,7 +278,7 @@ export default {
 			const baseUrl = new URL(getBaseUrl())
 			if (url.href.startsWith(baseUrl.href)) {
 				this.showConfirmationDialog(
-					t('calendar', 'You are about to navigate to {link}. Are you sure to proceed?', { link: url.href }),
+					t('nocturnkalender', 'You are about to navigate to {link}. Are you sure to proceed?', { link: url.href }),
 					url,
 				)
 				return
@@ -286,7 +286,7 @@ export default {
 
 			// Otherwise, show a confirmation dialog for external links
 			this.showConfirmationDialog(
-				t('calendar', 'You are about to navigate to {host}. Are you sure to proceed? Link: {link}', {
+				t('nocturnkalender', 'You are about to navigate to {host}. Are you sure to proceed? Link: {link}', {
 					host: url.host,
 					link: url.href,
 				}),
@@ -304,13 +304,13 @@ export default {
 			this.openConfirmationMessage = message
 			this.openConfirmationButtons = [
 				{
-					label: t('calendar', 'Cancel'),
+					label: t('nocturnkalender', 'Cancel'),
 					callback: () => {
 						this.showOpenConfirmation = false
 					},
 				},
 				{
-					label: t('calendar', 'Proceed'),
+					label: t('nocturnkalender', 'Proceed'),
 					type: 'primary',
 					callback: () => {
 						window.open(url.href, '_blank', 'noopener noreferrer')

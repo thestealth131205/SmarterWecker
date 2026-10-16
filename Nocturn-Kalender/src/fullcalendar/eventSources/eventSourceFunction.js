@@ -162,13 +162,13 @@ export function eventSourceFunction(calendarObjects, calendar, start, end, timez
 				if (object.title) {
 					title = object.title.replace(/\n/g, ' ')
 				} else {
-					title = t('calendar', 'Untitled event')
+					title = t('nocturnkalender', 'Untitled event')
 				}
 			} else {
 				if (object.title) {
 					title = object.title.replace(/\n/g, ' ')
 				} else {
-					title = t('calendar', 'Untitled task')
+					title = t('nocturnkalender', 'Untitled task')
 				}
 
 				if (object.percent !== null) {

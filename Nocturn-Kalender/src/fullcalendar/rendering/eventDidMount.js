@@ -36,7 +36,7 @@ function buildAllDayTimeDescription(event, locale) {
 	adjustedEnd.setDate(adjustedEnd.getDate() - 1)
 	const endStr = formatDateWithTimezone(adjustedEnd, locale, dateOptions)
 
-	return t('calendar', '{startDate} to {endDate}', {
+	return t('nocturnkalender', '{startDate} to {endDate}', {
 		startDate: startStr,
 		endDate: endStr,
 	})
@@ -77,7 +77,7 @@ function buildTimedEventDescription(event, locale) {
 	const sameDay = event.start.toDateString() === event.end.toDateString()
 	if (sameDay) {
 		const endTimeStr = formatDateWithTimezone(event.end, locale, timeOptions, true)
-		return t('calendar', '{startDateTime} to {endTime}', {
+		return t('nocturnkalender', '{startDateTime} to {endTime}', {
 			startDateTime: startStr,
 			endTime: endTimeStr,
 		})
@@ -85,7 +85,7 @@ function buildTimedEventDescription(event, locale) {
 
 	// Multi-day timed event
 	const endStr = formatDateWithTimezone(event.end, locale, dateTimeOptions, true)
-	return t('calendar', '{startDateTime} to {endDateTime}', {
+	return t('nocturnkalender', '{startDateTime} to {endDateTime}', {
 		startDateTime: startStr,
 		endDateTime: endStr,
 	})
@@ -99,22 +99,22 @@ function buildTimedEventDescription(event, locale) {
  */
 function buildAriaLabel(event) {
 	const locale = getCanonicalLocale() || undefined
-	const title = event.title || t('calendar', 'Untitled event')
+	const title = event.title || t('nocturnkalender', 'Untitled event')
 
 	if (event.allDay) {
 		const timeDescription = buildAllDayTimeDescription(event, locale)
 		if (timeDescription) {
-			return t('calendar', '{title}, All day: {timeDescription}', {
+			return t('nocturnkalender', '{title}, All day: {timeDescription}', {
 				title,
 				timeDescription,
 			})
 		}
-		return t('calendar', '{title}, All day', { title })
+		return t('nocturnkalender', '{title}, All day', { title })
 	}
 
 	const timeDescription = buildTimedEventDescription(event, locale)
 	if (timeDescription) {
-		return t('calendar', '{title}, {timeDescription}', {
+		return t('nocturnkalender', '{title}, {timeDescription}', {
 			title,
 			timeDescription,
 		})
@@ -283,14 +283,14 @@ export default errorCatch(function({ event, el }) {
 			timeElement.style.color = 'var(--color-main-text)'
 		}
 
-		el.title = t('calendar', 'All participants declined')
+		el.title = t('nocturnkalender', 'All participants declined')
 
 		if (el.classList.contains('fc-event-nc-needs-action')) {
-			el.title = t('calendar', 'Please confirm your participation')
+			el.title = t('nocturnkalender', 'Please confirm your participation')
 		}
 
 		if (el.classList.contains('fc-event-nc-declined')) {
-			el.title = t('calendar', 'You declined this event')
+			el.title = t('nocturnkalender', 'You declined this event')
 			if (titleElement) {
 				titleElement.style.textDecoration = 'line-through'
 			}
@@ -346,7 +346,7 @@ export default errorCatch(function({ event, el }) {
 			}
 		}
 
-		el.title = t('calendar', 'Your participation is tentative')
+		el.title = t('nocturnkalender', 'Your participation is tentative')
 	}
 
 	const time = el.querySelector('.fc-event-time')?.textContent

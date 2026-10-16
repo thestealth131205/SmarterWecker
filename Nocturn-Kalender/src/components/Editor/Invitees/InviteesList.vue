@@ -8,13 +8,13 @@
 		<div v-if="showHeader" class="invitees-list__header">
 			<div class="invitees-list__header__title">
 				<AccountMultipleIcon :size="20" />
-				<span class="invitees-list__header__title__text">{{ t('calendar', 'Attendees') }}</span>
+				<span class="invitees-list__header__title__text">{{ t('nocturnkalender', 'Attendees') }}</span>
 				<NcCounterBubble :count="invitees.length + 1" />
 				<NcButton
 					variant="tertiary"
 					:disabled="!attendeesMailtoLink"
-					:aria-label="t('calendar', 'Send email to all attendees')"
-					:title="t('calendar', 'Send email to all attendees')"
+					:aria-label="t('nocturnkalender', 'Send email to all attendees')"
+					:title="t('nocturnkalender', 'Send email to all attendees')"
 					:href="attendeesMailtoLink || undefined"
 					:tag="attendeesMailtoLink ? 'a' : 'button'">
 					<template #icon>
@@ -24,8 +24,8 @@
 				<NcButton
 					variant="tertiary"
 					:disabled="invitees.length === 0"
-					:aria-label="t('calendar', 'Copy attendees to clipboard')"
-					:title="t('calendar', 'Copy attendees to clipboard')"
+					:aria-label="t('nocturnkalender', 'Copy attendees to clipboard')"
+					:title="t('nocturnkalender', 'Copy attendees to clipboard')"
 					@click="copyAttendeesToClipboard">
 					<template #icon>
 						<ContentCopy :size="20" />
@@ -38,7 +38,7 @@
 					v-if="!isReadOnly"
 					:disabled="isListEmpty || !isOrganizer"
 					@click="openFreeBusy">
-					{{ $t('calendar', 'Find a time') }}
+					{{ $t('nocturnkalender', 'Find a time') }}
 				</NcButton>
 				<FreeBusy
 					v-if="showFreeBusyModel"
@@ -85,7 +85,7 @@
 		<div
 			v-if="limit > 0 && invitees.length > (limit - 1)"
 			class="invitees-list__more">
-			{{ n('calendar', '%n more attendee', '%n more attendees', invitees.length + 1 - limit) }}
+			{{ n('nocturnkalender', '%n more attendee', '%n more attendees', invitees.length + 1 - limit) }}
 		</div>
 		<OrganizerNoEmailError v-else-if="!isReadOnly && isListEmpty && !hasUserEmailAddress && !hideErrors" />
 	</div>
@@ -181,7 +181,7 @@ export default {
 		...mapState(useCalendarObjectInstanceStore, ['calendarObjectInstance']),
 		...mapState(useSettingsStore, ['talkEnabled']),
 		noInviteesMessage() {
-			return this.$t('calendar', 'No attendees yet')
+			return this.$t('nocturnkalender', 'No attendees yet')
 		},
 
 		invitees() {
@@ -347,7 +347,7 @@ export default {
 				return ''
 			}
 
-			return this.t('calendar', '{confirmedCount} confirmed, {waitingCount} awaiting response', {
+			return this.t('nocturnkalender', '{confirmedCount} confirmed, {waitingCount} awaiting response', {
 				confirmedCount: this.invitees
 					.filter((attendee) => attendee.participationStatus === 'ACCEPTED')
 					.length + 1, // +1 for organizer
@@ -456,7 +456,7 @@ export default {
 			this.recentAttendees = this.recentAttendees.filter((a) => a.uri !== attendee.email)
 
 			if (this.showFreeBusyModel && this.calendarObjectInstance.attendees.length === 0) {
-				showWarning(this.$t('calendar', 'Please add at least one attendee to use the "Find a time" feature.'))
+				showWarning(this.$t('nocturnkalender', 'Please add at least one attendee to use the "Find a time" feature.'))
 				this.closeFreeBusy()
 			}
 		},
@@ -475,19 +475,19 @@ export default {
 		},
 
 		async copyAttendeesToClipboard() {
-			const headers = `${this.t('calendar', 'Name')}\t${this.t('calendar', 'Email')}\t${this.t('calendar', 'Status')}\t${this.t('calendar', 'Role')}`
+			const headers = `${this.t('nocturnkalender', 'Name')}\t${this.t('nocturnkalender', 'Email')}\t${this.t('nocturnkalender', 'Status')}\t${this.t('nocturnkalender', 'Role')}`
 			const statusLabels = {
-				ACCEPTED: this.t('calendar', 'Accepted'),
-				DECLINED: this.t('calendar', 'Declined'),
-				TENTATIVE: this.t('calendar', 'Tentative'),
-				'NEEDS-ACTION': this.t('calendar', 'Awaiting response'),
-				DELEGATED: this.t('calendar', 'Delegated'),
+				ACCEPTED: this.t('nocturnkalender', 'Accepted'),
+				DECLINED: this.t('nocturnkalender', 'Declined'),
+				TENTATIVE: this.t('nocturnkalender', 'Tentative'),
+				'NEEDS-ACTION': this.t('nocturnkalender', 'Awaiting response'),
+				DELEGATED: this.t('nocturnkalender', 'Delegated'),
 			}
 			const roleLabels = {
-				CHAIR: this.t('calendar', 'Chairperson'),
-				'REQ-PARTICIPANT': this.t('calendar', 'Required participant'),
-				'OPT-PARTICIPANT': this.t('calendar', 'Optional participant'),
-				'NON-PARTICIPANT': this.t('calendar', 'Non-participant'),
+				CHAIR: this.t('nocturnkalender', 'Chairperson'),
+				'REQ-PARTICIPANT': this.t('nocturnkalender', 'Required participant'),
+				'OPT-PARTICIPANT': this.t('nocturnkalender', 'Optional participant'),
+				'NON-PARTICIPANT': this.t('nocturnkalender', 'Non-participant'),
 			}
 			const rows = this.inviteesWithoutOrganizer.map((attendee) => {
 				const name = attendee.commonName || ''
@@ -499,10 +499,10 @@ export default {
 			const tsvContent = [headers, ...rows].join('\n')
 			try {
 				await navigator.clipboard.writeText(tsvContent)
-				showSuccess(this.t('calendar', 'Attendees copied to clipboard'))
+				showSuccess(this.t('nocturnkalender', 'Attendees copied to clipboard'))
 			} catch (error) {
 				logger.error('Failed to copy attendees to clipboard', { error })
-				showError(this.t('calendar', 'Failed to copy attendees to clipboard'))
+				showError(this.t('nocturnkalender', 'Failed to copy attendees to clipboard'))
 			}
 		},
 	},

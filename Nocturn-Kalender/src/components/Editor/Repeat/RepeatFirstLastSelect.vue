@@ -9,9 +9,9 @@
 		:allowEmpty="false"
 		:options="options"
 		:disabled="disabled"
-		:placeholder="$t('calendar', 'first')"
+		:placeholder="$t('nocturnkalender', 'first')"
 		:clearable="false"
-		:ariaLabelCombobox="$t('calendar', 'Week occurrence')"
+		:ariaLabelCombobox="$t('nocturnkalender', 'Week occurrence')"
 		inputId="repeat-first-last"
 		label="label" />
 </template>

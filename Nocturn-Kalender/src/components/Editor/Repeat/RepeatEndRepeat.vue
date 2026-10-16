@@ -5,7 +5,7 @@
 
 <template>
 	<div class="repeat-option-set repeat-option-set--end">
-		<label for="repeat-end-type-select" class="repeat-option-end__label">{{ $t('calendar', 'End repeat') }}</label>
+		<label for="repeat-end-type-select" class="repeat-option-end__label">{{ $t('nocturnkalender', 'End repeat') }}</label>
 		<NcSelect
 			v-model="selectedOption"
 			class="repeat-option-end__end-type-select"
@@ -21,14 +21,14 @@
 			:min="minimumDate"
 			:date="until"
 			type="date"
-			:ariaLabel="$t('calendar', 'End repeat date')"
+			:ariaLabel="$t('nocturnkalender', 'End repeat date')"
 			:appendToBody="true"
 			@change="changeUntil" />
 		<NcTextField
 			v-if="isCount"
 			class="repeat-option-end__count"
 			type="number"
-			:label="$t('calendar', 'Occurrences')"
+			:label="$t('nocturnkalender', 'Occurrences')"
 			:modelValue="String(count)"
 			@update:modelValue="changeCount" />
 	</div>
@@ -109,13 +109,13 @@ export default {
 		 */
 		options() {
 			return [{
-				label: this.$t('calendar', 'never'),
+				label: this.$t('nocturnkalender', 'never'),
 				value: 'never',
 			}, {
-				label: this.$t('calendar', 'on date'),
+				label: this.$t('nocturnkalender', 'on date'),
 				value: 'until',
 			}, {
-				label: this.$t('calendar', 'after'),
+				label: this.$t('nocturnkalender', 'after'),
 				value: 'count',
 			}]
 		},

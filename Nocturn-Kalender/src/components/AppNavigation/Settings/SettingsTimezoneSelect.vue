@@ -6,7 +6,7 @@
 <template>
 	<li class="settings-fieldset-interior-item settings-fieldset-interior-item--timezone">
 		<label :for="inputId">
-			{{ $t('calendar', 'Timezone') }}
+			{{ $t('nocturnkalender', 'Timezone') }}
 		</label>
 		<TimezonePicker
 			v-model="timezone"
@@ -55,9 +55,9 @@ export default {
 		additionalTimezones() {
 			const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 			return [{
-				continent: this.$t('calendar', 'Automatic'),
+				continent: this.$t('nocturnkalender', 'Automatic'),
 				timezoneId: 'automatic',
-				label: this.$t('calendar', 'Automatic ({timezone})', { timezone }),
+				label: this.$t('nocturnkalender', 'Automatic ({timezone})', { timezone }),
 			}]
 		},
 	},
@@ -82,7 +82,7 @@ export default {
 			this.settingsStore.setTimezone({ timezoneId })
 				.catch((error) => {
 					logger.error(error)
-					showInfo(this.$t('calendar', 'New setting was not saved successfully.'))
+					showInfo(this.$t('nocturnkalender', 'New setting was not saved successfully.'))
 				})
 		},
 	},

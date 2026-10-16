@@ -4,8 +4,12 @@ import android.os.Bundle
 import android.provider.CalendarContract
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import dagger.hilt.android.AndroidEntryPoint
+import de.letheapp.nocturn.onboarding.AppPreferences
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
+import javax.inject.Inject
 
 /**
  * Empfängt den Standard-Android-"Zum Kalender hinzufügen"-Intent (z. B. "Termin speichern"-
@@ -17,6 +21,8 @@ import de.letheapp.nocturn.ui.theme.NocTurnTheme
  */
 @AndroidEntryPoint
 class AddAppointmentActivity : ComponentActivity() {
+
+    @Inject lateinit var appPreferences: AppPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,7 +37,8 @@ class AddAppointmentActivity : ComponentActivity() {
         val endMillis = if (rawEndMillis > beginMillis) rawEndMillis else beginMillis
 
         setContent {
-            NocTurnTheme {
+            val dynamicColorEnabled by appPreferences.dynamicColorEnabled.collectAsState()
+            NocTurnTheme(dynamicColor = dynamicColorEnabled) {
                 AddAppointmentScreen(
                     initialTitle = title,
                     initialLocation = location,

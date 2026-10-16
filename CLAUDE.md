@@ -213,7 +213,14 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      4 Punkte sowie den Namen des ersten Eintrags klein darunter.
    - **Freie Termine**: eigenständige Termine (z. B. Kinoticket, Arzttermin) unabhängig
      von Schichten/Rotationen, als eigener Eintragstyp in der Monatsansicht, mit Titel,
-     Ort, Notiz und wählbarer **Wichtigkeit** (Niedrig/Normal/Hoch).
+     Ort, Notiz und wählbarer **Wichtigkeit** (Niedrig/Normal/Hoch). Zusätzlich **Anzeigen
+     als** (Beschäftigt/Frei, Äquivalent zum iCalendar-Feld `TRANSP`) — wird beim Nextcloud-
+     CalDAV-Sync mitgesynct (`OPAQUE`/`TRANSPARENT`) und bestimmt künftig beim Kalender-
+     Teilen, ob der Zeitraum für andere als belegt sichtbar ist. Außerdem **Anhänge**
+     (`AppointmentAttachmentEntity`): beliebige Dateien über den System-Dateiauswahldialog
+     hinzufügbar, nur die `content://`-URI wird dauerhaft referenziert
+     (`takePersistableUriPermission`, keine Kopie der Datei), antippen in der Tagesansicht
+     öffnet den Anhang über die registrierte Fremd-App.
    - **Aufgaben (Tasks)**: dritter Eintragstyp neben Termin/Schicht im "+"-Dialog, angelehnt
      an Google Tasks — anders als ein Termin kein fester Zeitraum, sondern ein abhakbarer
      To-Do-Eintrag mit Titel, Details, Fälligkeitstag und optionaler Frist-Uhrzeit
@@ -720,6 +727,21 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `/opt/letheapp/push-and-deploy.sh` für den Lethe Media Player (`com.Lethe.mediaplayer`,
   hinter dem bestehenden `--fdroid`-Flag), damit beide Begleit-Apps zuverlässig eine aktuelle
   "Current"-Version im selben Repo zeigen.
+- **Push-Deploy der Nextcloud-Kalender-App auf den Test-Nextcloud-Server** (`scripts/
+  release-deploy.sh`, Schritt 10, optional): Nextcloud hat **keinen** per-App-Update-Feed
+  (kein `<releases>`-Tag in `info.xml`, keine pro-App `appstoreurl`) — das native
+  Update-System ist ein einziger, instanzweiter Appstore-Endpunkt (`config.php`
+  `'appstoreurl'`, Default `https://apps.nextcloud.com/api/v1`), der für alle installierten
+  Apps gleichzeitig gilt; ein eigener Mirror dieses Formats müsste zwangsläufig auch alle
+  anderen Apps der Instanz mitbedienen und ist für eine einzelne private App daher nicht
+  sinnvoll. Stattdessen baut das Skript die App (`npm run build` + `composer install
+  --no-dev`) und deployt sie bei jedem Release automatisch per `scp`/`ssh` (Zugangsdaten in
+  `.server-credentials`, Variablen `NEXTCLOUD_SERVER_*`/`NEXTCLOUD_APP_DIR`) nach
+  `/var/www/nextcloud/apps/nocturnkalender/` auf dem Test-Nextcloud-Server
+  (`thestealth.de`) — Wartungsmodus kurz an/aus für einen sauberen Cache-Rebuild, altes
+  App-Verzeichnis vorher als `.old`-Backup gesichert. Rein optional (übersprungen, wenn die
+  `NEXTCLOUD_SERVER_*`-Variablen fehlen), da dieser Server kein offizielles Release-Ziel wie
+  letheapp.de/F-Droid ist, sondern nur der eigene Test-Nextcloud des Entwicklers.
 - **Nextcloud-Kalender-App ("NocTurn Kalender")** (`Nocturn-Kalender/`): vollständiger Fork
   von `nextcloud/calendar`, der die unter "Schichtplan-Sync"/"Job-Sharing" oben beschriebene
   NocTurn-eigene REST-API und Vue-Seitenleiste ergänzt. Angezeigter App-Name ist **"NocTurn
@@ -743,7 +765,27 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `nocturn-kalender-<Version>.tar.gz`; ein dritter Job `release` lädt alle drei Artefakte
   (Release-APK, WearOS-APK, Nextcloud-Paket) herunter und hängt sie gemeinsam an dasselbe
   GitHub Release — die Nextcloud-App landet damit bei jedem Release automatisch als
-  Installationspaket neben der APK, ohne eigenen Release-Lauf.
+  Installationspaket neben der APK, ohne eigenen Release-Lauf. **Behobener Rename-Bug**: Die
+  Umbenennung von `calendar` auf `nocturnkalender` hatte in `templates/main.php` und den drei
+  `templates/appointments/*.php`-Dateien (`script()`/`style()`-Aufrufe) sowie in **~40
+  `loadState('calendar', ...)`-Aufrufen und dem `linkTo('calendar', 'js/')`-Webpack-Public-Path
+  in `src/`** nicht gegriffen — dadurch lud die App beim Öffnen weiterhin das Script-/
+  Style-Bundle und sämtliche Lazy-Chunks der ANDEREN, noch installierten `calendar`-App und
+  fand keine zu sich selbst passenden Initial-State-Werte, wodurch die Seite komplett leer
+  blieb (Vue mountete nichts in `#content.app-nocturnkalender`). Zusätzlich fehlte in
+  `appinfo/info.xml`s `<background-jobs>`-Eintrag und den Appointment-Templates das
+  `OCA\Calendar\...` → `OCA\NocturnKalender\...`-Update. Alle Fundstellen sind korrigiert;
+  `t('calendar', ...)`/`n('calendar', ...)`-Übersetzungsdomänen wurden ebenfalls global auf
+  `nocturnkalender` umgestellt. **Zweiter, tatsächlich funktionaler Übersetzungs-Bug** (fiel erst
+  nach der Installation auf einer echten Nextcloud-Instanz auf): Die generierten `l10n/*.js`-
+  Dateien registrieren ihre Übersetzungen zur Laufzeit selbst per `OC.L10N.register("<appid>",
+  {...})` — dieser String blieb beim Rename auf allen 92 Sprachdateien hart auf `"calendar"`
+  stehen. Nextcloud lädt für die aufrufende App zwar korrekt `apps/nocturnkalender/l10n/de.js`,
+  das Skript registrierte seine Übersetzungen darin aber unter dem Schlüssel `"calendar"` statt
+  `"nocturnkalender"` — `t('nocturnkalender', text)` fand im globalen Übersetzungs-Registry also
+  nichts und fiel auf den unübersetzten (englischen) Originaltext zurück. Alle `l10n/*.js`-Dateien
+  sind jetzt auf den korrekten App-Namen umgestellt (reiner Registrierungs-String, die `l10n/*.json`-
+  Dateien selbst brauchen keine App-ID und waren nie betroffen).
 
 ## Wichtig
 

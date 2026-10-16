@@ -67,7 +67,7 @@ async function circleSearchByName(query) {
 async function circleGetMembers(circleId) {
 	let results
 	try {
-		results = await HttpClient.get(linkTo('calendar', 'index.php') + '/v1/circles/getmembers', {
+		results = await HttpClient.get(linkTo('nocturnkalender', 'index.php') + '/v1/circles/getmembers', {
 			params: {
 				format: 'json',
 				circleId,

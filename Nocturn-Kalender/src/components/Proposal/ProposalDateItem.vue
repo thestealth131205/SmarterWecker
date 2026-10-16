@@ -13,7 +13,7 @@
 		</div>
 		<div class="proposal-date__action">
 			<DestroyIcon
-				:title="t('calendar', 'Remove date')"
+				:title="t('nocturnkalender', 'Remove date')"
 				@click="$emit('dateRemove')" />
 		</div>
 	</div>

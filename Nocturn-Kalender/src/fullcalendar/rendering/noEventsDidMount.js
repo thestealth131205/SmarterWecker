@@ -21,8 +21,8 @@ export default errorCatch(function({ el }) {
 	const app = createApp({
 		render() {
 			return h(EmptyContent, {
-				title: t('calendar', 'No events'),
-				description: t('calendar', 'Create a new event or change the visible time-range'),
+				title: t('nocturnkalender', 'No events'),
+				description: t('nocturnkalender', 'Create a new event or change the visible time-range'),
 			}, {
 				icon: () => h(CalendarIcon),
 			})

@@ -35,7 +35,7 @@ onMounted(async () => {
 		isBootstrapped.value = true
 	} catch (error) {
 		logger.error('Failed to set up the event editor', { error })
-		showError(t('calendar', 'Could not open the event editor'))
+		showError(t('nocturnkalender', 'Could not open the event editor'))
 		emit('close')
 	}
 })
@@ -49,10 +49,10 @@ onMounted(async () => {
 	<NcModal
 		v-if="!isEditorVisible"
 		size="full"
-		:name="t('calendar', 'New event')"
+		:name="t('nocturnkalender', 'New event')"
 		@close="emit('close')">
 		<div class="new-event-dialog__loading">
-			<NcLoadingIcon :size="44" :name="t('calendar', 'Loading the event editor')" />
+			<NcLoadingIcon :size="44" :name="t('nocturnkalender', 'Loading the event editor')" />
 		</div>
 	</NcModal>
 </template>

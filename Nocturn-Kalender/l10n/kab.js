@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Hello," : "Azul,",
     "Open »%s«" : "Ldi »%s«",

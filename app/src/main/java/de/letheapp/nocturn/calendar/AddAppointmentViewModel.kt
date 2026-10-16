@@ -8,6 +8,13 @@ import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Vom Nutzer per Dateiauswahldialog gewählter, aber noch nicht gespeicherter Anhang. */
+data class PendingAttachment(
+    val uri: String,
+    val fileName: String,
+    val mimeType: String?
+)
+
 @HiltViewModel
 class AddAppointmentViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository
@@ -22,11 +29,13 @@ class AddAppointmentViewModel @Inject constructor(
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
         reminderMinutesBefore: Int? = null,
+        showAsBusy: Boolean = true,
+        attachments: List<PendingAttachment> = emptyList(),
         onSaved: () -> Unit
     ) {
         if (title.isBlank()) return
         viewModelScope.launch {
-            calendarRepository.addAppointment(
+            val appointmentId = calendarRepository.addAppointment(
                 title = title,
                 location = location,
                 description = description,
@@ -34,8 +43,17 @@ class AddAppointmentViewModel @Inject constructor(
                 endEpochMillis = maxOf(startEpochMillis, endEpochMillis),
                 allDay = allDay,
                 priority = priority,
-                reminderMinutesBefore = reminderMinutesBefore
+                reminderMinutesBefore = reminderMinutesBefore,
+                showAsBusy = showAsBusy
             )
+            attachments.forEach { attachment ->
+                calendarRepository.addAppointmentAttachment(
+                    appointmentId = appointmentId,
+                    uri = attachment.uri,
+                    fileName = attachment.fileName,
+                    mimeType = attachment.mimeType
+                )
+            }
             onSaved()
         }
     }

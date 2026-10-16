@@ -11,8 +11,8 @@
 			<NcTextField
 				v-if="!isReadOnly"
 				v-focus
-				:placeholder="t('calendar', 'Title')"
-				:label="t('calendar', 'Title')"
+				:placeholder="t('nocturnkalender', 'Title')"
+				:label="t('nocturnkalender', 'Title')"
 				:labelOutside="true"
 				:modelValue="value"
 				@update:modelValue="changeValue" />

@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is too long" : "입력한 이메일 주소가 너무 깁니다",
     "User-Session unexpectedly expired" : "사용자 세션이 예기치 않게 만료되었습니다.",

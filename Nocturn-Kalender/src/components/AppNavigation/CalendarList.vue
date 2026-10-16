@@ -142,7 +142,7 @@ async function update(): Promise<void> {
 		await limit(() => calendarsStore.updateCalendarListOrder({ newOrder }))
 	} catch (error) {
 		logger.error(error)
-		showError(t('calendar', 'Could not update calendar order.'))
+		showError(t('nocturnkalender', 'Could not update calendar order.'))
 		// Reset calendar list order on error
 		calendars.value = calendarsStore.sortedCalendarsSubscriptions
 	} finally {
@@ -202,7 +202,7 @@ onMounted(() => {
 				:calendar="calendar" />
 		</template>
 
-		<NcAppNavigationCaption v-if="sortedCalendars.shared.length" :name="t('calendar', 'Shared calendars')" />
+		<NcAppNavigationCaption v-if="sortedCalendars.shared.length" :name="t('nocturnkalender', 'Shared calendars')" />
 		<template v-if="!isPublic">
 			<Draggable
 				v-model="sortedCalendars.shared"
@@ -226,7 +226,7 @@ onMounted(() => {
 				:calendar="calendar" />
 		</template>
 
-		<NcAppNavigationCaption v-if="sortedCalendars.deck.length" :name="t('calendar', 'Deck')" />
+		<NcAppNavigationCaption v-if="sortedCalendars.deck.length" :name="t('nocturnkalender', 'Deck')" />
 		<template v-if="!isPublic">
 			<Draggable
 				v-model="sortedCalendars.deck"
@@ -250,7 +250,7 @@ onMounted(() => {
 				:calendar="calendar" />
 		</template>
 
-		<NcAppNavigationCaption v-if="sortedCalendars.tasks.length" :name="t('calendar', 'Tasks')" />
+		<NcAppNavigationCaption v-if="sortedCalendars.tasks.length" :name="t('nocturnkalender', 'Tasks')" />
 		<template v-if="!isPublic">
 			<Draggable
 				v-model="sortedCalendars.tasks"
@@ -278,8 +278,8 @@ onMounted(() => {
 			<template v-for="group in delegatedGroups" :key="group.delegatorUrl">
 				<NcAppNavigationCaption
 					:name="group.readOnly
-						? t('calendar', 'Delegated by {name} (read-only)', { name: group.displayname })
-						: t('calendar', 'Delegated by {name}', { name: group.displayname })" />
+						? t('nocturnkalender', 'Delegated by {name} (read-only)', { name: group.displayname })
+						: t('nocturnkalender', 'Delegated by {name}', { name: group.displayname })" />
 				<CalendarListItem
 					v-for="calendar in group.calendars"
 					:key="calendar.id"

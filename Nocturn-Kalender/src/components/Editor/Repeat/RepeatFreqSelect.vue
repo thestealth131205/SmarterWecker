@@ -9,7 +9,7 @@
 		:allowEmpty="false"
 		:options="options"
 		:clearable="false"
-		:ariaLabelCombobox="$t('calendar', 'Repeat frequency')"
+		:ariaLabelCombobox="$t('nocturnkalender', 'Repeat frequency')"
 		inputId="freq"
 		label="label" />
 </template>
@@ -40,19 +40,19 @@ export default {
 	computed: {
 		options() {
 			return [{
-				label: this.$t('calendar', 'never'),
+				label: this.$t('nocturnkalender', 'never'),
 				freq: 'NONE',
 			}, {
-				label: this.$n('calendar', 'day', 'days', this.count),
+				label: this.$n('nocturnkalender', 'day', 'days', this.count),
 				freq: 'DAILY',
 			}, {
-				label: this.$n('calendar', 'week', 'weeks', this.count),
+				label: this.$n('nocturnkalender', 'week', 'weeks', this.count),
 				freq: 'WEEKLY',
 			}, {
-				label: this.$n('calendar', 'month', 'months', this.count),
+				label: this.$n('nocturnkalender', 'month', 'months', this.count),
 				freq: 'MONTHLY',
 			}, {
-				label: this.$n('calendar', 'year', 'years', this.count),
+				label: this.$n('nocturnkalender', 'year', 'years', this.count),
 				freq: 'YEARLY',
 			}]
 		},

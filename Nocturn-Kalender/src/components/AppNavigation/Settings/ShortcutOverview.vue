@@ -19,7 +19,7 @@
 							<NcKbd :symbol="key" />
 							<span
 								v-if="keyIndex !== (shortcut.keys.length - 1)">
-								{{ $t('calendar', 'or') }}
+								{{ $t('nocturnkalender', 'or') }}
 							</span>
 						</div>
 					</div>
@@ -48,69 +48,69 @@ export default {
 		shortcuts() {
 			return [{
 				categoryId: 'navigation',
-				categoryLabel: t('calendar', 'Navigation'),
+				categoryLabel: t('nocturnkalender', 'Navigation'),
 				shortcuts: [{
 					keys: ['P', 'K'],
-					label: t('calendar', 'Previous period'),
+					label: t('nocturnkalender', 'Previous period'),
 					or: true,
 				}, {
 					keys: ['N', 'J'],
-					label: t('calendar', 'Next period'),
+					label: t('nocturnkalender', 'Next period'),
 					or: true,
 				}, {
 					keys: ['T'],
-					label: t('calendar', 'Today'),
+					label: t('nocturnkalender', 'Today'),
 					or: true,
 				}],
 			}, {
 				categoryId: 'views',
-				categoryLabel: t('calendar', 'Views'),
+				categoryLabel: t('nocturnkalender', 'Views'),
 				shortcuts: [{
 					keys: ['1', 'D'],
-					label: t('calendar', 'Day view'),
+					label: t('nocturnkalender', 'Day view'),
 					or: true,
 				}, {
 					keys: ['2', 'W'],
-					label: t('calendar', 'Week view'),
+					label: t('nocturnkalender', 'Week view'),
 					or: true,
 				}, {
 					keys: ['3', 'M'],
-					label: t('calendar', 'Month view'),
+					label: t('nocturnkalender', 'Month view'),
 					or: true,
 				}, {
 					keys: ['4', 'Y'],
-					label: t('calendar', 'Year view'),
+					label: t('nocturnkalender', 'Year view'),
 					or: true,
 				}, {
 					keys: ['5', 'L'],
-					label: t('calendar', 'List view'),
+					label: t('nocturnkalender', 'List view'),
 					or: true,
 				}],
 			}, {
 				categoryId: 'actions',
-				categoryLabel: t('calendar', 'Actions'),
+				categoryLabel: t('nocturnkalender', 'Actions'),
 				shortcuts: [{
 					keys: ['C'],
-					label: t('calendar', 'Create event'),
+					label: t('nocturnkalender', 'Create event'),
 				}, {
 					keys: ['H'],
-					label: t('calendar', 'Show shortcuts'),
+					label: t('nocturnkalender', 'Show shortcuts'),
 				}],
 			}, {
 				categoryId: 'editor',
-				categoryLabel: t('calendar', 'Editor'),
+				categoryLabel: t('nocturnkalender', 'Editor'),
 				shortcuts: [{
 					keys: ['Escape'],
-					label: t('calendar', 'Close editor'),
+					label: t('nocturnkalender', 'Close editor'),
 				}, {
 					keys: ['Control Enter'],
-					label: t('calendar', 'Save edited event'),
+					label: t('nocturnkalender', 'Save edited event'),
 				}, {
 					keys: ['Control Delete'],
-					label: t('calendar', 'Delete edited event'),
+					label: t('nocturnkalender', 'Delete edited event'),
 				}, {
 					keys: ['Control D'],
-					label: t('calendar', 'Duplicate event'),
+					label: t('nocturnkalender', 'Duplicate event'),
 				}],
 			}]
 		},

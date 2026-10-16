@@ -12,7 +12,7 @@
 		<span class="calendar-picker-option__label">
 			{{ displayName }}
 			<span v-if="isDelegated && delegatorDisplayName" class="calendar-picker-option__delegation">
-				{{ $t('calendar', '(delegated by {name})', { name: delegatorDisplayName }) }}
+				{{ $t('nocturnkalender', '(delegated by {name})', { name: delegatorDisplayName }) }}
 			</span>
 		</span>
 

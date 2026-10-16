@@ -6,16 +6,16 @@
 <template>
 	<div class="delegation-settings">
 		<NcNoteCard v-if="loadError" type="error">
-			{{ t('calendar', 'Could not load delegates.') }}
+			{{ t('nocturnkalender', 'Could not load delegates.') }}
 		</NcNoteCard>
 
 		<NcFormGroup
-			:label="t('calendar', 'Delegates')"
-			:description="t('calendar', 'Allow users to manage your calendar events and invitations on your behalf.')">
+			:label="t('nocturnkalender', 'Delegates')"
+			:description="t('nocturnkalender', 'Allow users to manage your calendar events and invitations on your behalf.')">
 			<NcEmptyContent
 				v-if="loading"
 				class="delegation-settings__loading"
-				:description="t('calendar', 'Loading delegates\u2026')">
+				:description="t('nocturnkalender', 'Loading delegates\u2026')">
 				<template #icon>
 					<NcLoadingIcon decorative />
 				</template>
@@ -31,19 +31,19 @@
 					</template>
 					<template #actions>
 						<NcActionButton
-							:aria-label="t('calendar', 'Revoke access')"
+							:aria-label="t('nocturnkalender', 'Revoke access')"
 							@click="onRevokeClick(delegate)">
 							<template #icon>
 								<CloseIcon :size="20" />
 							</template>
-							{{ t('calendar', 'Revoke access') }}
+							{{ t('nocturnkalender', 'Revoke access') }}
 						</NcActionButton>
 					</template>
 				</NcListItem>
 			</ul>
 
 			<p v-if="!loading && delegationStore.delegates.length === 0" class="delegation-settings__empty">
-				{{ t('calendar', 'No delegates yet.') }}
+				{{ t('nocturnkalender', 'No delegates yet.') }}
 			</p>
 
 			<NcButton
@@ -54,7 +54,7 @@
 				<template #icon>
 					<PlusIcon :size="20" />
 				</template>
-				{{ t('calendar', 'Add delegate') }}
+				{{ t('nocturnkalender', 'Add delegate') }}
 			</NcButton>
 		</NcFormGroup>
 
@@ -62,7 +62,7 @@
 		<NcDialog
 			v-if="revokeTarget"
 			:open="!!revokeTarget"
-			:name="t('calendar', 'Revoke access?')"
+			:name="t('nocturnkalender', 'Revoke access?')"
 			:message="revokeMessage"
 			:buttons="revokeButtons"
 			@update:open="onRevokeDialogClose" />
@@ -71,7 +71,7 @@
 		<NcDialog
 			v-if="showAddDelegate"
 			:open="showAddDelegate"
-			:name="t('calendar', 'Add delegate')"
+			:name="t('nocturnkalender', 'Add delegate')"
 			@update:open="onAddDelegateDialogClose">
 			<div class="delegation-add">
 				<NcSelect
@@ -82,7 +82,7 @@
 					:internalSearch="false"
 					:loading="searchLoading"
 					:max-height="300"
-					:placeholder="t('calendar', 'Search for a user\u2026')"
+					:placeholder="t('nocturnkalender', 'Search for a user\u2026')"
 					:clearable="true"
 					:filterBy="filterSearchResults"
 					openDirection="below"
@@ -90,7 +90,7 @@
 					label="displayname"
 					@search="onSearch">
 					<template #no-options>
-						<span>{{ t('calendar', 'No users found') }}</span>
+						<span>{{ t('nocturnkalender', 'No users found') }}</span>
 					</template>
 					<template #option="user">
 						<div class="delegation-add__option">
@@ -103,24 +103,24 @@
 					</template>
 				</NcSelect>
 				<p class="delegation-add__description">
-					{{ t('calendar', 'Choose whether they can view and edit events, or only view them.') }}
+					{{ t('nocturnkalender', 'Choose whether they can view and edit events, or only view them.') }}
 				</p>
 			</div>
 			<template #actions>
 				<NcButton variant="secondary" @click="showAddDelegate = false">
-					{{ t('calendar', 'Cancel') }}
+					{{ t('nocturnkalender', 'Cancel') }}
 				</NcButton>
 				<NcButton
 					variant="secondary"
 					:disabled="!selectedUser || addLoading"
 					@click="confirmAddDelegate('read')">
-					{{ t('calendar', 'Add as viewer') }}
+					{{ t('nocturnkalender', 'Add as viewer') }}
 				</NcButton>
 				<NcButton
 					variant="primary"
 					:disabled="!selectedUser || addLoading"
 					@click="confirmAddDelegate('write')">
-					{{ t('calendar', 'Add as editor') }}
+					{{ t('nocturnkalender', 'Add as editor') }}
 				</NcButton>
 			</template>
 		</NcDialog>
@@ -189,7 +189,7 @@ const revokeMessage = computed((): string => {
 	const email = revokeTarget.value.emailAddress
 		|| revokeTarget.value.displayname
 		|| revokeTarget.value.principalId
-	return t('calendar', '{email} will no longer be able to act on your behalf.', { email: email ?? '' })
+	return t('nocturnkalender', '{email} will no longer be able to act on your behalf.', { email: email ?? '' })
 })
 
 /**
@@ -197,11 +197,11 @@ const revokeMessage = computed((): string => {
  */
 const revokeButtons = computed(() => [
 	{
-		label: t('calendar', 'Cancel'),
+		label: t('nocturnkalender', 'Cancel'),
 		callback: () => { revokeTarget.value = null },
 	},
 	{
-		label: t('calendar', 'Revoke'),
+		label: t('nocturnkalender', 'Revoke'),
 		variant: 'error' as const,
 		callback: confirmRevoke,
 	},
@@ -228,8 +228,8 @@ onMounted(async () => {
  */
 function delegateSubname(delegate: DelegatePrincipal): string {
 	const permissionLabel = delegate.permission === 'read'
-		? t('calendar', 'Viewer')
-		: t('calendar', 'Editor')
+		? t('nocturnkalender', 'Viewer')
+		: t('nocturnkalender', 'Editor')
 	if (delegate.emailAddress) {
 		return `${permissionLabel} · ${delegate.emailAddress}`
 	}
@@ -268,15 +268,15 @@ async function confirmRevoke(): Promise<void> {
 	try {
 		const url = delegate.url
 		if (!url) {
-			showError(t('calendar', 'Could not revoke access.'))
+			showError(t('nocturnkalender', 'Could not revoke access.'))
 			logger.error('Failed to revoke delegate access, no delegate url')
 			return
 		}
 		await delegationStore.removeDelegate({ principalUrl: url })
-		showSuccess(t('calendar', 'Access revoked successfully.'))
+		showSuccess(t('nocturnkalender', 'Access revoked successfully.'))
 	} catch (error) {
 		logger.error('Failed to revoke delegate access', { error })
-		showError(t('calendar', 'Could not revoke access.'))
+		showError(t('nocturnkalender', 'Could not revoke access.'))
 	}
 }
 
@@ -315,12 +315,12 @@ async function confirmAddDelegate(permission: 'write' | 'read'): Promise<void> {
 	try {
 		await delegationStore.addDelegate({ principalUrl: user.url, permission })
 		const label = permission === 'read'
-			? t('calendar', '{name} can now view your calendars.', { name: user.displayname || user.principalId || '' })
-			: t('calendar', '{name} can now act on your behalf.', { name: user.displayname || user.principalId || '' })
+			? t('nocturnkalender', '{name} can now view your calendars.', { name: user.displayname || user.principalId || '' })
+			: t('nocturnkalender', '{name} can now act on your behalf.', { name: user.displayname || user.principalId || '' })
 		showSuccess(label)
 	} catch (error) {
 		logger.error('Failed to add delegate', { error })
-		showError(t('calendar', 'Could not add delegate.'))
+		showError(t('nocturnkalender', 'Could not add delegate.'))
 	} finally {
 		addLoading.value = false
 		selectedUser.value = null

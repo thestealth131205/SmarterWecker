@@ -64,7 +64,7 @@ export default function(fcAPI) {
 
 		if (!isOrganizer(principalsStore.getCurrentUserPrincipalEmail, eventComponent.organizer)) {
 			revert()
-			showWarning(t('calendar', 'You are not allowed to edit this event as an attendee.'))
+			showWarning(t('nocturnkalender', 'You are not allowed to edit this event as an attendee.'))
 			return
 		}
 

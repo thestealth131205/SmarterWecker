@@ -83,6 +83,38 @@ class NocturnScheduleApiClient @Inject constructor() {
     /** Pro Server-URL der zuletzt funktionierende Basis-Pfad (pretty vs. "/index.php/"-Präfix). */
     private val resolvedBaseCache = HashMap<String, String>()
 
+    /**
+     * Prüft über den Standard-OCS-Capabilities-Endpoint (kein Extra-Scope/keine Extra-Berechtigung
+     * nötig), ob die NocTurn-Kalender-App auf diesem Nextcloud-Server installiert/aktiviert ist
+     * (siehe `Nocturn-Kalender/lib/AppInfo/Capabilities.php`, meldet den Schlüssel
+     * "nocturnkalender"). Dient dazu, vor dem Schichtplan-Sync klar zu erkennen "App fehlt" statt
+     * nur einen rohen 404 der Schedule-API zu zeigen.
+     */
+    suspend fun isNocturnKalenderInstalled(serverUrl: String, username: String, password: String): Boolean {
+        val trimmed = serverUrl.trim().trimEnd('/')
+        val candidates = listOf(
+            "$trimmed/ocs/v2.php/cloud/capabilities?format=json",
+            "$trimmed/index.php/ocs/v2.php/cloud/capabilities?format=json"
+        )
+        for (candidate in candidates) {
+            val json = runCatching {
+                val url = candidate.toHttpUrlOrNull() ?: return@runCatching null
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", Credentials.basic(username, password))
+                    .header("OCS-APIREQUEST", "true")
+                    .get()
+                    .build()
+                executeHttp(request) { response ->
+                    if (!response.isSuccessful) null else JSONObject(response.body?.string().orEmpty())
+                }
+            }.getOrNull() ?: continue
+            val capabilities = json?.optJSONObject("ocs")?.optJSONObject("data")?.optJSONObject("capabilities")
+            if (capabilities?.has("nocturnkalender") == true) return true
+        }
+        return false
+    }
+
     suspend fun sync(serverUrl: String, username: String, password: String, since: Long): RemoteScheduleChanges {
         val json = request(serverUrl, username, password, "GET", "sync?since=$since", null)
         val data = json.getJSONObject("data")

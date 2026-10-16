@@ -7,13 +7,13 @@
 	<div class="proposal-list__-list">
 		<NcAppNavigationCaption
 			class="proposal-list__caption"
-			:name="t('calendar', 'Meeting proposals')">
+			:name="t('nocturnkalender', 'Meeting proposals')">
 			<template #actions>
 				<NcActionButton @click="onProposalCreate()">
 					<template #icon>
 						<CreateIcon :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Create new') }}
+					{{ t('nocturnkalender', 'Create new') }}
 				</NcActionButton>
 			</template>
 		</NcAppNavigationCaption>
@@ -21,7 +21,7 @@
 		<template v-if="!userHasEmailAddress">
 			<NcAppNavigationItem
 				:href="userSettingsUrl"
-				:name="t('calendar', 'A configured email address is required to use meeting proposals')">
+				:name="t('nocturnkalender', 'A configured email address is required to use meeting proposals')">
 				<template #icon>
 					<WarningIcon :size="20" class="proposal-list__warning-icon" />
 				</template>
@@ -31,7 +31,7 @@
 		<template v-if="userHasEmailAddress">
 			<NcAppNavigationItem
 				v-if="storedProposals.length === 0"
-				:name="t('calendar', 'No active meeting proposals')"
+				:name="t('nocturnkalender', 'No active meeting proposals')"
 				@click="onProposalCreate()">
 				<template #icon>
 					<VotingIcon :size="20" />
@@ -62,7 +62,7 @@
 						<template #icon>
 							<ViewIcon :size="20" />
 						</template>
-						{{ t('calendar', 'View') }}
+						{{ t('nocturnkalender', 'View') }}
 					</NcActionButton>
 					<NcActionButton
 						:closeAfterClick="true"
@@ -70,7 +70,7 @@
 						<template #icon>
 							<ModifyIcon :size="20" />
 						</template>
-						{{ t('calendar', 'Edit') }}
+						{{ t('nocturnkalender', 'Edit') }}
 					</NcActionButton>
 					<NcActionButton
 						:closeAfterClick="true"
@@ -78,14 +78,14 @@
 						<template #icon>
 							<DestroyIcon :size="20" />
 						</template>
-						{{ t('calendar', 'Delete') }}
+						{{ t('nocturnkalender', 'Delete') }}
 					</NcActionButton>
 				</template>
 			</NcAppNavigationItem>
 		</template>
 		<NcDialog
 			:open="showDeleteDialog"
-			:name="t('calendar', 'Delete proposal')"
+			:name="t('nocturnkalender', 'Delete proposal')"
 			:message="deleteDialogMessage"
 			:buttons="deleteDialogButtons"
 			@update:open="showDeleteDialog = $event" />
@@ -130,18 +130,18 @@ const userHasEmailAddress = computed(() => (principalStore?.getCurrentUserPrinci
 const userSettingsUrl = generateUrl('settings/user', {}, { baseURL: getBaseUrl() })
 
 const deleteDialogMessage = computed(() => {
-	const title = pendingDeleteProposal.value?.title ?? t('calendar', 'No title')
-	return t('calendar', 'Are you sure you want to delete "{title}"?', { title })
+	const title = pendingDeleteProposal.value?.title ?? t('nocturnkalender', 'No title')
+	return t('nocturnkalender', 'Are you sure you want to delete "{title}"?', { title })
 })
 
 const deleteDialogButtons = computed(() => [
 	{
-		label: t('calendar', 'Delete'),
+		label: t('nocturnkalender', 'Delete'),
 		variant: 'secondary',
 		callback: () => destroyProposal(),
 	},
 	{
-		label: t('calendar', 'Cancel'),
+		label: t('nocturnkalender', 'Cancel'),
 		variant: 'primary',
 		callback: () => { showDeleteDialog.value = false },
 	},
@@ -172,13 +172,13 @@ async function destroyProposal(): Promise<void> {
 		return
 	}
 	try {
-		showSuccess(t('calendar', 'Deleting proposal "{title}"', { title: proposal.title ?? t('calendar', 'No title') }))
+		showSuccess(t('nocturnkalender', 'Deleting proposal "{title}"', { title: proposal.title ?? t('nocturnkalender', 'No title') }))
 		await proposalStore.destroyProposal(proposal)
-		showSuccess(t('calendar', 'Successfully deleted proposal'))
+		showSuccess(t('nocturnkalender', 'Successfully deleted proposal'))
 		fetchProposals()
 	} catch (error) {
 		logger.error('Failed to delete proposal', { error })
-		showError(t('calendar', 'Failed to delete proposal'))
+		showError(t('nocturnkalender', 'Failed to delete proposal'))
 	}
 }
 
@@ -187,7 +187,7 @@ async function fetchProposals(): Promise<void> {
 		storedProposals.value = await proposalStore.listProposals()
 	} catch (error) {
 		logger.error('Failed to retrieve proposals', { error })
-		showError(t('calendar', 'Failed to retrieve proposals'))
+		showError(t('nocturnkalender', 'Failed to retrieve proposals'))
 	}
 }
 

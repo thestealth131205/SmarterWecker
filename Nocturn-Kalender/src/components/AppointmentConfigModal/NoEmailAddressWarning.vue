@@ -9,7 +9,7 @@ import { generateUrl, getBaseUrl } from '@nextcloud/router'
 import { NcAppNavigationItem } from '@nextcloud/vue'
 import AlertCircleIcon from 'vue-material-design-icons/AlertCircle.vue'
 
-const title = t('calendar', 'To configure appointments, add your email address in personal settings.')
+const title = t('nocturnkalender', 'To configure appointments, add your email address in personal settings.')
 const userSettingsUrl = generateUrl('settings/user', {}, { baseURL: getBaseUrl() })
 </script>
 

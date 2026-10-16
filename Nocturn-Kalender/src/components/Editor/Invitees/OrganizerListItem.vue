@@ -19,7 +19,7 @@
 			:email="organizerEmail" />
 
 		<div class="invitees-list-item__organizer-hint">
-			{{ $t('calendar', '(organizer)') }}
+			{{ $t('nocturnkalender', '(organizer)') }}
 		</div>
 		<div class="invitees-list-item__actions">
 			<NcActions v-if="!isReadOnly && isSharedWithMe">
@@ -32,7 +32,7 @@
 						<template #icon>
 							<Crown :size="20" />
 						</template>
-						{{ $t('calendar', 'Make {label} the organizer', { label: person.label }) }}
+						{{ $t('nocturnkalender', 'Make {label} the organizer', { label: person.label }) }}
 					</NcActionButton>
 					<NcActionButton
 						v-if="!selectedOrganizer(person.address)"
@@ -42,7 +42,7 @@
 						<template #icon>
 							<Crown :size="20" />
 						</template>
-						{{ $t('calendar', 'Make {label} the organizer and attend', { label: person.label }) }}
+						{{ $t('nocturnkalender', 'Make {label} the organizer and attend', { label: person.label }) }}
 					</NcActionButton>
 				</template>
 			</NcActions>

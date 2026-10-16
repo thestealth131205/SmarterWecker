@@ -25,7 +25,7 @@
 				<span
 					v-if="members.length"
 					class="invitees-list-item__member-count">
-					({{ $n('calendar', '%n member', '%n members', members.length) }})
+					({{ $n('nocturnkalender', '%n member', '%n members', members.length) }})
 				</span>
 			</template>
 		</AttendeeDisplay>
@@ -51,7 +51,7 @@
 					v-if="!members.length"
 					:modelValue="attendee.rsvp"
 					@update:modelValue="toggleRSVP">
-					{{ $t('calendar', 'Request reply') }}
+					{{ $t('nocturnkalender', 'Request reply') }}
 				</ActionCheckbox>
 
 				<ActionRadio
@@ -60,7 +60,7 @@
 					value="CHAIR"
 					:modelValue="attendee.role"
 					@update:modelValue="changeRole">
-					{{ $t('calendar', 'Chairperson') }}
+					{{ $t('nocturnkalender', 'Chairperson') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="!members.length"
@@ -68,7 +68,7 @@
 					value="REQ-PARTICIPANT"
 					:modelValue="attendee.role"
 					@update:modelValue="changeRole">
-					{{ $t('calendar', 'Required participant') }}
+					{{ $t('nocturnkalender', 'Required participant') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="!members.length"
@@ -76,7 +76,7 @@
 					value="OPT-PARTICIPANT"
 					:modelValue="attendee.role"
 					@update:modelValue="changeRole">
-					{{ $t('calendar', 'Optional participant') }}
+					{{ $t('nocturnkalender', 'Optional participant') }}
 				</ActionRadio>
 				<ActionRadio
 					v-if="!members.length"
@@ -84,7 +84,7 @@
 					value="NON-PARTICIPANT"
 					:modelValue="attendee.role"
 					@update:modelValue="changeRole">
-					{{ $t('calendar', 'Non-participant') }}
+					{{ $t('nocturnkalender', 'Non-participant') }}
 				</ActionRadio>
 
 				<ActionButton :closeAfterClick="true" @click="removeAttendee(attendee)">
@@ -197,9 +197,9 @@ export default {
 		 */
 		removeAttendeeText() {
 			if (this.isGroup) {
-				return this.$t('calendar', 'Remove group')
+				return this.$t('nocturnkalender', 'Remove group')
 			} else {
-				return this.$t('calendar', 'Remove attendee')
+				return this.$t('nocturnkalender', 'Remove attendee')
 			}
 		},
 

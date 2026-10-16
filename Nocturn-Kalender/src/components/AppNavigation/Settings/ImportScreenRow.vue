@@ -49,9 +49,9 @@ export default {
 		newCalendar() {
 			return {
 				id: 'new',
-				displayName: this.$t('calendar', 'New calendar'),
+				displayName: this.$t('nocturnkalender', 'New calendar'),
 				isSharedWithMe: false,
-				color: uidToHexColor(this.$t('calendar', 'New calendar')),
+				color: uidToHexColor(this.$t('nocturnkalender', 'New calendar')),
 				owner: this.principalsStore.getCurrentUserPrincipal.url,
 			}
 		},
@@ -81,13 +81,13 @@ export default {
 
 			const disablingTypes = []
 			if (disalbedBecauseOfEvents) {
-				disablingTypes.push(this.$t('calendar', 'events'))
+				disablingTypes.push(this.$t('nocturnkalender', 'events'))
 			}
 			if (disalbedBecauseOfTasks) {
-				disablingTypes.push(this.$t('calendar', 'tasks'))
+				disablingTypes.push(this.$t('nocturnkalender', 'tasks'))
 			}
 			if (disalbedBecauseOfJournalEntries) {
-				disablingTypes.push(this.$t('calendar', 'journal entries'))
+				disablingTypes.push(this.$t('nocturnkalender', 'journal entries'))
 			}
 
 			if (disablingTypes.lenght === 0) {
@@ -96,7 +96,7 @@ export default {
 
 			const formatter = new Intl.ListFormat(getLanguage(), { type: 'conjunction' })
 			const localizedTypes = formatter.format(disablingTypes)
-			return this.$t('calendar', 'Some calendars are disabled because this file contains {types}.', { types: localizedTypes })
+			return this.$t('nocturnkalender', 'Some calendars are disabled because this file contains {types}.', { types: localizedTypes })
 		},
 	},
 

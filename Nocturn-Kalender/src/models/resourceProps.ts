@@ -12,10 +12,10 @@ import { translate as t } from '@nextcloud/l10n'
  */
 export function getAllRoomTypes() {
 	return [
-		{ value: 'meeting-room', label: t('calendar', 'Meeting room') },
-		{ value: 'lecture-hall', label: t('calendar', 'Lecture hall') },
-		{ value: 'seminar-room', label: t('calendar', 'Seminar room') },
-		{ value: 'other', label: t('calendar', 'Other') },
+		{ value: 'meeting-room', label: t('nocturnkalender', 'Meeting room') },
+		{ value: 'lecture-hall', label: t('nocturnkalender', 'Lecture hall') },
+		{ value: 'seminar-room', label: t('nocturnkalender', 'Seminar room') },
+		{ value: 'other', label: t('nocturnkalender', 'Other') },
 	]
 }
 
@@ -42,13 +42,13 @@ export function formatRoomType(value: string): string | null {
  */
 function getFeatureLabels(): Record<string, string> {
 	return {
-		PROJECTOR: t('calendar', 'Projector'),
-		WHITEBOARD: t('calendar', 'Whiteboard'),
-		'WHEELCHAIR-ACCESSIBLE': t('calendar', 'Wheelchair accessible'),
-		'AV-EQUIPMENT': t('calendar', 'Audio-visual equipment'),
-		PHONE: t('calendar', 'Phone'),
-		'VIDEO-CONFERENCING': t('calendar', 'Video conferencing'),
-		TV: t('calendar', 'TV'),
+		PROJECTOR: t('nocturnkalender', 'Projector'),
+		WHITEBOARD: t('nocturnkalender', 'Whiteboard'),
+		'WHEELCHAIR-ACCESSIBLE': t('nocturnkalender', 'Wheelchair accessible'),
+		'AV-EQUIPMENT': t('nocturnkalender', 'Audio-visual equipment'),
+		PHONE: t('nocturnkalender', 'Phone'),
+		'VIDEO-CONFERENCING': t('nocturnkalender', 'Video conferencing'),
+		TV: t('nocturnkalender', 'TV'),
 	}
 }
 

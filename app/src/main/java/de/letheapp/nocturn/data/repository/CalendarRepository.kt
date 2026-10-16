@@ -1,5 +1,6 @@
 package de.letheapp.nocturn.data.repository
 
+import de.letheapp.nocturn.data.db.AppointmentAttachmentEntity
 import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.AppointmentPriority
@@ -468,6 +469,7 @@ class CalendarRepository @Inject constructor(
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
         reminderMinutesBefore: Int? = null,
+        showAsBusy: Boolean = true,
         colorArgb: Int = DEFAULT_APPOINTMENT_COLOR_ARGB
     ): Long {
         val zone = java.time.ZoneId.systemDefault()
@@ -484,7 +486,8 @@ class CalendarRepository @Inject constructor(
             allDay = allDay,
             colorArgb = colorArgb,
             priority = priority.name,
-            reminderMinutesBefore = reminderMinutesBefore
+            reminderMinutesBefore = reminderMinutesBefore,
+            showAsBusy = showAsBusy
         )
         val id = appointmentDao.insert(appointment)
         appointmentReminderScheduler.schedule(appointment.copy(id = id))
@@ -494,6 +497,21 @@ class CalendarRepository @Inject constructor(
     suspend fun deleteAppointment(appointment: AppointmentEntity) {
         appointmentReminderScheduler.cancel(appointment.id)
         appointmentDao.delete(appointment)
+    }
+
+    fun observeAppointmentAttachments(appointmentId: Long): Flow<List<AppointmentAttachmentEntity>> =
+        appointmentDao.observeAttachments(appointmentId)
+
+    fun observeAllAppointmentAttachments(): Flow<List<AppointmentAttachmentEntity>> =
+        appointmentDao.observeAllAttachments()
+
+    suspend fun addAppointmentAttachment(appointmentId: Long, uri: String, fileName: String, mimeType: String?): Long =
+        appointmentDao.insertAttachment(
+            AppointmentAttachmentEntity(appointmentId = appointmentId, uri = uri, fileName = fileName, mimeType = mimeType)
+        )
+
+    suspend fun removeAppointmentAttachment(attachment: AppointmentAttachmentEntity) {
+        appointmentDao.deleteAttachment(attachment)
     }
 
     // Aufgaben (Tasks)

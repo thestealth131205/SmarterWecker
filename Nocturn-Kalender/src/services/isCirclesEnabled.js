@@ -5,5 +5,5 @@
 
 import { loadState } from '@nextcloud/initial-state'
 
-const isCirclesEnabled = loadState('calendar', 'isCirclesEnabled', false)
+const isCirclesEnabled = loadState('nocturnkalender', 'isCirclesEnabled', false)
 export default isCirclesEnabled

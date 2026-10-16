@@ -14,44 +14,44 @@ import moment from '@nextcloud/moment'
  */
 export default (recurrenceRule, locale) => {
 	if (recurrenceRule.frequency === 'NONE') {
-		return t('calendar', 'Does not repeat')
+		return t('nocturnkalender', 'Does not repeat')
 	}
 
 	let freqPart = ''
 	if (recurrenceRule.interval === 1) {
 		switch (recurrenceRule.frequency) {
 			case 'DAILY':
-				freqPart = t('calendar', 'Daily')
+				freqPart = t('nocturnkalender', 'Daily')
 				break
 
 			case 'WEEKLY':
-				freqPart = t('calendar', 'Weekly')
+				freqPart = t('nocturnkalender', 'Weekly')
 				break
 
 			case 'MONTHLY':
-				freqPart = t('calendar', 'Monthly')
+				freqPart = t('nocturnkalender', 'Monthly')
 				break
 
 			case 'YEARLY':
-				freqPart = t('calendar', 'Yearly')
+				freqPart = t('nocturnkalender', 'Yearly')
 				break
 		}
 	} else {
 		switch (recurrenceRule.frequency) {
 			case 'DAILY':
-				freqPart = n('calendar', 'Every %n day', 'Every %n days', recurrenceRule.interval)
+				freqPart = n('nocturnkalender', 'Every %n day', 'Every %n days', recurrenceRule.interval)
 				break
 
 			case 'WEEKLY':
-				freqPart = n('calendar', 'Every %n week', 'Every %n weeks', recurrenceRule.interval)
+				freqPart = n('nocturnkalender', 'Every %n week', 'Every %n weeks', recurrenceRule.interval)
 				break
 
 			case 'MONTHLY':
-				freqPart = n('calendar', 'Every %n month', 'Every %n months', recurrenceRule.interval)
+				freqPart = n('nocturnkalender', 'Every %n month', 'Every %n months', recurrenceRule.interval)
 				break
 
 			case 'YEARLY':
-				freqPart = n('calendar', 'Every %n year', 'Every %n years', recurrenceRule.interval)
+				freqPart = n('nocturnkalender', 'Every %n year', 'Every %n years', recurrenceRule.interval)
 				break
 		}
 	}
@@ -60,7 +60,7 @@ export default (recurrenceRule, locale) => {
 	if (recurrenceRule.frequency === 'WEEKLY' && recurrenceRule.byDay.length !== 0) {
 		const formattedDays = getTranslatedByDaySet(recurrenceRule.byDay)
 
-		limitPart = n('calendar', 'on {weekday}', 'on {weekdays}', recurrenceRule.byDay.length, {
+		limitPart = n('nocturnkalender', 'on {weekday}', 'on {weekdays}', recurrenceRule.byDay.length, {
 			weekday: formattedDays,
 			weekdays: formattedDays,
 		})
@@ -68,14 +68,14 @@ export default (recurrenceRule, locale) => {
 		if (recurrenceRule.byMonthDay.length !== 0) {
 			const dayOfMonthList = recurrenceRule.byMonthDay.join(', ')
 
-			limitPart = n('calendar', 'on day {dayOfMonthList}', 'on days {dayOfMonthList}', recurrenceRule.byMonthDay.length, {
+			limitPart = n('nocturnkalender', 'on day {dayOfMonthList}', 'on days {dayOfMonthList}', recurrenceRule.byMonthDay.length, {
 				dayOfMonthList,
 			})
 		} else {
 			const ordinalNumber = getTranslatedOrdinalNumber(recurrenceRule.bySetPosition)
 			const byDaySet = getTranslatedByDaySet(recurrenceRule.byDay)
 
-			limitPart = t('calendar', 'on the {ordinalNumber} {byDaySet}', {
+			limitPart = t('nocturnkalender', 'on the {ordinalNumber} {byDaySet}', {
 				ordinalNumber,
 				byDaySet,
 			})
@@ -86,7 +86,7 @@ export default (recurrenceRule, locale) => {
 		if (recurrenceRule.byMonthDay.length !== 0) {
 			const dayOfMonthList = recurrenceRule.byMonthDay.join(', ')
 
-			limitPart = t('calendar', 'in {monthNames} on the {dayOfMonthList}', {
+			limitPart = t('nocturnkalender', 'in {monthNames} on the {dayOfMonthList}', {
 				monthNames,
 				dayOfMonthList,
 			})
@@ -94,7 +94,7 @@ export default (recurrenceRule, locale) => {
 			const ordinalNumber = getTranslatedOrdinalNumber(recurrenceRule.bySetPosition)
 			const byDaySet = getTranslatedByDaySet(recurrenceRule.byDay)
 
-			limitPart = t('calendar', 'in {monthNames} on the {ordinalNumber} {byDaySet}', {
+			limitPart = t('nocturnkalender', 'in {monthNames} on the {ordinalNumber} {byDaySet}', {
 				monthNames,
 				ordinalNumber,
 				byDaySet,
@@ -106,11 +106,11 @@ export default (recurrenceRule, locale) => {
 	if (recurrenceRule.until !== null) {
 		const untilDate = moment(recurrenceRule.until).locale(locale).format('L')
 
-		endPart = t('calendar', 'until {untilDate}', {
+		endPart = t('nocturnkalender', 'until {untilDate}', {
 			untilDate,
 		})
 	} else if (recurrenceRule.count !== null) {
-		endPart = n('calendar', '%n time', '%n times', recurrenceRule.count)
+		endPart = n('nocturnkalender', '%n time', '%n times', recurrenceRule.count)
 	}
 
 	return [
@@ -190,26 +190,26 @@ function getTranslatedMonths(byMonthList) {
 export function getTranslatedOrdinalNumber(bySetPositionNum) {
 	switch (bySetPositionNum) {
 		case 1:
-			return t('calendar', 'first')
+			return t('nocturnkalender', 'first')
 
 		case 2:
 		// TRANSLATORS This refers to the second item in a series, not to the unit of time
-			return t('calendar', 'second')
+			return t('nocturnkalender', 'second')
 
 		case 3:
-			return t('calendar', 'third')
+			return t('nocturnkalender', 'third')
 
 		case 4:
-			return t('calendar', 'fourth')
+			return t('nocturnkalender', 'fourth')
 
 		case 5:
-			return t('calendar', 'fifth')
+			return t('nocturnkalender', 'fifth')
 
 		case -2:
-			return t('calendar', 'second to last')
+			return t('nocturnkalender', 'second to last')
 
 		case -1:
-			return t('calendar', 'last')
+			return t('nocturnkalender', 'last')
 
 		default:
 			return ''

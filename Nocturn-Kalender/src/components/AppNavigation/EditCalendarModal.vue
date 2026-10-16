@@ -7,11 +7,11 @@
 	<NcModal
 		v-if="!!calendarsStore.editCalendarModal && calendar"
 		size="normal"
-		:name="$t('calendar', 'Edit calendar')"
+		:name="$t('nocturnkalender', 'Edit calendar')"
 		@close="closeModal">
 		<div class="edit-calendar-modal">
 			<h3 class="edit-calendar-modal__header">
-				{{ $t('calendar', 'Edit calendar') }}
+				{{ $t('nocturnkalender', 'Edit calendar') }}
 				<span class="edit-calendar-modal__header_subtitle">
 					{{ description }}
 				</span>
@@ -32,54 +32,54 @@
 				<NcTextField
 					v-model="calendarName"
 					class="edit-calendar-modal__name-and-color__name"
-					:label="$t('calendar', 'Calendar name')"
+					:label="$t('nocturnkalender', 'Calendar name')"
 					:labelOutside="true"
 					:error="!isCalendarNameValid"
-					:helperText="!isCalendarNameValid ? $t('calendar', 'Calendar name can not be blank') : ''"
+					:helperText="!isCalendarNameValid ? $t('nocturnkalender', 'Calendar name can not be blank') : ''"
 					@update:modelValue="calendarNameChanged = true" />
 			</div>
 			<template v-if="canBeShared">
 				<NcCheckboxRadioSwitch v-model="isTransparent">
-					{{ $t('calendar', 'Never show me as busy (set this calendar to transparent)') }}
+					{{ $t('nocturnkalender', 'Never show me as busy (set this calendar to transparent)') }}
 				</NcCheckboxRadioSwitch>
 			</template>
 			<NcCheckboxRadioSwitch v-if="isAfterVersion36" v-model="disableAlarmNotifications">
-				{{ $t('calendar', 'Disable alarm notifications for this calendar') }}
+				{{ $t('nocturnkalender', 'Disable alarm notifications for this calendar') }}
 			</NcCheckboxRadioSwitch>
 			<template v-if="!calendar.isSharedWithMe && isAfterVersion">
 				<div class="edit-calendar-modal__default-alarm">
 					<label for="default-alarm-partday-select" class="edit-calendar-modal__default-alarm__label">
-						{{ $t('calendar', 'Default reminder for part-day events') }}
+						{{ $t('nocturnkalender', 'Default reminder for part-day events') }}
 					</label>
 					<NcSelect
 						v-model="selectedDefaultAlarmPartDay"
 						inputId="default-alarm-partday-select"
 						:options="defaultAlarmPartDayOptions"
 						:clearable="false"
-						:placeholder="$t('calendar', 'Select default reminder')"
+						:placeholder="$t('nocturnkalender', 'Select default reminder')"
 						class="edit-calendar-modal__default-alarm__select"
 						@update:modelValue="defaultAlarmChanged = true" />
 				</div>
 				<div class="edit-calendar-modal__default-alarm">
 					<label for="default-alarm-fullday-select" class="edit-calendar-modal__default-alarm__label">
-						{{ $t('calendar', 'Default reminder for full-day events') }}
+						{{ $t('nocturnkalender', 'Default reminder for full-day events') }}
 					</label>
 					<NcSelect
 						v-model="selectedDefaultAlarmFullDay"
 						inputId="default-alarm-fullday-select"
 						:options="defaultAlarmFullDayOptions"
 						:clearable="false"
-						:placeholder="$t('calendar', 'Select default reminder')"
+						:placeholder="$t('nocturnkalender', 'Select default reminder')"
 						class="edit-calendar-modal__default-alarm__select"
 						@update:modelValue="defaultAlarmChanged = true" />
 					<p class="edit-calendar-modal__default-alarm__hint">
-						{{ $t('calendar', 'These reminders will be automatically added to new events created in this calendar') }}
+						{{ $t('nocturnkalender', 'These reminders will be automatically added to new events created in this calendar') }}
 					</p>
 				</div>
 			</template>
 			<template v-if="canBeShared">
 				<h3 class="edit-calendar-modal__sharing-header">
-					{{ $t('calendar', 'Share calendar') }}
+					{{ $t('nocturnkalender', 'Share calendar') }}
 				</h3>
 
 				<div class="edit-calendar-modal__sharing">
@@ -99,25 +99,25 @@
 					<template #icon>
 						<CloseIcon :size="20" />
 					</template>
-					{{ $t('calendar', 'Unshare from me') }}
+					{{ $t('nocturnkalender', 'Unshare from me') }}
 				</NcButton>
 				<NcButton v-else variant="tertiary" @click="deleteCalendar">
 					<template #icon>
 						<DeleteIcon :size="20" />
 					</template>
-					{{ $t('calendar', 'Delete') }}
+					{{ $t('nocturnkalender', 'Delete') }}
 				</NcButton>
 				<NcButton variant="tertiary" :href="downloadUrl">
 					<template #icon>
 						<DownloadIcon :size="20" />
 					</template>
-					{{ $t('calendar', 'Export') }}
+					{{ $t('nocturnkalender', 'Export') }}
 				</NcButton>
 				<NcButton variant="secondary" :disabled="!isCalendarNameValid" @click="saveAndClose">
 					<template #icon>
 						<CheckIcon :size="20" />
 					</template>
-					{{ $t('calendar', 'Save') }}
+					{{ $t('nocturnkalender', 'Save') }}
 				</NcButton>
 			</div>
 		</div>
@@ -243,24 +243,23 @@ export default {
 		description() {
 			const supportedTypes = []
 			if (this.calendar.supportsEvents) {
-				supportedTypes.push(this.$t('calendar', 'events'))
+				supportedTypes.push(this.$t('nocturnkalender', 'events'))
 			}
 			if (this.calendar.supportsTasks) {
-				supportedTypes.push(this.$t('calendar', 'tasks'))
+				supportedTypes.push(this.$t('nocturnkalender', 'tasks'))
 			}
 			if (this.calendar.supportsJournals) {
 				// TRANSLATORS "notes" would be more user-friendly. "journal entries" (from RFC 5545) was used to avoid confusion with notes from the Notes app.
-				supportedTypes.push(this.$t('calendar', 'journal entries'))
+				supportedTypes.push(this.$t('nocturnkalender', 'journal entries'))
 			}
 
 			if (supportedTypes.lenght === 0) {
-				return this.$t('calendar', 'This calendar supports neither events, tasks nor journal entries.')
+				return this.$t('nocturnkalender', 'This calendar supports neither events, tasks nor journal entries.')
 			}
 
 			const formatter = new Intl.ListFormat(getLanguage(), { type: 'conjunction' })
 			const localizedTypes = formatter.format(supportedTypes)
-			return this.$n(
-				'calendar',
+			return this.$n('nocturnkalender',
 				'This calendar supports only {types}.',
 				'This calendar supports {types}.',
 				supportedTypes.length,
@@ -280,7 +279,7 @@ export default {
 
 			const options = [
 				{
-					label: this.$t('calendar', 'None'),
+					label: this.$t('nocturnkalender', 'None'),
 					value: null,
 				},
 			]
@@ -309,7 +308,7 @@ export default {
 
 			const options = [
 				{
-					label: this.$t('calendar', 'None'),
+					label: this.$t('nocturnkalender', 'None'),
 					value: null,
 				},
 			]
@@ -504,7 +503,7 @@ export default {
 				}
 			} catch (error) {
 				logger.error('Failed to save calendar changes', { error })
-				showError(this.$t('calendar', 'Failed to save calendar name and color'))
+				showError(this.$t('nocturnkalender', 'Failed to save calendar name and color'))
 			}
 
 			this.closeModal()

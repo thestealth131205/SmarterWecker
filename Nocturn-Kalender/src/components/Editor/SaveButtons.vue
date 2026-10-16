@@ -10,7 +10,7 @@
 			:type="moreButtonType"
 			:disabled="disabled"
 			@click="showMore">
-			{{ $t('calendar', 'More details') }}
+			{{ $t('nocturnkalender', 'More details') }}
 		</NcButton>
 		<NcButton
 			v-if="showSaveButton"
@@ -20,7 +20,7 @@
 			<template #icon>
 				<CheckIcon :size="20" />
 			</template>
-			{{ $t('calendar', 'Save') }}
+			{{ $t('nocturnkalender', 'Save') }}
 		</NcButton>
 		<NcButton
 			v-if="showUpdateButton"
@@ -30,23 +30,23 @@
 			<template #icon>
 				<CheckIcon :size="20" />
 			</template>
-			{{ $t('calendar', 'Update') }}
+			{{ $t('nocturnkalender', 'Update') }}
 		</NcButton>
 		<NcButton
 			v-if="showUpdateSeriesButton"
 			variant="primary"
 			:disabled="disabled"
 			@click="saveSeries">
-			{{ $t('calendar', 'Update entire series') }}
+			{{ $t('nocturnkalender', 'Update entire series') }}
 		</NcButton>
 		<NcButton
 			v-if="showUpdateFutureButton"
 			variant="primary"
 			:disabled="disabled"
 			@click="saveFuture">
-			{{ $t('calendar', 'Update this and future occurrences') }}
+			{{ $t('nocturnkalender', 'Update this and future occurrences') }}
 		</NcButton>
-		<NcActions v-if="showUpdateMenu" :primary="true" :menuName="t('calendar', 'Update')">
+		<NcActions v-if="showUpdateMenu" :primary="true" :menuName="t('nocturnkalender', 'Update')">
 			<template #icon>
 				<CheckIcon :size="20" />
 			</template>
@@ -54,19 +54,19 @@
 				<template #icon>
 					<CheckIcon :size="20" />
 				</template>
-				{{ $t('calendar', 'Update entire series') }}
+				{{ $t('nocturnkalender', 'Update entire series') }}
 			</NcActionButton>
 			<NcActionButton v-if="canUpdateFuture" @click="saveFuture">
 				<template #icon>
 					<CheckAllIcon :size="20" />
 				</template>
-				{{ $t('calendar', 'Update this and future occurrences') }}
+				{{ $t('nocturnkalender', 'Update this and future occurrences') }}
 			</NcActionButton>
 			<NcActionButton v-if="canUpdateOccurrence" @click="saveOccurrence">
 				<template #icon>
 					<CheckIcon :size="20" />
 				</template>
-				{{ $t('calendar', 'Update this occurrence') }}
+				{{ $t('nocturnkalender', 'Update this occurrence') }}
 			</NcActionButton>
 		</NcActions>
 

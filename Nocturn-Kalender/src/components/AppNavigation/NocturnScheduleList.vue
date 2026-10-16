@@ -27,7 +27,7 @@ onMounted(async () => {
 		await nocturnScheduleStore.loadAll()
 	} catch (error) {
 		logger.error('Failed to load NocTurn schedule', { error })
-		showError(t('calendar', 'Could not load NocTurn shifts and rotations'))
+		showError(t('nocturnkalender', 'Could not load NocTurn shifts and rotations'))
 	}
 
 	try {
@@ -44,13 +44,13 @@ onMounted(async () => {
 	<div class="nocturn-schedule-list">
 		<AppNavigationCaption
 			class="nocturn-schedule-list__caption"
-			:name="t('calendar', 'NocTurn shifts & rotations')">
+			:name="t('nocturnkalender', 'NocTurn shifts & rotations')">
 			<template #actions>
 				<ActionButton :closeAfterClick="true" @click="showModalForNewJob = true">
 					<template #icon>
 						<PlusIcon :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Add job') }}
+					{{ t('nocturnkalender', 'Add job') }}
 				</ActionButton>
 			</template>
 		</AppNavigationCaption>
@@ -60,7 +60,7 @@ onMounted(async () => {
 		<template v-if="sharedWithMe.length > 0">
 			<AppNavigationCaption
 				class="nocturn-schedule-list__caption"
-				:name="t('calendar', 'Shared with me')" />
+				:name="t('nocturnkalender', 'Shared with me')" />
 
 			<div
 				v-for="entry in sharedWithMe"
@@ -69,7 +69,7 @@ onMounted(async () => {
 				<NcAvatar :size="20" :user="entry.ownerId" />
 				<span class="nocturn-schedule-list__shared-job-name">{{ entry.job.name }}</span>
 				<span class="nocturn-schedule-list__shared-job-permission">
-					{{ entry.permission === 'WRITE' ? t('calendar', 'can edit') : t('calendar', 'read-only') }}
+					{{ entry.permission === 'WRITE' ? t('nocturnkalender', 'can edit') : t('nocturnkalender', 'read-only') }}
 				</span>
 			</div>
 		</template>

@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "%s has published the calendar »%s«" : "%s ka publikuar kalendarin %s",
     "Hello," : "Përshëndetje,",

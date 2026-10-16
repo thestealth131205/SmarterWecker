@@ -17,7 +17,7 @@ interface PushMessageBody {
  * Check whether the server is using notify_push.
  */
 export function isNotifyPushAvailable(): boolean {
-	return loadState('calendar', 'has_notify_push', false)
+	return loadState('nocturnkalender', 'has_notify_push', false)
 }
 
 /**

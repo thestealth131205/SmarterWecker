@@ -20,7 +20,7 @@ async function parseUploadError(exception) {
 
 		return messageElement?.textContent
 	} catch (parseError) {
-		logger.error(t('calendar', 'Error while parsing a PROPFIND error'), { parseError })
+		logger.error(t('nocturnkalender', 'Error while parsing a PROPFIND error'), { parseError })
 	}
 }
 

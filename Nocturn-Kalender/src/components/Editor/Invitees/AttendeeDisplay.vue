@@ -17,7 +17,7 @@
 			<NcButton
 				class="attendee-display__button"
 				variant="tertiary-no-background"
-				:aria-label="$t('calendar', 'Copy name and email address')"
+				:aria-label="$t('nocturnkalender', 'Copy name and email address')"
 				@click="handleCopy">
 				<template #icon>
 					<ContentCopy :size="16" />
@@ -27,7 +27,7 @@
 				class="attendee-display__button"
 				variant="tertiary-no-background"
 				:title="email"
-				:aria-label="$t('calendar', 'Send email to {email}', { email })"
+				:aria-label="$t('nocturnkalender', 'Send email to {email}', { email })"
 				:href="mailtoLink"
 				tag="a">
 				<template #icon>
@@ -80,10 +80,10 @@ export default {
 			try {
 				const text = `${this.displayName} <${this.email}>`
 				await navigator.clipboard.writeText(text)
-				showSuccess(this.$t('calendar', 'Copied to clipboard'))
+				showSuccess(this.$t('nocturnkalender', 'Copied to clipboard'))
 			} catch (error) {
 				logger.error('Failed to copy attendee to clipboard', { error })
-				showError(this.$t('calendar', 'Failed to copy'))
+				showError(this.$t('nocturnkalender', 'Failed to copy'))
 			}
 		},
 	},

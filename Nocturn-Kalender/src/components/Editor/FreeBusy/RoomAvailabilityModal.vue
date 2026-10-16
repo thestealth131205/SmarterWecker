@@ -6,18 +6,18 @@
 	<NcModal
 		size="large"
 		:show="show"
-		:name="$t('calendar', 'Check room availability')"
+		:name="$t('nocturnkalender', 'Check room availability')"
 		@update:show="(e) => $emit('update:show', e)">
 		<div class="modal__content">
 			<div class="modal__content__header">
-				<h2>{{ $t('calendar', 'Find a time') }}</h2>
+				<h2>{{ $t('nocturnkalender', 'Find a time') }}</h2>
 			</div>
 			<div class="modal__content__actions">
 				<div class="modal__content__actions__date">
 					<NcButton
 						variant="secondary"
 						@click="handleActions('today')">
-						{{ $t('calendar', 'Today') }}
+						{{ $t('nocturnkalender', 'Today') }}
 					</NcButton>
 					<NcButton
 						variant="secondary"
@@ -227,19 +227,19 @@ export default {
 		colorCaption() {
 			return [{
 				// TRANSLATORS: free as in available
-				label: this.$t('calendar', 'Free'),
+				label: this.$t('nocturnkalender', 'Free'),
 				color: getColorForFBType('FREE'),
 			}, {
-				label: this.$t('calendar', 'Busy (tentative)'),
+				label: this.$t('nocturnkalender', 'Busy (tentative)'),
 				color: getColorForFBType('BUSY-TENTATIVE'),
 			}, {
-				label: this.$t('calendar', 'Busy'),
+				label: this.$t('nocturnkalender', 'Busy'),
 				color: getColorForFBType('BUSY'),
 			}, {
-				label: this.$t('calendar', 'Out of office'),
+				label: this.$t('nocturnkalender', 'Out of office'),
 				color: getColorForFBType('BUSY-UNAVAILABLE'),
 			}, {
-				label: this.$t('calendar', 'Unknown'),
+				label: this.$t('nocturnkalender', 'Unknown'),
 				color: getColorForFBType('UNKNOWN'),
 			}]
 		},

@@ -103,13 +103,13 @@ const delegatorDisplayname = computed<string>(() => {
  */
 const descriptionAppNavigationItem = computed<string>(() => {
 	if (props.calendar.enabled && props.calendar.displayName) {
-		return t('calendar', 'Disable calendar "{calendar}"', { calendar: props.calendar.displayName })
+		return t('nocturnkalender', 'Disable calendar "{calendar}"', { calendar: props.calendar.displayName })
 	} else if (props.calendar.enabled && !props.calendar.displayName) {
-		return t('calendar', 'Disable untitled calendar')
+		return t('nocturnkalender', 'Disable untitled calendar')
 	} else if (!props.calendar.enabled && props.calendar.displayName) {
-		return t('calendar', 'Enable calendar "{calendar}"', { calendar: props.calendar.displayName })
+		return t('nocturnkalender', 'Enable calendar "{calendar}"', { calendar: props.calendar.displayName })
 	} else {
-		return t('calendar', 'Enable untitled calendar')
+		return t('nocturnkalender', 'Enable untitled calendar')
 	}
 })
 
@@ -138,7 +138,7 @@ async function toggleEnabled(): Promise<void> {
 	try {
 		await calendarsStore.toggleCalendarEnabled({ calendar: props.calendar })
 	} catch (error) {
-		showError(t('calendar', 'An error occurred, unable to change visibility of the calendar.'))
+		showError(t('nocturnkalender', 'An error occurred, unable to change visibility of the calendar.'))
 		logger.error(error)
 	}
 }
@@ -168,10 +168,10 @@ async function copyPublicLink(): Promise<void> {
 	// copy link for calendar to clipboard
 	try {
 		await navigator.clipboard.writeText(url.href)
-		showSuccess(t('calendar', 'Calendar link copied to clipboard.'))
+		showSuccess(t('nocturnkalender', 'Calendar link copied to clipboard.'))
 	} catch (error) {
 		logger.debug(error)
-		showError(t('calendar', 'Calendar link could not be copied to clipboard.'))
+		showError(t('nocturnkalender', 'Calendar link could not be copied to clipboard.'))
 	}
 }
 
@@ -181,7 +181,7 @@ async function copyPublicLink(): Promise<void> {
 	<AppNavigationItem
 		:loading="calendar.loading"
 		:aria-description="descriptionAppNavigationItem"
-		:name="calendarDisplayName || t('calendar', 'Untitled calendar')"
+		:name="calendarDisplayName || t('nocturnkalender', 'Untitled calendar')"
 		:class="{ deleted: isBeingDeleted, disabled: !calendar.enabled }"
 		@update:menuOpen="actionsMenuOpen = $event"
 		@click.prevent.stop="toggleEnabled">
@@ -199,7 +199,7 @@ async function copyPublicLink(): Promise<void> {
 		</template>
 
 		<template #counter>
-			<BellOffOutline v-if="calendar.disableAlarmNotifications" :size="20" :title="t('calendar', 'Notifications muted')" />
+			<BellOffOutline v-if="calendar.disableAlarmNotifications" :size="20" :title="t('nocturnkalender', 'Notifications muted')" />
 			<LinkVariant v-else-if="isSharedByMe" :size="20" />
 			<NcAvatar
 				v-else-if="isDelegated && loadedDelegatorPrincipal && !actionsMenuOpen"
@@ -219,7 +219,7 @@ async function copyPublicLink(): Promise<void> {
 		<template #actions>
 			<template v-if="!isBeingDeleted">
 				<template v-if="isDelegated">
-					<NcActionCaption :name="t('calendar', 'Delegated to you by')" />
+					<NcActionCaption :name="t('nocturnkalender', 'Delegated to you by')" />
 					<NcActionText class="delegated-action-text">
 						<template #icon>
 							<div class="actions-icon-avatar">
@@ -231,7 +231,7 @@ async function copyPublicLink(): Promise<void> {
 					<NcActionSeparator />
 				</template>
 				<template v-else-if="isSharedWithMe">
-					<NcActionCaption :name="t('calendar', 'Shared with you by')" />
+					<NcActionCaption :name="t('nocturnkalender', 'Shared with you by')" />
 					<NcActionText>
 						<template #icon>
 							<div class="actions-icon-avatar">
@@ -246,13 +246,13 @@ async function copyPublicLink(): Promise<void> {
 					<template #icon>
 						<ContentCopy :size="20" decorative />
 					</template>
-					{{ t('calendar', 'Copy public link') }}
+					{{ t('nocturnkalender', 'Copy public link') }}
 				</ActionButton>
 				<ActionButton @click.prevent.stop="showEditModal">
 					<template #icon>
 						<Pencil :size="20" decorative />
 					</template>
-					{{ canBeShared ? t('calendar', 'Edit and share calendar') : t('calendar', 'Edit calendar') }}
+					{{ canBeShared ? t('nocturnkalender', 'Edit and share calendar') : t('nocturnkalender', 'Edit calendar') }}
 				</ActionButton>
 			</template>
 			<template v-else>
@@ -262,7 +262,7 @@ async function copyPublicLink(): Promise<void> {
 					<template #icon>
 						<Undo :size="20" decorative />
 					</template>
-					{{ n('calendar', 'Unsharing the calendar in {countdown} second', 'Unsharing the calendar in {countdown} seconds', countdown, { countdown }) }}
+					{{ n('nocturnkalender', 'Unsharing the calendar in {countdown} second', 'Unsharing the calendar in {countdown} seconds', countdown, { countdown }) }}
 				</ActionButton>
 				<ActionButton
 					v-else
@@ -270,7 +270,7 @@ async function copyPublicLink(): Promise<void> {
 					<template #icon>
 						<Undo :size="20" decorative />
 					</template>
-					{{ n('calendar', 'Deleting the calendar in {countdown} second', 'Deleting the calendar in {countdown} seconds', countdown, { countdown }) }}
+					{{ n('nocturnkalender', 'Deleting the calendar in {countdown} second', 'Deleting the calendar in {countdown} seconds', countdown, { countdown }) }}
 				</ActionButton>
 			</template>
 		</template>

@@ -239,6 +239,19 @@ interface AppointmentDao {
     @Update
     suspend fun update(appointment: AppointmentEntity)
 
+    @Query("SELECT * FROM appointment_attachments WHERE appointmentId = :appointmentId")
+    fun observeAttachments(appointmentId: Long): Flow<List<AppointmentAttachmentEntity>>
+
+    /** Für die Tagesansicht: Anhänge aller Termine auf einmal statt einer Einzelabfrage pro Termin. */
+    @Query("SELECT * FROM appointment_attachments")
+    fun observeAllAttachments(): Flow<List<AppointmentAttachmentEntity>>
+
+    @Insert
+    suspend fun insertAttachment(attachment: AppointmentAttachmentEntity): Long
+
+    @Delete
+    suspend fun deleteAttachment(attachment: AppointmentAttachmentEntity)
+
     @Delete
     suspend fun delete(appointment: AppointmentEntity)
 }

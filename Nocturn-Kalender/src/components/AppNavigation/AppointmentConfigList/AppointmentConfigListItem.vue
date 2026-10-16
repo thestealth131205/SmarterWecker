@@ -56,10 +56,10 @@ function duplicate(): void {
 async function copyLink(): Promise<void> {
 	try {
 		await navigator.clipboard.writeText(props.config.bookingUrl)
-		showSuccess(t('calendar', 'Appointment link was copied to clipboard'))
+		showSuccess(t('nocturnkalender', 'Appointment link was copied to clipboard'))
 	} catch (error) {
 		logger.error('Failed to copy appointment link to clipboard', { error })
-		showError(t('calendar', 'Appointment link could not be copied to clipboard'))
+		showError(t('nocturnkalender', 'Appointment link could not be copied to clipboard'))
 	}
 }
 </script>
@@ -79,7 +79,7 @@ async function copyLink(): Promise<void> {
 					<template #icon>
 						<OpenInNewIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Preview') }}
+					{{ t('nocturnkalender', 'Preview') }}
 				</ActionLink>
 				<ActionButton
 					v-if="hasClipboard()"
@@ -88,7 +88,7 @@ async function copyLink(): Promise<void> {
 					<template #icon>
 						<LinkVariantIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Copy link') }}
+					{{ t('nocturnkalender', 'Copy link') }}
 				</ActionButton>
 				<ActionButton
 					:closeAfterClick="true"
@@ -96,7 +96,7 @@ async function copyLink(): Promise<void> {
 					<template #icon>
 						<ContentDuplicate :size="20" />
 					</template>
-					{{ t('calendar', 'Duplicate') }}
+					{{ t('nocturnkalender', 'Duplicate') }}
 				</ActionButton>
 				<ActionButton
 					:closeAfterClick="true"
@@ -104,7 +104,7 @@ async function copyLink(): Promise<void> {
 					<template #icon>
 						<PencilIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Edit') }}
+					{{ t('nocturnkalender', 'Edit') }}
 				</ActionButton>
 				<ActionButton
 					:closeAfterClick="true"
@@ -112,7 +112,7 @@ async function copyLink(): Promise<void> {
 					<template #icon>
 						<DeleteIcon :size="20" />
 					</template>
-					{{ t('calendar', 'Delete') }}
+					{{ t('nocturnkalender', 'Delete') }}
 				</ActionButton>
 			</template>
 		</AppNavigationItem>

@@ -9,7 +9,7 @@
 		v-model="showFullModal"
 		class="calendar-edit-full"
 		size="full"
-		:name="t('calendar', 'Detailed event editor')"
+		:name="t('nocturnkalender', 'Detailed event editor')"
 		:dark="false"
 		:noClose="true"
 		@close="cancel(false)">
@@ -25,7 +25,7 @@
 				</div>
 			</template>
 			<template v-else-if="isError">
-				<NcEmptyContent :name="$t('calendar', 'Event does not exist')" :description="error">
+				<NcEmptyContent :name="$t('nocturnkalender', 'Event does not exist')" :description="error">
 					<template #icon>
 						<CalendarBlank decorative />
 					</template>
@@ -63,43 +63,43 @@
 									<template #icon>
 										<ContentCopy :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Copy link') }}
+									{{ $t('nocturnkalender', 'Copy link') }}
 								</NcActionButton>
 								<NcActionLink v-if="!hideEventExport && hasDownloadURL && !isNew" :href="downloadURL">
 									<template #icon>
 										<Download :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Export') }}
+									{{ $t('nocturnkalender', 'Export') }}
 								</NcActionLink>
 								<NcActionButton v-if="!isNew && canDuplicate" @click="duplicateEvent()">
 									<template #icon>
 										<ContentDuplicate :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Duplicate') }}
+									{{ $t('nocturnkalender', 'Duplicate') }}
 								</NcActionButton>
 								<NcActionButton v-if="!isNew && !isRecurringInstance && canDelete('occurrence')" @click="deleteAndLeave('occurrence')">
 									<template #icon>
 										<Delete :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Delete') }}
+									{{ $t('nocturnkalender', 'Delete') }}
 								</NcActionButton>
 								<NcActionButton v-if="!isNew && isRecurringInstance && canDelete('occurrence')" @click="deleteAndLeave('occurrence')">
 									<template #icon>
 										<Delete :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Delete this occurrence') }}
+									{{ $t('nocturnkalender', 'Delete this occurrence') }}
 								</NcActionButton>
 								<NcActionButton v-if="!isNew && isRecurringInstance && canDelete('future')" @click="deleteAndLeave('future')">
 									<template #icon>
 										<Delete :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Delete this and future occurrences') }}
+									{{ $t('nocturnkalender', 'Delete this and future occurrences') }}
 								</NcActionButton>
 								<NcActionButton v-if="!isNew && isRecurringInstance && canDelete('series')" @click="deleteAndLeave('series')">
 									<template #icon>
 										<Delete :size="20" decorative />
 									</template>
-									{{ $t('calendar', 'Delete entire series') }}
+									{{ $t('nocturnkalender', 'Delete entire series') }}
 								</NcActionButton>
 							</NcActions>
 						</div>
@@ -131,7 +131,7 @@
 								:modelValue="isAllDay"
 								:disabled="!canModifyAllDay"
 								@update:modelValue="toggleAllDayPreliminary">
-								{{ $t('calendar', 'All day') }}
+								{{ $t('nocturnkalender', 'All day') }}
 							</NcCheckboxRadioSwitch>
 
 							<!-- TODO: If not editing the base instance, force updating this and all future   -->
@@ -160,7 +160,7 @@
 								</template>
 								<template #default>
 									<p class="warning-text">
-										{{ $t('calendar', 'Modifications wont get propagated to the organizer and other attendees') }}
+										{{ $t('nocturnkalender', 'Modifications wont get propagated to the organizer and other attendees') }}
 									</p>
 								</template>
 							</NcPopover>
@@ -217,7 +217,7 @@
 								:disabled="isCreateTalkRoomButtonDisabled"
 								style="width: 100%"
 								@click="openTalkModal">
-								{{ t('calendar', 'Add Talk conversation') }}
+								{{ t('nocturnkalender', 'Add Talk conversation') }}
 							</NcButton>
 						</div>
 						<PropertySelect
@@ -261,14 +261,14 @@
 
 				<NcModal
 					v-if="showModal && !isPrivate()"
-					:name="t('calendar', 'Managing shared access')"
+					:name="t('nocturnkalender', 'Managing shared access')"
 					@close="closeAttachmentsModal">
 					<div class="modal-content">
 						<div v-if="showPreloader" class="modal-content-preloader">
 							<div :style="`width:${sharedProgress}%`" />
 						</div>
 						<div class="modal-h">
-							{{ n('calendar', 'User requires access to your file', 'Users require access to your file', showModalUsers.length) }}
+							{{ n('nocturnkalender', 'User requires access to your file', 'Users require access to your file', showModalUsers.length) }}
 						</div>
 						<div class="users">
 							<NcListItemIcon
@@ -280,7 +280,7 @@
 								:isNoUser="true" />
 						</div>
 						<div class="modal-subtitle">
-							{{ n('calendar', 'Attachment requires shared access', 'Attachments requiring shared access', showModalNewAttachments.length) }}
+							{{ n('nocturnkalender', 'Attachment requires shared access', 'Attachments requiring shared access', showModalNewAttachments.length) }}
 						</div>
 						<div class="attachments">
 							<NcListItemIcon
@@ -294,18 +294,18 @@
 						<div class="modal-footer">
 							<div class="modal-footer-checkbox">
 								<NcCheckboxRadioSwitch v-if="!isPrivate()" v-model="doNotShare">
-									{{ t('calendar', 'Deny access') }}
+									{{ t('nocturnkalender', 'Deny access') }}
 								</NcCheckboxRadioSwitch>
 							</div>
 							<div class="modal-footer-buttons">
 								<NcButton @click="closeAttachmentsModal">
-									{{ t('calendar', 'Cancel') }}
+									{{ t('nocturnkalender', 'Cancel') }}
 								</NcButton>
 								<NcButton
 									variant="primary"
 									:disabled="showPreloader"
 									@click="acceptAttachmentsModal()">
-									{{ t('calendar', 'Invite') }}
+									{{ t('nocturnkalender', 'Invite') }}
 								</NcButton>
 							</div>
 						</div>
@@ -333,8 +333,8 @@
 		</div>
 		<NcDialog
 			:open="showCancelDialog"
-			:name="t('calendar', 'Discard changes?')"
-			:message="t('calendar', 'Are you sure you want to discard the changes made to this event?')"
+			:name="t('nocturnkalender', 'Discard changes?')"
+			:message="t('nocturnkalender', 'Are you sure you want to discard the changes made to this event?')"
 			:buttons="cancelButtons"
 			@update:open="showCancelDialog = $event" />
 	</NcModal>
@@ -445,13 +445,13 @@ export default {
 			showPreloader: false,
 			cancelButtons: [
 				{
-					label: t('calendar', 'Discard'),
+					label: t('nocturnkalender', 'Discard'),
 					variant: 'secondary',
 					icon: IconDelete,
 					callback: () => { this.cancel(true) },
 				},
 				{
-					label: t('calendar', 'Cancel'),
+					label: t('nocturnkalender', 'Cancel'),
 					variant: 'primary',
 					icon: IconCancel,
 					callback: () => { this.closeCancelDialog() },
@@ -462,15 +462,15 @@ export default {
 			showFullModal: true,
 
 			propInvitationForwarding: {
-				readableName: t('calendar', 'Allow forwarding'),
+				readableName: t('nocturnkalender', 'Allow forwarding'),
 				icon: 'AccountPlusOutline',
 				options: [
-					{ value: 'TRUE', label: t('calendar', 'Anyone with the invitation can respond') },
-					{ value: 'FALSE', label: t('calendar', 'Only invited attendees can respond') },
+					{ value: 'TRUE', label: t('nocturnkalender', 'Anyone with the invitation can respond') },
+					{ value: 'FALSE', label: t('nocturnkalender', 'Only invited attendees can respond') },
 				],
 
 				multiple: false,
-				info: t('calendar', 'Choose "Only invited attendees can respond" to prevent attendees from forwarding the invitation to others.'),
+				info: t('nocturnkalender', 'Choose "Only invited attendees can respond" to prevent attendees from forwarding the invitation to others.'),
 				defaultValue: 'TRUE',
 			},
 		}

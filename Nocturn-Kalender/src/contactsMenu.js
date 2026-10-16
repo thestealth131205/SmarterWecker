@@ -21,14 +21,14 @@ __webpack_nonce__ = btoa(getRequestToken())
 // OC.generateUrl ensure the index.php (or not)
 // We do not want the index.php since we're loading files
 // eslint-disable-next-line
-__webpack_public_path__ = linkTo('calendar', 'js/')
+__webpack_public_path__ = linkTo('nocturnkalender', 'js/')
 
 // Decode calendar icon (inline data url -> raw svg)
 const CalendarBlankSvgRaw = atob(CalendarBlankSvg.split(',')[1])
 
 registerContactsMenuAction({
 	id: 'calendar-availability',
-	displayName: () => t('calendar', 'Show availability'),
+	displayName: () => t('nocturnkalender', 'Show availability'),
 	iconSvg: () => CalendarBlankSvgRaw,
 	enabled: (entry) => entry.isUser,
 	callback: async (args) => {

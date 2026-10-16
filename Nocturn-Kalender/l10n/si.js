@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "User-Session unexpectedly expired" : "පරිශීලක-සැසිය අනපේක්ෂිත ලෙස කල් ඉකුත් විය",
     "Provided email-address is not valid" : "සපයා ඇති විද්‍යුත් තැපැල් ලිපිනය වලංගු නොවේ",

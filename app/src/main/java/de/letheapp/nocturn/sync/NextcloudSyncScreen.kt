@@ -12,8 +12,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +53,11 @@ fun NextcloudSyncScreen(onBack: () -> Unit, viewModel: NextcloudSyncViewModel = 
     val account by viewModel.account.collectAsState()
     val discoveryState by viewModel.discoveryState.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val nocturnKalenderAvailability by viewModel.nocturnKalenderAvailability.collectAsState()
+
+    LaunchedEffect(account) {
+        if (account != null) viewModel.recheckNocturnKalenderAvailability()
+    }
 
     Scaffold(
         topBar = {
@@ -74,17 +82,21 @@ fun NextcloudSyncScreen(onBack: () -> Unit, viewModel: NextcloudSyncViewModel = 
             if (currentAccount == null) {
                 ConnectForm(
                     discoveryState = discoveryState,
+                    nocturnKalenderAvailability = nocturnKalenderAvailability,
                     onDiscover = viewModel::discover,
                     onConnect = viewModel::connect,
-                    onResetDiscovery = viewModel::resetDiscovery
+                    onResetDiscovery = viewModel::resetDiscovery,
+                    onRecheckAvailability = viewModel::recheckNocturnKalenderAvailability
                 )
             } else {
                 ConnectedStatus(
                     account = currentAccount,
                     isSyncing = isSyncing,
+                    nocturnKalenderAvailability = nocturnKalenderAvailability,
                     onSyncNow = viewModel::syncNow,
                     onUpdateOptions = viewModel::updateSyncOptions,
-                    onDisconnect = viewModel::disconnect
+                    onDisconnect = viewModel::disconnect,
+                    onRecheckAvailability = viewModel::recheckNocturnKalenderAvailability
                 )
             }
         }
@@ -94,15 +106,16 @@ fun NextcloudSyncScreen(onBack: () -> Unit, viewModel: NextcloudSyncViewModel = 
 @Composable
 private fun ConnectForm(
     discoveryState: DiscoveryState,
+    nocturnKalenderAvailability: NocturnKalenderAvailability,
     onDiscover: (String, String, String) -> Unit,
-    onConnect: (CalDavCalendarInfo, Boolean, Boolean, Boolean) -> Unit,
-    onResetDiscovery: () -> Unit
+    onConnect: (CalDavCalendarInfo, Boolean, Boolean) -> Unit,
+    onResetDiscovery: () -> Unit,
+    onRecheckAvailability: () -> Unit
 ) {
     var serverUrl by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var syncAppointments by remember { mutableStateOf(true) }
-    var syncShifts by remember { mutableStateOf(true) }
     var syncNocturnSchedule by remember { mutableStateOf(false) }
     var selectedCalendar by remember { mutableStateOf<CalDavCalendarInfo?>(null) }
 
@@ -112,8 +125,9 @@ private fun ConnectForm(
             "läuft der Abgleich automatisch alle 4 Stunden im Hintergrund weiter in beide " +
             "Richtungen: neue/geänderte Termine aus Nextcloud werden übernommen, neue/geänderte " +
             "Termine aus NocTurn hochgeladen — bereits abgeglichene Einträge werden dabei erkannt " +
-            "und nicht doppelt angelegt. Deine Schichten werden zusätzlich einseitig " +
-            "(NocTurn -> Nextcloud) als Termine exportiert."
+            "und nicht doppelt angelegt. Schichten/Jobs/Rotationen werden ausschließlich mit der " +
+            "NocTurn-Kalender-App abgestimmt (siehe unten) — nicht zusätzlich als normale Termine " +
+            "exportiert, damit nichts doppelt angezeigt wird."
     )
     Spacer(modifier = Modifier.padding(top = 12.dp))
 
@@ -188,26 +202,26 @@ private fun ConnectForm(
                 checked = syncAppointments,
                 onCheckedChange = { syncAppointments = it }
             )
-            LabeledSwitch(
-                label = "Schichten exportieren",
-                checked = syncShifts,
-                onCheckedChange = { syncShifts = it }
+            NocturnKalenderAvailabilityCard(
+                availability = nocturnKalenderAvailability,
+                onRecheck = onRecheckAvailability
             )
             LabeledSwitch(
-                label = "Jobs/Schichten/Rotationen mit der Nextcloud-Kalender-App abstimmen",
+                label = "Schichten/Jobs/Rotationen mit der NocTurn-Kalender-App abstimmen",
                 checked = syncNocturnSchedule,
+                enabled = nocturnKalenderAvailability == NocturnKalenderAvailability.Available,
                 onCheckedChange = { syncNocturnSchedule = it }
             )
             Text(
                 "Lässt deine Jobs, Schichten und Rotations-Muster (inkl. Änderungen von dort) " +
                     "auch in der eigenen \"NocTurn\"-Seitenleiste der Nextcloud-Calendar-App " +
-                    "erscheinen — getrennt vom reinen Termin-Export oben.",
+                    "erscheinen.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Button(
-                onClick = { selectedCalendar?.let { onConnect(it, syncAppointments, syncShifts, syncNocturnSchedule) } },
+                onClick = { selectedCalendar?.let { onConnect(it, syncAppointments, syncNocturnSchedule) } },
                 enabled = selectedCalendar != null,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
             ) { Text("Verbinden") }
@@ -216,12 +230,66 @@ private fun ConnectForm(
 }
 
 @Composable
+private fun NocturnKalenderAvailabilityCard(availability: NocturnKalenderAvailability, onRecheck: () -> Unit) {
+    when (availability) {
+        NocturnKalenderAvailability.Unknown -> Unit
+        NocturnKalenderAvailability.Checking -> {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
+                Text("Prüfe, ob die NocTurn-Kalender-App installiert ist …", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        NocturnKalenderAvailability.Available -> {
+            Text(
+                "NocTurn-Kalender-App gefunden.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+
+        NocturnKalenderAvailability.NotAvailable -> {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.WarningAmber,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            "Installiere zuerst die NocTurn-Kalender-App auf deinem Nextcloud-Server, " +
+                                "um Schichten/Jobs/Rotationen zu synchronisieren.",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    TextButton(onClick = onRecheck, modifier = Modifier.padding(top = 4.dp)) {
+                        Text("Erneut prüfen")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ConnectedStatus(
     account: CalDavAccountEntity,
     isSyncing: Boolean,
+    nocturnKalenderAvailability: NocturnKalenderAvailability,
     onSyncNow: () -> Unit,
-    onUpdateOptions: (Boolean, Boolean, Boolean) -> Unit,
-    onDisconnect: () -> Unit
+    onUpdateOptions: (Boolean, Boolean) -> Unit,
+    onDisconnect: () -> Unit,
+    onRecheckAvailability: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -253,17 +321,17 @@ private fun ConnectedStatus(
     LabeledSwitch(
         label = "Freie Termine synchronisieren",
         checked = account.syncAppointments,
-        onCheckedChange = { onUpdateOptions(it, account.syncShifts, account.syncNocturnSchedule) }
+        onCheckedChange = { onUpdateOptions(it, account.syncNocturnSchedule) }
+    )
+    NocturnKalenderAvailabilityCard(
+        availability = nocturnKalenderAvailability,
+        onRecheck = onRecheckAvailability
     )
     LabeledSwitch(
-        label = "Schichten exportieren",
-        checked = account.syncShifts,
-        onCheckedChange = { onUpdateOptions(account.syncAppointments, it, account.syncNocturnSchedule) }
-    )
-    LabeledSwitch(
-        label = "Jobs/Schichten/Rotationen mit der Nextcloud-Kalender-App abstimmen",
+        label = "Schichten/Jobs/Rotationen mit der NocTurn-Kalender-App abstimmen",
         checked = account.syncNocturnSchedule,
-        onCheckedChange = { onUpdateOptions(account.syncAppointments, account.syncShifts, it) }
+        enabled = nocturnKalenderAvailability == NocturnKalenderAvailability.Available,
+        onCheckedChange = { onUpdateOptions(account.syncAppointments, it) }
     )
 
     Button(onClick = onSyncNow, enabled = !isSyncing, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
@@ -276,13 +344,13 @@ private fun ConnectedStatus(
 }
 
 @Composable
-private fun LabeledSwitch(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun LabeledSwitch(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, modifier = Modifier.padding(end = 8.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
     }
 }

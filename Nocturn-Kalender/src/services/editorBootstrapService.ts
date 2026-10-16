@@ -44,8 +44,8 @@ export async function bootstrapEditor(): Promise<void> {
 	if (!calendars.some((calendar) => !calendar.readOnly)) {
 		logger.info('User has no writable calendar, a new personal calendar will be created')
 		await calendarsStore.appendCalendar({
-			displayName: t('calendar', 'Personal'),
-			color: uidToHexColor(t('calendar', 'Personal')),
+			displayName: t('nocturnkalender', 'Personal'),
+			color: uidToHexColor(t('nocturnkalender', 'Personal')),
 			order: 0,
 		})
 	}

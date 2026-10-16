@@ -25,7 +25,7 @@
 						<RequiredIcon v-if="!participantAttendance" />
 						<OptionalIcon v-else />
 					</template>
-					{{ !participantAttendance ? t('calendar', 'Attendance required') : t('calendar', 'Attendance optional') }}
+					{{ !participantAttendance ? t('nocturnkalender', 'Attendance required') : t('nocturnkalender', 'Attendance optional') }}
 				</NcActionButton>
 				<NcActionButton
 					:closeAfterClick="true"
@@ -33,7 +33,7 @@
 					<template #icon>
 						<DestroyIcon />
 					</template>
-					{{ t('calendar', 'Remove participant') }}
+					{{ t('nocturnkalender', 'Remove participant') }}
 				</NcActionButton>
 			</NcActions>
 		</div>

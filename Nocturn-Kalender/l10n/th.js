@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "calendar",
+    "nocturnkalender",
     {
     "Provided email-address is not valid" : "ที่อยู่อีเมลที่ระบุไว้ไม่ถูกต้อง",
     "%s has published the calendar »%s«" : "%s ได้เผยแพร่ปฏิทิน »%s«",

@@ -22,7 +22,8 @@ object IcsFormat {
         val description: String,
         val startEpochMillis: Long,
         val endEpochMillis: Long,
-        val allDay: Boolean
+        val allDay: Boolean,
+        val showAsBusy: Boolean = true
     )
 
     fun buildEvent(
@@ -32,7 +33,8 @@ object IcsFormat {
         description: String,
         startEpochMillis: Long,
         endEpochMillis: Long,
-        allDay: Boolean
+        allDay: Boolean,
+        showAsBusy: Boolean = true
     ): String {
         val lines = mutableListOf(
             "BEGIN:VCALENDAR",
@@ -54,6 +56,7 @@ object IcsFormat {
         lines += "SUMMARY:${escape(summary)}"
         if (location.isNotBlank()) lines += "LOCATION:${escape(location)}"
         if (description.isNotBlank()) lines += "DESCRIPTION:${escape(description)}"
+        lines += "TRANSP:${if (showAsBusy) "OPAQUE" else "TRANSPARENT"}"
         lines += "END:VEVENT"
         lines += "END:VCALENDAR"
         return lines.joinToString("\r\n") + "\r\n"
@@ -94,7 +97,7 @@ object IcsFormat {
             val name = if (semiIndex >= 0) namePart.substring(0, semiIndex) else namePart
             val params = if (semiIndex >= 0) namePart.substring(semiIndex + 1) else ""
             if (name == "UID" || name == "SUMMARY" || name == "LOCATION" || name == "DESCRIPTION" ||
-                name == "DTSTART" || name == "DTEND"
+                name == "DTSTART" || name == "DTEND" || name == "TRANSP"
             ) {
                 properties[name] = params to value
             }
@@ -124,7 +127,8 @@ object IcsFormat {
             description = unescape(properties["DESCRIPTION"]?.second.orEmpty()),
             startEpochMillis = startMillis,
             endEpochMillis = endMillis,
-            allDay = allDay
+            allDay = allDay,
+            showAsBusy = properties["TRANSP"]?.second != "TRANSPARENT"
         )
     }
 

@@ -873,3 +873,40 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   (keine Major-Version-Grenze, daher kein Ordnerwechsel/Downloads nötig). Vorher DB-Dump
   (`mysqldump`) + `config.php`-Kopie nach `~/nocturn-nc-backup-pre-update/` als Sicherheitsnetz.
   Danach `occ status`/`occ check`/`curl status.php` verifiziert — keine Fehler mehr.
+
+## NocTurn Kalender: leere Seite behoben + Doppel-Schicht-Bug + Update-Feed-Frage (2026-10-16)
+
+- **Leere Seite auf thestealth.de behoben**: Root Cause war ein beim ID-Rename `calendar` →
+  `nocturnkalender` übersehener Rest in `templates/main.php`/`templates/appointments/*.php`
+  (`script('calendar', 'calendar-main')` statt `nocturnkalender`) sowie **~40
+  `loadState('calendar', ...)`-Aufrufe + `linkTo('calendar', 'js/')`** im gesamten `src/`-Baum
+  (Webpack-Public-Path + Initial-State-Domain). Dadurch lud die App das Bundle der fremden,
+  noch installierten `calendar`-App und fand keinen zu sich passenden Initial-State — Vue
+  mountete nichts. Diagnostiziert durch Basic-Auth-App-Passwort + `curl` auf die Seite (kein
+  Browser nötig) und Vergleich der geladenen `<script>`-Tags/`initial-state-*`-divs im HTML.
+  Fix committet im Repo UND direkt live auf dem Server deployt (Build + Extract + Wartungsmodus-
+  Zyklus). Siehe CLAUDE.md "Behobener Rename-Bug" für Details.
+- **Doppelte Schichten durch zwei parallele Sync-Wege**: `NextcloudSyncRepository` hatte bisher
+  zwei unabhängige Mechanismen für Schichten — einen generischen CalDAV-VEVENT-Export
+  (`pushShiftOccurrences`, Schalter `syncShifts`) UND den strukturierten Schedule-Sync über die
+  NocTurn-Kalender-REST-API (`syncNocturnSchedule`). Beide gleichzeitig aktiv = dieselbe Schicht
+  doppelt sichtbar. **Fix**: `pushShiftOccurrences` + die generische CalDAV-Export-Funktion
+  komplett entfernt; Schichten laufen jetzt ausschließlich über `syncNocturnSchedule`. Bereits
+  vorhandene Alt-Einträge werden beim nächsten Sync automatisch von Nextcloud gelöscht
+  (`removeLegacyShiftCaldavEvents`, läuft einmalig/idempotent). Neu: `NocturnScheduleApiClient.
+  isNocturnKalenderInstalled()` prüft über den Standard-OCS-Capabilities-Endpoint
+  (`/ocs/v2.php/cloud/capabilities`, Schlüssel `"nocturnkalender"` aus `Capabilities.php`), ob
+  die App auf dem Zielserver überhaupt installiert ist — UI zeigt bei "nicht gefunden" einen
+  klaren Hinweis statt eines rohen Sync-Fehlers, Schalter bleibt deaktiviert bis die App
+  gefunden wird. `syncShifts`-Spalte bleibt in `CalDavAccountEntity` (immer `false`, keine
+  Migration nötig, siehe Doc-Kommentar dort).
+- **Update-Feed-Anfrage des Nutzers war technisch nicht umsetzbar wie beschrieben**: Nextcloud
+  kennt kein per-App `<releases>`-Tag/keine pro-App `appstoreurl` — das native Update-System ist
+  ein einziger, instanzweiter Appstore-Endpunkt für alle Apps gemeinsam. Ein eigener Mirror
+  dafür müsste zwangsläufig auch alle anderen Apps der Instanz mitbedienen. **Praktischer Ersatz
+  umgesetzt**: `scripts/release-deploy.sh` Schritt 10 (optional, `NEXTCLOUD_SERVER_*`-Variablen
+  in `.server-credentials`) baut die App und deployt sie per `scp`/`ssh` automatisch bei jedem
+  Release auf den Test-Nextcloud-Server (`thestealth.de`) — kein manueller "Update"-Klick in der
+  Nextcloud-Oberfläche mehr nötig. Falls der Nutzer stattdessen wirklich ein sichtbares
+  "Update verfügbar"-Badge in der Nextcloud-Apps-Seite selbst will, bräuchte das einen
+  vollständigen Appstore-API-Mirror (viel größerer Scope, noch nicht umgesetzt).

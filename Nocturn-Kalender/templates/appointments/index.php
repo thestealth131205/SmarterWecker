@@ -7,8 +7,8 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-script(\OCA\Calendar\AppInfo\Application::APP_ID, 'calendar-appointments-overview');
-style(\OCA\Calendar\AppInfo\Application::APP_ID, 'calendar-appointments-overview');
+script(\OCA\NocturnKalender\AppInfo\Application::APP_ID, 'nocturnkalender-appointments-overview');
+style(\OCA\NocturnKalender\AppInfo\Application::APP_ID, 'nocturnkalender-appointments-overview');
 
 ?>
 

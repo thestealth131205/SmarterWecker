@@ -57,34 +57,34 @@ const dateFormatFn = computed<NcDateTimePickerFormatProp>(() => {
 const previousLabel = computed(() => {
 	switch (view.value) {
 		case 'timeGridDay':
-			return t('calendar', 'Previous day')
+			return t('nocturnkalender', 'Previous day')
 
 		case 'timeGridWeek':
-			return t('calendar', 'Previous week')
+			return t('nocturnkalender', 'Previous week')
 
 		case 'multiMonthYear':
-			return t('calendar', 'Previous year')
+			return t('nocturnkalender', 'Previous year')
 
 		case 'dayGridMonth':
 		default:
-			return t('calendar', 'Previous month')
+			return t('nocturnkalender', 'Previous month')
 	}
 })
 
 const nextLabel = computed(() => {
 	switch (view.value) {
 		case 'timeGridDay':
-			return t('calendar', 'Next day')
+			return t('nocturnkalender', 'Next day')
 
 		case 'timeGridWeek':
-			return t('calendar', 'Next week')
+			return t('nocturnkalender', 'Next week')
 
 		case 'multiMonthYear':
-			return t('calendar', 'Next year')
+			return t('nocturnkalender', 'Next year')
 
 		case 'dayGridMonth':
 		default:
-			return t('calendar', 'Next month')
+			return t('nocturnkalender', 'Next month')
 	}
 })
 

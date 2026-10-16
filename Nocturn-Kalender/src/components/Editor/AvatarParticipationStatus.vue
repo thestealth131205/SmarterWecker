@@ -141,7 +141,7 @@ export default {
 			if (this.isSuggestion) {
 				return {
 					...acceptedIcon,
-					text: t('calendar', 'Suggested'),
+					text: t('nocturnkalender', 'Suggested'),
 				}
 			}
 
@@ -151,51 +151,51 @@ export default {
 					if (this.isResource) {
 						return {
 							...acceptedIcon,
-							text: t('calendar', 'Available'),
+							text: t('nocturnkalender', 'Available'),
 						}
 					}
 
 					if (this.attendeeIsOrganizer) {
 						return {
 							...acceptedIcon,
-							text: t('calendar', 'Invitation accepted'),
+							text: t('nocturnkalender', 'Invitation accepted'),
 						}
 					}
 
 					return {
 						...acceptedIcon,
-						text: t('calendar', 'Accepted {organizerName}\'s invitation', {
+						text: t('nocturnkalender', 'Accepted {organizerName}\'s invitation', {
 							organizerName: this.organizerDisplayName,
 						}),
 					}
 				case 'TENTATIVE':
 					return {
 						...tentativeIcon,
-						text: t('calendar', 'Participation marked as tentative'),
+						text: t('nocturnkalender', 'Participation marked as tentative'),
 					}
 				case 'DELEGATED':
 					return {
 						...delegatedIcon,
-						text: t('calendar', 'Invitation is delegated'),
+						text: t('nocturnkalender', 'Invitation is delegated'),
 					}
 				case 'DECLINED':
 					if (this.isResource) {
 						return {
 							...declinedIcon,
-							text: t('calendar', 'Not available'),
+							text: t('nocturnkalender', 'Not available'),
 						}
 					}
 
 					if (this.isViewedByOrganizer) {
 						return {
 							...declinedIcon,
-							text: t('calendar', 'Invitation declined'),
+							text: t('nocturnkalender', 'Invitation declined'),
 						}
 					}
 
 					return {
 						...declinedIcon,
-						text: t('calendar', 'Declined {organizerName}\'s invitation', {
+						text: t('nocturnkalender', 'Declined {organizerName}\'s invitation', {
 							organizerName: this.organizerDisplayName,
 						}),
 					}
@@ -211,29 +211,29 @@ export default {
 							case 'available':
 								return {
 									...acceptedIcon,
-									text: t('calendar', 'Still available'),
+									text: t('nocturnkalender', 'Still available'),
 								}
 							case 'unavailable':
 								return {
 									...declinedIcon,
-									text: t('calendar', 'Already booked'),
+									text: t('nocturnkalender', 'Already booked'),
 								}
 							case 'checking':
 								return {
 									icon: IconNoResponse,
-									text: t('calendar', 'Checking availability'),
+									text: t('nocturnkalender', 'Checking availability'),
 								}
 						}
 
 						return {
 							...noResponseIcon,
-							text: t('calendar', 'Will be booked after saving, if available'),
+							text: t('nocturnkalender', 'Will be booked after saving, if available'),
 						}
 					}
 
 					return {
 						...noResponseIcon,
-						text: t('calendar', 'Invitation will be sent'),
+						text: t('nocturnkalender', 'Invitation will be sent'),
 					}
 				}
 
@@ -243,32 +243,32 @@ export default {
 					if (this.isResource) {
 						return {
 							...noResponseIcon,
-							text: t('calendar', 'Failed to check availability'),
+							text: t('nocturnkalender', 'Failed to check availability'),
 						}
 					}
 
 					return {
 						...noResponseIcon,
-						text: t('calendar', 'Failed to deliver invitation'),
+						text: t('nocturnkalender', 'Failed to deliver invitation'),
 					}
 				}
 
 				return {
 					...noResponseIcon,
-					text: t('calendar', 'Awaiting response'),
+					text: t('nocturnkalender', 'Awaiting response'),
 				}
 			}
 
 			if (this.isResource) {
 				return {
 					...noResponseIcon,
-					text: t('calendar', 'Checking availability'),
+					text: t('nocturnkalender', 'Checking availability'),
 				}
 			}
 
 			return {
 				...noResponseIcon,
-				text: t('calendar', 'Has not responded to {organizerName}\'s invitation yet', {
+				text: t('nocturnkalender', 'Has not responded to {organizerName}\'s invitation yet', {
 					organizerName: this.organizerDisplayName,
 				}),
 			}
