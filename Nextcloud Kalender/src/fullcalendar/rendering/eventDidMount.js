@@ -1,0 +1,458 @@
+/**
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import { getCanonicalLocale, translate as t } from '@nextcloud/l10n'
+import { errorCatch } from '@/fullcalendar/utils/errors.js'
+import { formatDateWithTimezone, isMultiDayAllDayEvent } from '@/utils/date.js'
+import { createSvgIconElement } from '@/utils/svg.ts'
+
+/**
+ * Build time description for all-day events
+ *
+ * @param {EventApi} event The event
+ * @param {string|undefined} locale Locale for event time formatting
+ * @return {string} Time description
+ */
+function buildAllDayTimeDescription(event, locale) {
+	if (!event.start) {
+		return ''
+	}
+
+	const dateOptions = {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric',
+	}
+	const startStr = formatDateWithTimezone(event.start, locale, dateOptions)
+
+	if (!event.end || !isMultiDayAllDayEvent(event.start, event.end)) {
+		return startStr
+	}
+
+	// Multi-day event: calculate end date (exclusive, so subtract 1 day)
+	const adjustedEnd = new Date(event.end)
+	adjustedEnd.setDate(adjustedEnd.getDate() - 1)
+	const endStr = formatDateWithTimezone(adjustedEnd, locale, dateOptions)
+
+	return t('calendar', '{startDate} to {endDate}', {
+		startDate: startStr,
+		endDate: endStr,
+	})
+}
+
+/**
+ * Build time description for timed events
+ *
+ * @param {EventApi} event The event
+ * @param {string|undefined} locale The locale to use
+ * @return {string} Time description
+ */
+function buildTimedEventDescription(event, locale) {
+	if (!event.start) {
+		return ''
+	}
+
+	const dateTimeOptions = {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric',
+		hour: 'numeric',
+		minute: 'numeric',
+	}
+	const timeOptions = {
+		hour: 'numeric',
+		minute: 'numeric',
+	}
+
+	const startStr = formatDateWithTimezone(event.start, locale, dateTimeOptions, true)
+
+	if (!event.end) {
+		return startStr
+	}
+
+	// Check if same day - only show time for end
+	const sameDay = event.start.toDateString() === event.end.toDateString()
+	if (sameDay) {
+		const endTimeStr = formatDateWithTimezone(event.end, locale, timeOptions, true)
+		return t('calendar', '{startDateTime} to {endTime}', {
+			startDateTime: startStr,
+			endTime: endTimeStr,
+		})
+	}
+
+	// Multi-day timed event
+	const endStr = formatDateWithTimezone(event.end, locale, dateTimeOptions, true)
+	return t('calendar', '{startDateTime} to {endDateTime}', {
+		startDateTime: startStr,
+		endDateTime: endStr,
+	})
+}
+
+/**
+ * Builds an accessible label for a calendar event including its title and time.
+ *
+ * @param {EventApi} event The fullcalendar event object
+ * @return {string} A human-readable label for screen readers
+ */
+function buildAriaLabel(event) {
+	const locale = getCanonicalLocale() || undefined
+	const title = event.title || t('calendar', 'Untitled event')
+
+	if (event.allDay) {
+		const timeDescription = buildAllDayTimeDescription(event, locale)
+		if (timeDescription) {
+			return t('calendar', '{title}, All day: {timeDescription}', {
+				title,
+				timeDescription,
+			})
+		}
+		return t('calendar', '{title}, All day', { title })
+	}
+
+	const timeDescription = buildTimedEventDescription(event, locale)
+	if (timeDescription) {
+		return t('calendar', '{title}, {timeDescription}', {
+			title,
+			timeDescription,
+		})
+	}
+	return title
+}
+
+/**
+ * Adds data to the html element representing the event in the fullcalendar grid.
+ * This is used to later on position the popover
+ *
+ * @param {object} data The destructuring object
+ * @param {EventApi} data.event The fullcalendar event object
+ * @param {Node} data.el The HTML element
+ */
+export default errorCatch(function({ event, el }) {
+	// Set aria-label for screen reader accessibility
+	el.setAttribute('aria-label', buildAriaLabel(event))
+
+	if (event.extendedProps.objectType === 'VTODO' && event.url) {
+		const link = el.matches('a') ? el : el.querySelector('a[href]')
+		link?.setAttribute('target', '_blank')
+		link?.setAttribute('rel', 'noopener noreferrer')
+	}
+
+	if (el.classList.contains('fc-event-nc-task')) {
+		if (el.classList.contains('fc-list-event')) {
+			// List view
+			const dotElement = el.querySelector('.fc-list-event-dot')
+			dotElement.classList.remove('fc-list-event-dot')
+			dotElement.classList.add('fc-list-event-checkbox')
+			dotElement.style.color = 'var(--color-main-text)'
+
+			if (event.extendedProps.percent === 100) {
+				dotElement.classList.add('fc-task-checkbox--checked')
+			} else {
+				dotElement.classList.add('fc-task-checkbox')
+			}
+		} else if (el.classList.contains('fc-daygrid-dot-event')) {
+			// Dot event in day grid view
+			const dotElement = el.querySelector('.fc-daygrid-event-dot')
+			dotElement.classList.remove('fc-daygrid-event-dot')
+			dotElement.classList.add('fc-daygrid-event-checkbox')
+			dotElement.style.color = 'var(--color-main-text)'
+
+			if (event.extendedProps.percent === 100) {
+				dotElement.classList.add('fc-task-checkbox--checked')
+			} else {
+				dotElement.classList.add('fc-task-checkbox')
+			}
+		} else {
+			// AgendaView and all-day grid view
+			const titleContainer = el.querySelector('.fc-event-title-container')
+			const checkboxElement = document.createElement('div')
+			checkboxElement.classList.add('fc-event-title-checkbox')
+			if (event.extendedProps.percent === 100) {
+				checkboxElement.classList.add('fc-task-checkbox--checked')
+			} else {
+				checkboxElement.classList.add('fc-task-checkbox')
+			}
+
+			titleContainer.prepend(checkboxElement)
+		}
+	}
+
+	if (
+		el.classList.contains('fc-event-nc-free')
+		&& !el.classList.contains('fc-list-event')
+		&& !el.classList.contains('fc-daygrid-dot-event')
+	) {
+		el.style.setProperty('--nc-event-color', el.style.borderColor)
+	}
+
+	if (event.source === null) {
+		el.dataset.isNew = 'yes'
+	} else {
+		el.dataset.objectId = event.extendedProps.objectId
+		el.dataset.recurrenceId = event.extendedProps.recurrenceId
+	}
+
+	if (el.classList.contains('fc-list-event')) {
+		const locationContainer = document.createElement('td')
+		locationContainer.classList.add('fc-list-event-location')
+		const descriptionContainer = document.createElement('td')
+		descriptionContainer.classList.add('fc-list-event-description')
+
+		el.appendChild(locationContainer)
+		el.appendChild(descriptionContainer)
+
+		if (event.extendedProps.location) {
+			const location = document.createElement('span')
+			location.appendChild(document.createTextNode(event.extendedProps.location))
+			locationContainer.appendChild(location)
+		}
+
+		if (event.extendedProps.description) {
+			const description = document.createElement('span')
+			description.appendChild(document.createTextNode(event.extendedProps.description))
+			descriptionContainer.appendChild(description)
+		}
+	}
+
+	// Apply semi-transparent accent-color overlay on top of the solid calendar grid background for
+	// grid events (not dot or list events). Using a solid page-background base prevents overlapping
+	// events from bleeding through each other.
+	// The full-opacity color remains on the left border (set by FullCalendar's inline border-color).
+	// Past events get a weaker fill to keep them visually distinct.
+	// Skipped in high-contrast mode — CSS will force the plain page background instead.
+	if (
+		!el.classList.contains('fc-list-event')
+		&& !el.classList.contains('fc-daygrid-dot-event')
+		&& !isHighContrast()
+	) {
+		const bgColor = el.style.backgroundColor
+		if (bgColor) {
+			const rgb = extractRGB(bgColor)
+			if (rgb) {
+				const now = new Date()
+				const isPast = event.end ? event.end < now : (event.start ? event.start < now : false)
+				const opacity = isPast ? 0.15 : 0.35
+				// Solid page-background as the base so overlapping events are opaque,
+				// with the accent colour layered on top as a translucent gradient.
+				el.style.backgroundColor = 'var(--fc-page-bg-color)'
+				el.style.backgroundImage = `linear-gradient(rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity}), rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity}))`
+			}
+		}
+	}
+
+	if (
+		el.classList.contains('fc-event-nc-all-declined')
+		|| el.classList.contains('fc-event-nc-needs-action')
+		|| el.classList.contains('fc-event-nc-declined')
+	) {
+		const titleElement = el.querySelector('.fc-event-title')
+		const timeElement = el.querySelector('.fc-event-time')
+		const dotElement = el.querySelector('.fc-daygrid-event-dot')
+
+		if (dotElement) {
+			dotElement.style.borderWidth = '2px'
+			dotElement.style.background = 'var(--fc-page-bg-color)'
+			dotElement.style.minWidth = '10px'
+			dotElement.style.minHeight = '10px'
+		} else {
+			// Use the solid page background instead of transparent so overlapping events
+			// don't bleed through each other.
+			el.style.background = 'var(--fc-page-bg-color)'
+
+			if (!isHighContrast()) {
+				const now = new Date()
+				const isPast = event.end ? event.end < now : (event.start ? event.start < now : false)
+				const borderRgb = extractRGB(el.style.borderColor)
+				if (isPast && borderRgb) {
+					const fadedBorderColor = `rgba(${borderRgb.r}, ${borderRgb.g}, ${borderRgb.b}, 0.35)`
+					el.style.borderTopColor = fadedBorderColor
+					el.style.borderRightColor = fadedBorderColor
+					el.style.borderBottomColor = fadedBorderColor
+				}
+			}
+		}
+
+		if (titleElement) {
+			titleElement.style.color = 'var(--color-main-text)'
+		}
+
+		if (timeElement) {
+			timeElement.style.color = 'var(--color-main-text)'
+		}
+
+		el.title = t('calendar', 'All participants declined')
+
+		if (el.classList.contains('fc-event-nc-needs-action')) {
+			el.title = t('calendar', 'Please confirm your participation')
+		}
+
+		if (el.classList.contains('fc-event-nc-declined')) {
+			el.title = t('calendar', 'You declined this event')
+			if (titleElement) {
+				titleElement.style.textDecoration = 'line-through'
+			}
+		}
+	}
+
+	if (
+		event.extendedProps.attendeeCount >= 1
+		&& !el.classList.contains('fc-event-nc-task')
+	) {
+		// From node_modules/vue-material-design-icons/AccountMultiple.vue
+		prependTitleIcon(el, 'M16 17V19H2V17S2 13 9 13 16 17 16 17M12.5 7.5A3.5 3.5 0 1 0 9 11A3.5 3.5 0 0 0 12.5 7.5M15.94 13A5.32 5.32 0 0 1 18 17V19H22V17S22 13.37 15.94 13M15 4A3.39 3.39 0 0 0 13.07 4.59A5 5 0 0 1 13.07 10.41A3.39 3.39 0 0 0 15 11A3.5 3.5 0 0 0 15 4Z')
+	}
+
+	if (el.classList.contains('fc-event-nc-all-declined')) {
+		// From node_modules/vue-material-design-icons/Alert.vue
+		prependTitleIcon(el, 'M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z')
+	}
+
+	if (el.classList.contains('fc-event-nc-tentative')) {
+		const dotElement = el.querySelector('.fc-daygrid-event-dot')
+
+		if (dotElement) {
+			// Dot events: keep the existing marker fill and overlay stripes only.
+			const dotColor = dotElement.style.borderColor || el.style.borderColor
+			const dotRgb = extractRGB(dotColor)
+			const stripeColor = dotRgb ? `rgba(${dotRgb.r}, ${dotRgb.g}, ${dotRgb.b}, 0.25)` : dotColor
+			dotElement.style.borderWidth = '2px'
+			if (!isHighContrast()) {
+				dotElement.style.backgroundImage = `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 1px, transparent 1px, transparent 3.5px)`
+			}
+			dotElement.style.minWidth = '10px'
+			dotElement.style.minHeight = '10px'
+		} else if (!isHighContrast()) {
+			// Block/time events: solid page background as the base, event colour overlay,
+			// then stripe pattern on top — so overlapping events stay opaque.
+			const eventColor = el.style.borderColor
+			const rgb = extractRGB(eventColor)
+			if (rgb) {
+				const stripeColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`
+				const now = new Date()
+				const isPast = event.end ? event.end < now : (event.start ? event.start < now : false)
+				const overlayOpacity = isPast ? 0.15 : 0.35
+				const overlayColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${overlayOpacity})`
+				el.style.backgroundColor = 'var(--fc-page-bg-color)'
+				el.style.backgroundImage = `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 2px, transparent 2px, transparent 10px), linear-gradient(${overlayColor}, ${overlayColor})`
+			} else {
+				// Fallback for when border color can't be parsed
+				const baseColor = el.style.borderColor
+				const stripeColor = darkenColor(baseColor)
+				el.style.backgroundColor = 'var(--fc-page-bg-color)'
+				el.style.backgroundImage = `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 2px, transparent 2px, transparent 10px)`
+			}
+		}
+
+		el.title = t('calendar', 'Your participation is tentative')
+	}
+
+	const time = el.querySelector('.fc-event-time')?.textContent
+	el.title = [time, event.title, el.title].filter(Boolean).join('\n')
+}, 'eventDidMount')
+
+/**
+ * Prepend a Material Symbols SVG icon to an event's title element.
+ * The icon is coloured with the event's border colour and sized to match the text.
+ *
+ * @param {HTMLElement} el The root element of the fullcalendar event
+ * @param {string} svgPath The `d` attribute of the SVG path to render
+ */
+function prependTitleIcon(el, svgPath) {
+	const titleElement = el.querySelector('.fc-event-title')
+	if (!titleElement) {
+		return
+	}
+
+	// Avoid duplicating icons when eventDidMount is called again (e.g. after a click).
+	const existingSvgs = titleElement.querySelectorAll('svg')
+	for (const svg of existingSvgs) {
+		const path = svg.querySelector('path')
+		if (path && path.getAttribute('d') === svgPath) {
+			return
+		}
+	}
+
+	const svgElement = createSvgIconElement(svgPath)
+	titleElement.insertBefore(svgElement, titleElement.firstChild)
+}
+
+/**
+ * Extract RGB components from a CSS color string.
+ * Supports rgb(), rgba(), #rrggbb, and #rgb formats.
+ *
+ * @param {string} color The color string to parse
+ * @return {{r: number, g: number, b: number}|null}
+ */
+function extractRGB(color) {
+	if (!color) {
+		return null
+	}
+
+	// rgb() or rgba() — browser-normalised inline style values
+	const rgbMatch = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+	if (rgbMatch) {
+		return { r: parseInt(rgbMatch[1]), g: parseInt(rgbMatch[2]), b: parseInt(rgbMatch[3]) }
+	}
+
+	// #rrggbb
+	const hexMatch = color.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+	if (hexMatch) {
+		return {
+			r: parseInt(hexMatch[1], 16),
+			g: parseInt(hexMatch[2], 16),
+			b: parseInt(hexMatch[3], 16),
+		}
+	}
+
+	// #rgb
+	const shortHexMatch = color.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i)
+	if (shortHexMatch) {
+		return {
+			r: parseInt(shortHexMatch[1] + shortHexMatch[1], 16),
+			g: parseInt(shortHexMatch[2] + shortHexMatch[2], 16),
+			b: parseInt(shortHexMatch[3] + shortHexMatch[3], 16),
+		}
+	}
+
+	return null
+}
+
+/**
+ * Create a slightly darker color for background stripes.
+ * Handles rgb(), rgba(), and hex color formats.
+ *
+ * @param {string} color The color to darken
+ * @return {string} The darkened color
+ */
+function darkenColor(color) {
+	const match = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+	if (!match) {
+		return color
+	}
+	const [r, g, b] = [match[1], match[2], match[3]].map((c) => Math.max(0, Math.min(255, parseInt(c) - (parseInt(c) * 0.3))))
+	if (match[4] !== undefined) {
+		return `rgba(${r}, ${g}, ${b}, ${match[4]})`
+	}
+	return `rgb(${r}, ${g}, ${b})`
+}
+
+/**
+ * Returns true when the user has requested a high-contrast experience.
+ *
+ * Nextcloud lets users pick a high-contrast theme from their Accessibility
+ * settings. That sets data-themes="light-highcontrast" (or dark-highcontrast)
+ * on <body> — it does NOT necessarily trigger the OS-level
+ * `prefers-contrast: more` media feature, so we check both.
+ *
+ * @return {boolean}
+ */
+function isHighContrast() {
+	if (window.matchMedia('(prefers-contrast: more)').matches) {
+		return true
+	}
+	const themes = document.body.getAttribute('data-themes') ?? ''
+	return themes.includes('highcontrast')
+}

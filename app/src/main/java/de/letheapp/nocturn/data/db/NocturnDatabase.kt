@@ -19,9 +19,13 @@ import androidx.room.RoomDatabase
         HolidaySettingsEntity::class,
         HolidayEntity::class,
         IoBrokerAccountEntity::class,
-        TaskEntity::class
+        TaskEntity::class,
+        WearVisibleSourceEntity::class,
+        NocturnSyncMappingEntity::class,
+        ImportedCalendarEntity::class,
+        ImportedCalendarEventEntity::class
     ],
-    version = 14,
+    version = 18,
     // Es existieren bereits reale Nutzdaten (Alarme, Jobs, Schichten, Rotationen, Kalender-
     // einträge) auf installierten Geräten — Schema-Export ist jetzt an, damit künftige
     // Versionsbumps per echter Migration (androidx.room.migration.Migration) statt eines
@@ -43,4 +47,7 @@ abstract class NocturnDatabase : RoomDatabase() {
     abstract fun holidayDao(): HolidayDao
     abstract fun ioBrokerAccountDao(): IoBrokerAccountDao
     abstract fun taskDao(): TaskDao
+    abstract fun wearVisibleSourceDao(): WearVisibleSourceDao
+    abstract fun nocturnSyncMappingDao(): NocturnSyncMappingDao
+    abstract fun importedCalendarDao(): ImportedCalendarDao
 }

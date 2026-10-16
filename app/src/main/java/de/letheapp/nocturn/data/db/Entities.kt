@@ -355,7 +355,20 @@ data class CalDavAccountEntity(
     val syncAppointments: Boolean = true,
     val syncShifts: Boolean = true,
     val lastSyncEpochMillis: Long = 0,
-    val lastSyncError: String? = null
+    val lastSyncError: String? = null,
+    /**
+     * `since`-Cursor (Server-Millis) für den nächsten inkrementellen Abruf über
+     * `/apps/calendar/v1/nocturn/sync` (siehe [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]).
+     * 0 = noch nie synchronisiert, nächster Lauf holt den vollen Bestand.
+     */
+    val nocturnScheduleSyncToken: Long = 0,
+    /**
+     * Opt-in (Default aus): Jobs/Schichten/Rotationen zusätzlich bidirektional mit der NocTurn-
+     * Schedule-REST-API der Nextcloud-Calendar-App abstimmen (siehe
+     * [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]) — unabhängig von [syncShifts], das
+     * weiterhin nur den reinen CalDAV-Ereignis-Export der generierten Schicht-Vorkommen steuert.
+     */
+    val syncNocturnSchedule: Boolean = false
 )
 
 /** Welcher lokale Datentyp über CalDAV synchronisiert wird (siehe [SyncedEventEntity]). */
@@ -395,6 +408,49 @@ data class SyncedEventEntity(
 )
 
 /**
+ * Welcher lokale Tabellentyp einem Server-seitigen NocTurn-Schedule-Datensatz entspricht (siehe
+ * [NocturnSyncMappingEntity]). Rotations-generierte und manuelle Tageseinträge liegen in
+ * unterschiedlichen lokalen Tabellen ([CalendarEntryEntity]/[ManualShiftEntryEntity]) mit jeweils
+ * eigenem, bei 1 beginnendem Autoincrement — deshalb eigene Typen statt eines gemeinsamen
+ * "OCCURRENCE", sonst würden z. B. CalendarEntry-Id 5 und ManualShiftEntry-Id 5 im selben
+ * (localType, localId)-Schlüssel kollidieren.
+ */
+enum class NocturnSyncLocalType {
+    JOB,
+    SHIFT,
+    ROTATION,
+    CALENDAR_ENTRY,
+    MANUAL_ENTRY
+}
+
+/**
+ * Merkt sich pro lokalem Datensatz (Job/Schicht/Rotation/Tageseintrag) das zugehörige
+ * Server-`uid` sowie den Server-`updatedAt`-Zeitstempel und einen einfachen Inhalts-Hash,
+ * damit [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository] bei jedem Sync-Lauf erkennen
+ * kann, ob sich lokal etwas geändert hat (Hash-Vergleich, ohne jedes Mal alles neu hochzuladen)
+ * und ob eine eingehende Server-Änderung neuer ist als der zuletzt gesehene Stand (Last-Write-
+ * Wins anhand `remoteUpdatedAt`, analog zur Server-Logik in NocturnScheduleService). Verzicht auf
+ * eine `deletedAt`-Spalte hier bewusst: ein lokal gelöschter Datensatz wird daran erkannt, dass
+ * die Ziel-Zeile (z. B. in `jobs`) nicht mehr existiert, während diese Mapping-Zeile (ohne eigene
+ * Fremdschlüssel-Kaskade) noch da ist.
+ */
+@Entity(
+    tableName = "nocturn_sync_mappings",
+    indices = [
+        Index(value = ["localType", "localId"], unique = true),
+        Index(value = ["remoteUid"], unique = true)
+    ]
+)
+data class NocturnSyncMappingEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val localType: String,
+    val localId: Long,
+    val remoteUid: String,
+    val remoteUpdatedAt: Long,
+    val contentHash: Int = 0
+)
+
+/**
  * Eine Aufgabe (Task) im Kalender — anders als ein [AppointmentEntity] nicht zeitgebunden, sondern
  * ein abhakbarer To-Do-Eintrag mit Fälligkeitstag, angelehnt an Google Tasks (siehe Nutzer-
  * Referenzbild: Titel, Ganztägig/Frist-Uhrzeit, Details). [dueEpochMillis] ist nur gesetzt, wenn
@@ -425,4 +481,67 @@ data class IoBrokerAccountEntity(
     val port: Int,
     val useHttps: Boolean = false,
     val username: String = ""
+)
+
+/** Welche Art von Kalenderquelle ein [WearVisibleSourceEntity]-Eintrag schaltet. */
+enum class WearSourceType {
+    /** Eine [JobEntity] — schaltet deren [ManualShiftEntryEntity]-Einzeleinträge frei. */
+    JOB,
+    /** Eine [RotationEntity] — schaltet deren fortgeschriebene [CalendarEntryEntity]-Einträge frei. */
+    ROTATION,
+    BIRTHDAYS,
+    PUBLIC_HOLIDAYS,
+    SCHOOL_HOLIDAYS
+}
+
+/**
+ * Schaltet pro Kalenderquelle (Job, Rotation, Geburtstage, Feiertage, Ferien) frei, ob sie an eine
+ * gekoppelte WearOS-Smartwatch übertragen wird (siehe "WearOS-Verwaltung" im 3-Punkte-Menü der
+ * Kalender-Monatsansicht, [de.letheapp.nocturn.wear.WearSettingsScreen]) — unabhängig davon, ob die
+ * Quelle auf dem Handy selbst gerade angezeigt wird. Fehlender Eintrag = nicht aktiviert (Opt-in,
+ * analog [HolidaySettingsEntity], Default aus). [sourceKey] ist bei [WearSourceType.JOB]/[ROTATION]
+ * die jobs.id/rotations.id, bei den drei Singleton-Quellen immer `0L` (Sentinel — echte
+ * Autogenerate-IDs beginnen bei 1, daher kollisionsfrei und ohne die SQLite-Falle, dass zwei NULL-
+ * Werte in einem UNIQUE-Index nicht als gleich gelten).
+ */
+@Entity(
+    tableName = "wear_visible_sources",
+    indices = [Index(value = ["sourceType", "sourceKey"], unique = true)]
+)
+data class WearVisibleSourceEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sourceType: String,
+    val sourceKey: Long = 0L,
+    val enabled: Boolean = true
+)
+
+/**
+ * Ein per ICS-Datei importierter externer Kalender (siehe CLAUDE.md "ICS-Import"), z. B. aus einer
+ * anderen Kalender-App exportiert. [visible] schaltet die Anzeige in der Monatsansicht per Kästchen
+ * in der Kalender-Seitenleiste um (analog [HolidaySettingsEntity.showPublicHolidays]) — anders als
+ * bei Feiertagen bleibt die Datei dabei einmalig importiert (kein periodischer Re-Fetch), da es sich
+ * um eine statische Datei und keine Online-Quelle handelt.
+ */
+@Entity(tableName = "imported_calendars")
+data class ImportedCalendarEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val colorArgb: Int,
+    val visible: Boolean = true,
+    val importedAtEpochMillis: Long
+)
+
+/** Ein einzelnes VEVENT aus einer importierten [ImportedCalendarEntity]-Datei, siehe [de.letheapp.nocturn.calendar.IcsImportRepository]. */
+@Entity(
+    tableName = "imported_calendar_events",
+    indices = [Index(value = ["calendarId"])]
+)
+data class ImportedCalendarEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val calendarId: Long,
+    val title: String,
+    val location: String = "",
+    val startEpochMillis: Long,
+    val endEpochMillis: Long,
+    val allDay: Boolean
 )

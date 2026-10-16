@@ -230,6 +230,25 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Berechtigung `READ_CONTACTS` (siehe Kernfunktion 10); ohne sie bleiben die Geburtstage
      einfach leer. Kontaktbild wird ohne zusätzliche Bild-Bibliothek direkt per
      `ContentResolver`/`BitmapFactory` geladen (FOSS-Minimalismus). Neues Package `contacts`.
+   - **ICS-Import externer Kalender**: Menüpunkt "ICS importieren" im 3-Punkte-Menü der
+     Kalender-Monatsansicht öffnet den System-Dateiauswahldialog (Android Storage Access
+     Framework); nach Auswahl einer `.ics`-Datei fragt ein Dialog Name (vorausgefüllt mit dem
+     Dateinamen) und Farbe ab, danach werden alle enthaltenen VEVENT-Blöcke einmalig als neuer
+     externer Kalender importiert (`IcsImportRepository`, Tabellen `imported_calendars`/
+     `imported_calendar_events`, Schema-Version 18, echte Migration in `DatabaseModule.kt`).
+     Wiederholungsregeln (RRULE) werden bewusst nicht expandiert — importiert wird nur das
+     jeweils einzelne VEVENT-Vorkommen (kein eigener RRULE-Expander, FOSS-Minimalismus). Jeder
+     importierte Kalender erscheint in der Kalender-Seitenleiste (siehe unten) mit einem
+     farbigen Kästchen zum Ein-/Ausschalten der Anzeige sowie Löschen per langem Gedrückthalten
+     (inkl. aller seiner importierten Events); die Events selbst erscheinen dann wie Termine
+     sowohl in der Monatsansicht als auch in der Tagesansicht.
+   - **Kästchen statt Punkt in der Kalender-Seitenleiste**: Die Legende für Feiertage/Ferien
+     sowie importierte ICS-Kalender zeigt statt eines reinen Farbpunkts ein mit der jeweiligen
+     Farbe gefülltes Kästchen (`ColorCheckboxRow`). Antippen der ganzen Zeile schaltet die
+     Anzeige im Kalender direkt um (Kästchen wird leer, Inhalt verschwindet aus Monats- und
+     Tagesansicht) — ohne dass dafür wie bisher zwingend der separate Ferien/Feiertage-
+     Einstellungs-Screen geöffnet werden muss (`HolidayRepository.setHolidayVisibility`, ändert
+     nur die Sichtbarkeits-Flags, nicht das gewählte Bundesland).
    - **Brief-/Terminzettel-Foto-Import**: eigenes Kamera-Symbol in der Topbar der
      Kalender-Monatsansicht (zwischen "Kalender teilen" und dem 3-Punkte-Menü) öffnet sofort
      die Kamera; danach lokale OCR über dieselbe Tesseract4Android-Engine wie der
@@ -500,6 +519,41 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Formats. Nextcloud-App-Passwort AES/GCM-verschlüsselt mit einem Android-Keystore-Schlüssel
   abgelegt (keine zusätzliche Security-Crypto-Abhängigkeit nötig). Periodischer
   Hintergrund-Sync über `androidx.work` (Hilt-WorkManager-Integration).
+- **Schichtplan-Sync mit der geforkten Nextcloud-Calendar-App** (`NocturnScheduleSyncRepository`,
+  Package `sync`): zusätzlich zum reinen CalDAV-Termin-/Schicht-Export synchronisiert NocTurn
+  Jobs/Schichten/Rotations-Muster/Tageseinträge bidirektional mit der NocTurn-Schedule-REST-API
+  der geforkten Calendar-App (`Nextcloud Kalender/`, siehe "Nextcloud-Kalender-App" unten) — damit
+  zeigt deren eigene Vue-Seitenleiste denselben Schichtplan und Änderungen dort fließen zurück
+  nach NocTurn. Opt-in über einen dritten Schalter im Nextcloud-Sync-Screen
+  (`CalDavAccountEntity.syncNocturnSchedule`, Default aus), nutzt dasselbe bereits verbundene
+  Nextcloud-Konto (kein zweiter Login). `NocturnSyncMappingEntity` hält pro Datensatz die
+  lokal<->Server-uid-Zuordnung samt Last-Write-Wins-Zeitstempel und Inhalts-Hash (kein Re-Push
+  unveränderter Datensätze). **Bekannte Einschränkungen** (siehe Doc-Kommentar der Klasse):
+  die Server-API kennt pro Rotationstag nur eine Schicht (NocTurns neuere Mehrfachbelegung eines
+  Tages wird beim Push auf die erste Schicht reduziert), der automatische "Nächste Schicht"-
+  Wecker (`ShiftEntity.latestWakeupHour`) hat kein Server-Gegenstück, und Tageseinträge werden
+  nur in einem rollenden Fenster (-14/+180 Tage) abgeglichen statt der vollen, ggf.
+  mehrjährigen lokalen Historie — ein anderer Nextcloud-Nutzer kann die Rotation nach dem
+  Abgleich von Job/Schichten/Muster aber selbst über die Vue-Seitenleiste für einen beliebigen
+  eigenen Zeitraum anwenden.
+- **Job-Sharing in der geforkten Nextcloud-Calendar-App** (`calendar_noct_job_shares`,
+  `NocturnJobShareMapper`/`NocturnJobShare`, Migration `Version6070Date20261016000000`): ein
+  Job-Besitzer kann über ein "Teilen"-Icon in der Vue-Seitenleiste (`ShareJobModal.vue`, Nutzer-
+  Suche wie beim bereits bestehenden Kalender-Teilen über `principalPropertySearchByDisplaynameOrEmail`,
+  bewusst nur einzelne Nextcloud-Nutzer statt Gruppen/Circles) einem anderen Nextcloud-Nutzer
+  **READ**- oder **WRITE**-Zugriff auf den kompletten Schichtplan eines einzelnen Jobs (Schichten,
+  Rotationen, generierte/manuelle Tageseinträge) geben — ohne die Daten zu duplizieren, der
+  Empfänger liest direkt die Zeilen des Besitzers, autorisiert über die Freigabe-Zeile statt über
+  Eigentümerschaft. Mit READ sieht der Empfänger den Job unter "Mit mir geteilt" in seiner eigenen
+  Seitenleiste (Name + Berechtigungs-Hinweis); mit WRITE kann er zusätzlich einzelne Tageseinträge
+  des geteilten Jobs anlegen/ändern (z. B. einen Schichttausch selbst eintragen), über eigene
+  `shared/{ownerId}/jobs/{jobUid}/occurrences`-Endpunkte, die den Schreibzugriff bei jedem Aufruf
+  neu gegen die Freigabe-Tabelle prüfen. **Bewusste Begrenzung**: WRITE erlaubt nur Tageseinträge,
+  nicht das Anlegen/Ändern von Schichten, Rotationen oder des Jobs selbst — das bliebe dem
+  Besitzer vorbehalten, um die Berechtigungsfläche klein zu halten. Diese Freigabe ist unabhängig
+  vom NocTurn-Android-Sync-Protokoll (siehe oben) und bisher nur über die Nextcloud-eigene
+  Vue-Oberfläche nutzbar — die Android-App selbst zeigt noch keine mit ihr geteilten fremden Jobs
+  an (offener Folgeschritt).
 - Kalender-Teilen (P2P): primär direkte App-zu-App-Synchronisation ohne eigenen
   Smarter-Wecker-Server (z. B. lokal/WLAN oder über vorhandene P2P-Mechanismen).
   Fallback/Hilfsfunktion bei Bedarf als schlanker Endpoint im Lethe-Backend
@@ -666,6 +720,20 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `/opt/letheapp/push-and-deploy.sh` für den Lethe Media Player (`com.Lethe.mediaplayer`,
   hinter dem bestehenden `--fdroid`-Flag), damit beide Begleit-Apps zuverlässig eine aktuelle
   "Current"-Version im selben Repo zeigen.
+- **Nextcloud-Kalender-App ("NocTurn Kalender")** (`Nextcloud Kalender/`): vollständiger Fork
+  von `nextcloud/calendar`, der die unter "Schichtplan-Sync"/"Job-Sharing" oben beschriebene
+  NocTurn-eigene REST-API und Vue-Seitenleiste ergänzt. Angezeigter App-Name ist **"NocTurn
+  Kalender"** (`appinfo/info.xml` `<name>`, sowohl App- als auch Navigationseintrag) — die
+  technische App-`<id>` bleibt bewusst `calendar` (ebenso PHP-Namespace `OCA\Calendar`, Route
+  `calendar.view.index`, Datenbanktabellen), da diese App die eingebaute Nextcloud-Calendar-App
+  ersetzt und über dieselbe ID/CalDAV-Anbindung laufen muss — eine geänderte ID würde eine
+  zweite, parallele Kalender-App statt eines Ersatzes erzeugen. **CI/Release**: `build-apk.yml`
+  baut diese App als eigenen Job (`nextcloud-kalender`, Node 24 + PHP 8.2, `npm run build` +
+  `composer install --no-dev`) parallel zu den Android-APKs und packt sie als
+  `nocturn-kalender-<Version>.tar.gz`; ein dritter Job `release` lädt alle drei Artefakte
+  (Release-APK, WearOS-APK, Nextcloud-Paket) herunter und hängt sie gemeinsam an dasselbe
+  GitHub Release — die Nextcloud-App landet damit bei jedem Release automatisch als
+  Installationspaket neben der APK, ohne eigenen Release-Lauf.
 
 ## Wichtig
 

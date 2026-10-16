@@ -1,0 +1,137 @@
+<!--
+  - SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
+<template>
+	<DateTimePicker
+		:ariaLabel="ariaLabel"
+		:min="minimumDate"
+		:max="maximumDate"
+		:modelValue="date"
+		:type="type"
+		class="date-time-picker"
+		@blur="onBlur"
+		@update:modelValue="onInput" />
+</template>
+
+<script>
+import {
+	NcDateTimePicker as DateTimePicker,
+} from '@nextcloud/vue'
+import { mapStores } from 'pinia'
+import useDavRestrictionsStore from '@/store/davRestrictions.js'
+
+export default {
+	name: 'DatePicker',
+	components: {
+		DateTimePicker,
+	},
+
+	props: {
+		date: {
+			type: Date,
+			required: true,
+		},
+
+		ariaLabel: {
+			type: String,
+			default: null,
+		},
+
+		min: {
+			type: Date,
+			default: null,
+		},
+
+		max: {
+			type: Date,
+			default: null,
+		},
+
+		type: {
+			type: String,
+			default: 'date',
+		},
+	},
+
+	emits: ['change'],
+
+	data() {
+		return {
+			pendingDate: null,
+		}
+	},
+
+	computed: {
+		...mapStores(useDavRestrictionsStore),
+		/**
+		 * The earliest date a user is allowed to pick in the timezone
+		 *
+		 * @return {Date}
+		 */
+		minimumDate() {
+			if (!this.min && this.type === 'time') {
+				return null
+			}
+
+			return this.min || new Date(this.davRestrictionsStore.minimumDate)
+		},
+
+		/**
+		 * The latest date a user is allowed to pick in the timezone
+		 *
+		 * @return {Date}
+		 */
+		maximumDate() {
+			if (!this.max && this.type === 'time') {
+				return null
+			}
+
+			return this.max || new Date(this.davRestrictionsStore.maximumDate)
+		},
+	},
+
+	methods: {
+		/**
+		 * Emits a change event for the Date
+		 *
+		 * @param {Date} date The new Date object
+		 */
+		onInput(date) {
+			// Buffer the input; only emit when the user leaves the field
+			if (this.disabledDate(date)) {
+				return
+			}
+			this.pendingDate = date
+		},
+
+		onBlur() {
+			// When focus leaves the picker, commit the pending date
+			if (this.pendingDate === undefined || this.pendingDate === null) {
+				return
+			}
+			const pending = this.pendingDate
+			this.pendingDate = null
+			if (this.disabledDate(pending)) {
+				return
+			}
+			this.$emit('change', pending)
+		},
+
+		/**
+		 * Whether or not the date is acceptable
+		 *
+		 * @param {Date} date The date to compare to
+		 * @return {boolean}
+		 */
+		disabledDate(date) {
+			if (!this.max && !this.min && this.type === 'time') {
+				return false
+			}
+
+			return date < this.minimumDate || date > this.maximumDate
+		},
+	},
+}
+</script>

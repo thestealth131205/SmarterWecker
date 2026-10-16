@@ -19,3 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "NocTurn"
 include(":app")
+include(":wear")

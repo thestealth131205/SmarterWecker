@@ -8,6 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
 import de.letheapp.nocturn.sync.NextcloudSyncWorker
+import de.letheapp.nocturn.wear.WearSyncWorker
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -28,6 +29,16 @@ class NocturnApplication : Application(), Configuration.Provider {
             NextcloudSyncWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             request
+        )
+
+        // Sicherheitsnetz-Sync zur gekoppelten WearOS-Smartwatch (siehe WearSyncManager) — die
+        // eigentlich maßgeblichen Syncs laufen sofort nach Kalenderänderungen bzw. nach einer
+        // Umschaltung in der WearOS-Verwaltung, dieser periodische Lauf fängt nur verpasste Fälle ab.
+        val wearRequest = PeriodicWorkRequestBuilder<WearSyncWorker>(2, TimeUnit.HOURS).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            WearSyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            wearRequest
         )
     }
 }

@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2014-2015 ownCloud, Inc.
+# SPDX-License-Identifier: AGPL-3.0-or-later
+filter:
+    excluded_paths:
+        - 'js/public/*'
+        - 'l10n/*'
+
+
+imports:
+    - javascript
+    - php
+
+tools:
+    external_code_coverage:
+        timeout: 1000
+
+build:
+    tests:
+        override:
+            -  jshint-run --config js/.jshintrc

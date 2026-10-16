@@ -1,0 +1,273 @@
+/**
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+import { DurationValue } from '@nextcloud/calendar-js'
+import { markRaw } from 'vue'
+import { mapAlarmComponentToAlarmObject } from '@/models/alarm.js'
+import { mapAttachmentPropertyToAttchmentObject } from '@/models/attachment.js'
+import { mapAttendeePropertyToAttendeeObject } from '@/models/attendee.js'
+import {
+	getDefaultRecurrenceRuleObject,
+	mapRecurrenceRuleValueToRecurrenceRuleObject,
+} from '@/models/recurrenceRule.js'
+import { getHexForColorName } from '@/utils/color.js'
+import { getDateFromDateTimeValue } from '@/utils/date.js'
+
+/**
+ * Creates a complete calendar-object-instance-object based on given props
+ *
+ * @param {object} props The props already provided
+ * @return {object}
+ */
+function getDefaultEventObject(props = {}) {
+	return { // The real event-component coming from calendar-js
+		eventComponent: null,
+		// Title of the event
+		title: null,
+		// Start date of the event
+		startDate: null,
+		// Timezone of the start date
+		startTimezoneId: null,
+		// End date of the event
+		endDate: null,
+		// Timezone of the end date
+		endTimezoneId: null,
+		// Indicator whether or not event is all-day
+		isAllDay: false,
+		// Whether or not the user is allowed to toggle the all-day checkbox
+		canModifyAllDay: true,
+		// Location that the event takes places in
+		location: null,
+		// description of the event
+		description: null,
+		// Access class of the event (PUBLIC, PRIVATE, CONFIDENTIAL)
+		accessClass: null,
+		// Status of the event (CONFIRMED, TENTATIVE, CANCELLED)
+		status: null,
+		// Whether or not to block this event in Free-Busy reports (TRANSPARENT, OPAQUE)
+		timeTransparency: null,
+		// The recurrence rule of this event. We only support one recurrence-rule
+		recurrenceRule: getDefaultRecurrenceRuleObject(),
+		// Whether or not this event has multiple recurrence-rules
+		hasMultipleRRules: false,
+		// Whether or not this is the master item
+		isMasterItem: false,
+		// Whether or not this is a recurrence-exception
+		isRecurrenceException: false,
+		// Whether or not it's possible to create a recurrence-exception for this event
+		canCreateRecurrenceException: false,
+		// Attendees of this event
+		attendees: [],
+		// Organizer of the event
+		organizer: null,
+		// Alarm of the event
+		alarms: [],
+		// Custom color of the event
+		customColor: null,
+		// Categories
+		categories: [],
+		// Attachments of this event
+		attachments: [],
+		// Invitation forwarding
+		invitationForwarding: 'TRUE',
+		...props,
+	}
+}
+
+/**
+ *
+ * @param {EventComponent} eventComponent The calendar-js eventComponent
+ * @return {object}
+ */
+function mapEventComponentToEventObject(eventComponent) {
+	const eventObject = getDefaultEventObject({
+		eventComponent: markRaw(eventComponent),
+		title: eventComponent.title,
+		isAllDay: eventComponent.isAllDay(),
+		canModifyAllDay: eventComponent.canModifyAllDay(),
+		location: eventComponent.location,
+		description: eventComponent.description,
+		accessClass: eventComponent.accessClass,
+		status: eventComponent.status,
+		timeTransparency: eventComponent.timeTransparency,
+		categories: Array.from(eventComponent.getCategoryIterator()),
+		isMasterItem: eventComponent.isMasterItem(),
+		isRecurrenceException: eventComponent.isRecurrenceException(),
+		canCreateRecurrenceException: eventComponent.canCreateRecurrenceExceptions(),
+	})
+
+	/**
+	 * According to RFC5545, DTEND is exclusive. This is rather intuitive for timed-events
+	 * but rather unintuitive for all-day events
+	 *
+	 * That's why, when an event is all-day from 2019-10-03 to 2019-10-04,
+	 * it will be displayed as 2019-10-03 to 2019-10-03 in the editor.
+	 */
+	eventObject.startDate = getDateFromDateTimeValue(eventComponent.startDate)
+	eventObject.startTimezoneId = eventComponent.startDate.timezoneId
+
+	if (eventComponent.isAllDay()) {
+		const endDate = eventComponent.endDate.clone()
+		endDate.addDuration(DurationValue.fromSeconds(-1 * 60 * 60 * 24))
+		eventObject.endDate = getDateFromDateTimeValue(endDate)
+	} else {
+		eventObject.endDate = getDateFromDateTimeValue(eventComponent.endDate)
+	}
+	eventObject.endTimezoneId = eventComponent.endDate.timezoneId
+
+	/**
+	 * Extract organizer if there is any
+	 */
+	if (eventComponent.organizer) {
+		const organizerProperty = eventComponent.getFirstProperty('ORGANIZER')
+		eventObject.organizer = {
+			commonName: organizerProperty.commonName,
+			uri: organizerProperty.email,
+			attendeeProperty: organizerProperty,
+		}
+	}
+
+	/**
+	 * Extract alarms
+	 */
+	for (const alarm of eventComponent.getAlarmIterator()) {
+		eventObject.alarms.push(mapAlarmComponentToAlarmObject(alarm))
+	}
+
+	/**
+	 * Extract attendees
+	 */
+	for (const attendee of eventComponent.getAttendeeIterator()) {
+		eventObject.attendees.push(mapAttendeePropertyToAttendeeObject(attendee))
+	}
+
+	/**
+	 * Extract attachments
+	 */
+
+	for (const attachment of eventComponent.getPropertyIterator('ATTACH')) {
+		eventObject.attachments.push(mapAttachmentPropertyToAttchmentObject(attachment))
+	}
+
+	/**
+	 * Extract recurrence-rule
+	 */
+	const recurrenceRuleIterator = eventComponent.getPropertyIterator('RRULE')
+	const recurrenceRuleFirstIteration = recurrenceRuleIterator.next()
+
+	const firstRecurrenceRule = recurrenceRuleFirstIteration.value
+	if (firstRecurrenceRule) {
+		eventObject.recurrenceRule = mapRecurrenceRuleValueToRecurrenceRuleObject(firstRecurrenceRule.getFirstValue(), eventComponent.startDate)
+		eventObject.hasMultipleRRules = !recurrenceRuleIterator.next().done
+	}
+
+	/**
+	 * Convert the CSS 3 color name to a hex color
+	 */
+	if (eventComponent.hasProperty('COLOR')) {
+		const hexColor = getHexForColorName(eventComponent.getFirstPropertyFirstValue('COLOR'))
+		if (hexColor !== null) {
+			eventObject.customColor = hexColor
+		}
+	}
+
+	if (eventComponent.hasProperty('X-NC-INVITATION-FORWARDING')) {
+		eventObject.invitationForwarding = eventComponent.getFirstPropertyFirstValue('X-NC-INVITATION-FORWARDING')
+	}
+
+	return eventObject
+}
+
+/**
+ * Copy data from a calendar-object-instance into a calendar-js event-component
+ *
+ * @param {object} eventObject The calendar-object-instance object
+ * @param {EventComponent} eventComponent The calendar-js EventComponent object
+ */
+function copyCalendarObjectInstanceIntoEventComponent(eventObject, eventComponent) {
+	const sourceEventComponent = eventObject.eventComponent
+
+	const propertiesExcludedFromCopying = new Set([
+		// These properties are regenerated for the new copy.
+		'UID',
+		'SEQUENCE',
+		'CREATED',
+		'DTSTAMP',
+		'LAST-MODIFIED',
+		// Currently only copying as exact occurrences.
+		// Therefore, do not preserve any RECURRENCE-ID.
+		'RECURRENCE-ID',
+		// A duplicate is always a single, standalone event. If the source is
+		// the master item of a recurring series (e.g. when duplicating its
+		// first occurrence, calendar-js returns the master item itself),
+		// its recurrence-defining properties must not carry over.
+		'RRULE',
+		'EXRULE',
+		'RDATE',
+		'EXDATE',
+	])
+
+	// Properties that must not occur more than once on a VEVENT (RFC 5545
+	// section 3.6.1) but that the source may legitimately carry a value for.
+	const propertiesReplacedWhenCopying = new Set([
+		'DTSTART',
+		'DTEND',
+		'DURATION',
+		'CLASS',
+		'DESCRIPTION',
+		'GEO',
+		'LOCATION',
+		'ORGANIZER',
+		'PRIORITY',
+		'STATUS',
+		'SUMMARY',
+		'TRANSP',
+		'URL',
+	])
+
+	// DTEND and DURATION are mutually exclusive. If the source uses DURATION,
+	// a pre-existing target DTEND (or vice versa) would otherwise be left
+	// behind alongside it, which is invalid.
+	if (sourceEventComponent.hasProperty('DTEND') || sourceEventComponent.hasProperty('DURATION')) {
+		eventComponent.deleteAllProperties('DTEND')
+		eventComponent.deleteAllProperties('DURATION')
+	}
+
+	for (const property of sourceEventComponent.getPropertyIterator()) {
+		if (propertiesExcludedFromCopying.has(property.name)) {
+			continue
+		}
+		if (propertiesReplacedWhenCopying.has(property.name)) {
+			eventComponent.deleteAllProperties(property.name)
+		}
+		const successful = eventComponent.addProperty(property.clone())
+		if (!successful) {
+			throw new Error(`Illegal state: Property ${property.name} could not be copied.`)
+		}
+	}
+
+	// VALARM is supported in our app.
+	// Other sub components could be PARTICIPANT, VLOCATION, VRESOURCE.
+	// They might be set by other clients or apps.
+	// So preservsem when copying.
+	// Same behaviour applies events are copied for recurrence exceptions.
+	for (const subComponent of sourceEventComponent.getComponentIterator()) {
+		const successful = eventComponent.addComponent(subComponent.clone())
+		if (!successful) {
+			throw new Error(`Illegal state: Component ${subComponent.name} could not be copied.`)
+		}
+	}
+
+	for (const attendee of sourceEventComponent.getAttendeeIterator()) {
+		attendee.participationStatus = 'NEEDS-ACTION'
+		attendee.rsvp = true
+	}
+}
+
+export {
+	copyCalendarObjectInstanceIntoEventComponent,
+	getDefaultEventObject,
+	mapEventComponentToEventObject,
+}

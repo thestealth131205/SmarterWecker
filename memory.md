@@ -659,3 +659,163 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   - Lokale Verifikation weiterhin durch das bekannte aapt2-Problem blockiert (frisch erneut
     bestätigt: `processDebugResources` scheitert an `x86_64-binfmt-P`-Fehler beim aapt2-Daemon,
     nicht am eigenen Code) — alle Dateien manuell auf Klammern-/Klammer-Balance geprüft.
+
+## Ergänzung (2026-10-15, WearOS-4-Smartwatch-Sync implementiert)
+
+- Nutzer: "in nocturn der App soll der Kalender auch an die SmartWatch mit wearos 4 übertragen
+  werden also wenn am in der wearos Verwaltung die Kalender und die Rotationen die man angezeigt
+  haben möchte aktiviert hat genauso wie Geburtstage und Feiertage" → komplett neue Funktion,
+  es gab bislang **gar keine** WearOS-Anbindung im Projekt (verifiziert: kein `wear`-Modul, keine
+  Wearable-Erwähnung in Code/CLAUDE.md/PLAN.md vor dieser Session).
+- **Neues Gradle-Modul `:wear`** (`de.letheapp.nocturn.watch`, minSdk 30/targetSdk 34, deckt sowohl
+  WearOS 3 als auch die vom Nutzer genannte WearOS 4 ab) — eigenständige, per ADB sideload-bare
+  Begleit-App (kein Play-Store-Feature-Modul, passend zu "keine Play-Store-Veröffentlichung"),
+  `standalone=true` im Manifest. Zeigt per Compose-for-Wear (`ScalingLazyColumn`) die nächsten 14
+  Tage als Agenda, Tag-Überschriften + farbiger Punkt pro Eintrag + Zeit. Liest/lauscht über die
+  Wear-Data-Layer-API (`WearAgendaRepository`, Pfad `/nocturn/agenda`) — zeigt beim Start auch ohne
+  gerade erreichbares Handy den zuletzt empfangenen Stand (Data-Layer hält ihn lokal auf der Uhr).
+- **Bewusste Ausnahme von der FOSS-Minimalismus-Leitlinie**: `com.google.android.gms:play-services-
+  wearable` (closed-source) ist die einzige praktikable Handy↔Uhr-Kommunikation für WearOS — analog
+  zur bereits bestehenden Health-Connect-Abhängigkeit, im `app/build.gradle.kts`-Kommentar
+  dokumentiert. `kotlinx-coroutines-play-services` (Apache-2.0, offizielles JetBrains-Artefakt) für
+  die `Task.await()`-Brücke ergänzt.
+- **"WearOS-Verwaltung"-Screen** (3-Punkte-Menü der Kalender-Monatsansicht, neben "Ferien &
+  Feiertage"/"Nextcloud-Sync"): Schalter pro Job ("Kalender"), pro Rotation (flach, Name + Job-
+  Zuordnung wie in der bestehenden Rotations-Seitenleiste), sowie je ein Schalter für Geburtstage/
+  gesetzliche Feiertage/Schulferien — exakt wie vom Nutzer gefordert, unabhängig von der Handy-
+  seitigen Anzeige (z. B. Rotation auf dem Handy sichtbar, auf der Uhr aber bewusst ausgeblendet).
+  Jede Umschaltung wirkt sofort (kein Speichern-Button, wie das Wetter-Switch in `SettingsScreen`).
+  Neue Tabelle `wear_visible_sources` (Room-Version 14→15, echte Migration da bereits reale
+  Nutzdaten existieren — **kein** `fallbackToDestructiveMigration()` mehr seit Version 11/CLAUDE.md-
+  Hinweis): `sourceType` (JOB/ROTATION/BIRTHDAYS/PUBLIC_HOLIDAYS/SCHOOL_HOLIDAYS) + `sourceKey`
+  (Job-/Rotations-ID, bei den drei Singleton-Quellen Sentinel `0L` statt `NULL` — bewusst, weil
+  SQLite zwei `NULL`-Werte in einem UNIQUE-Index als *nicht gleich* behandelt und ein Opt-in-Toggle
+  sonst beliebig oft duplizierbar wäre). Fehlender Eintrag = nicht aktiviert (Opt-in, Default aus,
+  wie bei "Ferien & Feiertage").
+- **Sync-Mechanik**: `WearAgendaBuilder` baut die gefilterte 14-Tage-Agenda (Rotations-Schichten aus
+  `CalendarEntryEntity.rotationId`, manuelle Einzel-Schichten aus `ManualShiftEntryEntity.jobId`,
+  Geburtstage via `ContactBirthdayRepository`, Feiertage/Ferien via `HolidayRepository` — nutzt
+  dasselbe Bundesland wie die Handy-Einstellung, der Wear-Schalter entscheidet nur ob überhaupt
+  übertragen wird). `WearSyncManager.syncNow()` serialisiert über `DataMap`/`PutDataMapRequest`
+  (kein eigenes JSON nötig, Play-Services-eigenes Format) und schickt es per
+  `DataClient.putDataItem(...).setUrgent()`. Ausgelöst: (1) direkt nach jeder Umschaltung im neuen
+  Screen, (2) **zentral in `ShiftWakeupAlarmSyncer.sync()`** — dieselbe Stelle, die heute schon nach
+  jeder Kalenderänderung (Rotation zugewiesen, Schicht gespeichert/gelöscht, Einzel-Schicht
+  eingetragen, Boot, App-Start) aufgerufen wird, daher **kein einziger bestehender Aufrufer musste
+  angepasst werden** (JobDetailViewModel, CalendarMonthViewModel, AddShiftEntryViewModel,
+  AlarmListViewModel, BootReceiver, AutomaticShiftRetryScheduler — alle rufen weiterhin nur
+  `sync()`). Dagger-Zyklus-Risiko vorab geprüft (`ShiftWakeupAlarmSyncer`s KDoc warnt genau davor,
+  siehe Eintrag von früher): `WearSyncManager` hängt nur an `CalendarRepository`/`HolidayRepository`/
+  `ContactBirthdayRepository`, keiner davon hängt zurück an `AlarmScheduler`/`ShiftWakeupAlarmSyncer`
+  — zyklusfrei. (3) periodischer `WearSyncWorker` alle 2h als Sicherheitsnetz (analog
+  `NextcloudSyncWorker`, dort 4h), registriert in `NocturnApplication.onCreate()`.
+- **CI**: `build-apk.yml` baut jetzt zusätzlich `:wear:assembleDebug` (bewusst Debug statt Release —
+  automatisch signiert, direkt per ADB sideload-bar, eine eigene Release-Signierung lohnt für diese
+  kleine Begleit-App nicht) und lädt sie als `nocturn-watch-<run>`-Artefakt + im GitHub-Release mit
+  hoch. Trigger-`paths` um `wear/**` ergänzt (vorher hätte ein reiner Wear-Push gar keinen CI-Lauf
+  ausgelöst).
+- **Bewusst nicht in dieser Runde**: Termine (`AppointmentEntity`)/Aufgaben (`TaskEntity`) haben
+  keinen Wear-Schalter und werden nicht an die Uhr übertragen — vom Nutzer nicht genannt
+  ("Kalender, Rotationen, Geburtstage, Feiertage"), expliziter Scope-Cut, kein Bug. Student-Modus-
+  Wochenstundenpläne (`LessonEntity`) ebenfalls nicht angebunden (werden auch in der Handy-
+  Monatsansicht laut älterem Eintrag oben nicht dargestellt, falls das inzwischen nachgezogen wurde,
+  müsste der Wear-Sync entsprechend erweitert werden). Keine Rückrichtung (Uhr → Handy) implementiert
+  — die Uhr ist reiner Anzeige-Client, keine Interaktion (kein Abhaken/Verschieben auf der Uhr).
+- Wie immer **nicht committet/gepusht** (Standing-Regel). Kein lokales Android-SDK/aapt2 verfügbar
+  (bekanntes Pi-Problem) — alle neuen/geänderten Dateien auf Klammern-/Klammer-Balance sowie
+  YAML/XML/TOML-Wohlgeformtheit automatisiert geprüft (`python3 -c "import yaml/xml/tomllib"`),
+  echte Kotlin-Kompilierung bleibt wie gewohnt der GitHub Action beim nächsten Push vorbehalten.
+
+## NocTurn <-> Nextcloud-Calendar-App: Schichtplan-Sync verdrahtet (Phase C)
+
+- **Ausgangslage**: Aus einer durch das Session-/Wochenlimit unterbrochenen vorherigen Sitzung
+  lag bereits das komplette Server-/UI-Grundgerüst für den strukturierten NocTurn-Schedule-Sync in
+  `Nextcloud Kalender/` (geforkte `nextcloud/calendar`-App): PHP-Entities/-Mapper/-Controller/
+  -Service unter `lib/Db/Nocturn*`/`lib/Service/Nocturn/NocturnScheduleService.php`, Routen unter
+  `/apps/calendar/v1/nocturn/...`, sowie eine eigene Vue-Seitenleiste
+  (`src/components/AppNavigation/NocturnScheduleList.vue` + Modals). Auf Android-Seite existierte
+  dafür bereits `NocturnScheduleApiClient.kt` (kompletter OkHttp-Client für exakt diese API) sowie,
+  unkommittiert im Arbeitsverzeichnis, das komplette Room-Vorfeld dafür: `NocturnSyncMappingEntity`/
+  `-Dao` (lokal<->Server-uid-Zuordnung mit Last-Write-Wins + Inhalts-Hash), eine Sync-Cursor-Spalte
+  `CalDavAccountEntity.nocturnScheduleSyncToken` sowie passende `getAllOnce()`/`getById()`/
+  `insert()`/`update()`-DAO-Methoden auf Job/Shift/Rotation/CalendarEntry/ManualShiftEntry — die
+  eigentliche Repository-Klasse selbst (`NocturnScheduleSyncRepository`, nur in Doc-Kommentaren
+  referenziert) fehlte aber komplett. Das war die konkrete Lücke dieser Runde.
+- **`NocturnScheduleSyncRepository` (neu, Package `sync`)**: Push aller Jobs/Schichten/Rotationen
+  (inkl. Tag-Muster als `dayShiftUids`-Array in einem Aufruf, exakt wie der lokale Editor sein
+  Muster speichert) + Tageseinträge (`CalendarEntryEntity`/`ManualShiftEntryEntity`) in einem
+  rollenden Fenster (-14/+180 Tage, analog zum bestehenden `SHIFT_SYNC_WINDOW_DAYS=180` der reinen
+  CalDAV-Schicht-Exports), danach ein `sync?since=...`-Pull mit Tombstone-Handling. Lokale
+  Löschungen werden erkannt, indem pro Mapping-Zeile geprüft wird, ob die zugehörige lokale Zeile
+  noch existiert (kein `deletedAt` lokal nötig — siehe Doc-Kommentar an `NocturnSyncMappingEntity`
+  aus der Vorsitzung). Rotations-Tagesmuster wird beim Pull nie einzeln gemerged, sondern pro
+  betroffener Rotation komplett neu aufgebaut (`rotationDao.deleteDays`+`insertDays`) — verifiziert
+  über `NocturnScheduleService::upsertRotation` im PHP-Code: der Server speichert ein Muster
+  ebenfalls immer als Ganzes neu, alle Tage einer Änderung teilen sich denselben `updatedAt`, daher
+  enthält ein inkrementeller Sync-Batch bei einer Musteränderung garantiert immer alle aktuellen
+  Tage zusammen.
+- **Wichtiger, in der vorherigen Sitzung noch unbekannter Fund**: Die Server-API
+  (`upsertRotation(..., array $dayShiftUids, ...)`) kennt pro Rotationstag nur **eine** Schicht —
+  sie wurde offenbar gebaut, bevor NocTurn die später hinzugekommene Mehrfachbelegung eines Tages
+  (mehrere Schichten gleichzeitig, z. B. Frühschicht + "Kinder-Wochenende") bekam. Der Push
+  reduziert das deshalb bewusst auf die erste Schicht je Tag — eine echte Mehrfachbelegung
+  bräuchte eine Erweiterung des PHP-Schemas/der Route auf `array<array<string|null>>`. Noch nicht
+  umgesetzt, nur dokumentiert (Klassen-Doc-Kommentar + CLAUDE.md). Ebenfalls ohne Server-Gegenstück:
+  `ShiftEntity.latestWakeupHour`/`latestWakeupMinute` (automatischer Wecker), wird nicht
+  mitsynchronisiert.
+- **Verdrahtung**: Dritter Opt-in-Schalter "Jobs/Schichten/Rotationen mit der Nextcloud-Kalender-
+  App abstimmen" im bestehenden Nextcloud-Sync-Screen (`CalDavAccountEntity.syncNocturnSchedule`,
+  Default aus, Migration 16->17, rein additiv). Läuft über denselben periodischen 4h-WorkManager-
+  Job wie der bestehende CalDAV-Sync (`NextcloudSyncRepository.syncNow()` ruft
+  `NocturnScheduleSyncRepository.runSync()` zusätzlich auf, kein zweiter Worker nötig) — dabei ein
+  Bug beim Zusammenschreiben gefunden und gefixt: der abschließende
+  `accountDao.update(account.copy(lastSyncEpochMillis=...))` nutzte noch das alte, vor dem
+  Schedule-Sync eingelesene `account`-Objekt und hätte den von `runSync()` gerade erst
+  geschriebenen `nocturnScheduleSyncToken` sofort wieder auf den alten Stand zurückgesetzt — jetzt
+  wird das Konto vor diesem letzten Schreibvorgang frisch aus der DB nachgeladen.
+- **Die anderen fünf Teile aus dem ursprünglichen Nextcloud-Kalender-Auftrag** (Kalender-Teilen mit
+  anderen Nextcloud-Nutzern für die Nocturn-Schedule-Daten selbst — die Server-Tabellen sind rein
+  `user_id`-skopiert, kein Sharing-Mechanismus vorhanden, anders als bei normalen CalDAV-Kalendern,
+  die Nextclouds eigenes Sharing bereits nutzen können; ICS-Import in NocTurn mit Sichtbarkeits-
+  Kästchen in der Seitenleiste; Kästchen statt Punkt für Feiertage/Ferien) sind **noch nicht
+  umgesetzt** — nur der Sync-Teil (Phase C) war diese Runde das konkrete Ziel.
+- Wie immer **nicht committet/gepusht** (Standing-Regel). Kein lokales Android-SDK/aapt2 verfügbar;
+  alle neuen/geänderten Kotlin-Dateien auf Klammern-/Klammer-Balance geprüft, DAO-/Entity-Signaturen
+  gegen den tatsächlichen Code-Stand (nicht nur Doc-Kommentare) verifiziert, PHP-Service-Code direkt
+  gelesen, um die Rebuild-Annahme für Rotationstage nicht zu erraten. Echte Kompilierung bleibt der
+  GitHub Action beim nächsten Push vorbehalten.
+
+## ICS-Import + Kästchen statt Punkt in der Kalender-Seitenleiste (Phase D, Teil 1 von 2)
+
+- Zwei der drei in Phase C noch offen gelassenen Punkte aus dem ursprünglichen Nextcloud-Kalender-
+  Auftrag sind jetzt umgesetzt: **ICS-Import** und **Kästchen statt Punkt** in der Seitenleiste.
+  Weiterhin offen: Kalender-Teilen der NocTurn-Schedule-Daten (Jobs/Schichten/Rotationen) mit
+  anderen Nextcloud-Nutzern — die Server-Tabellen in `Nextcloud Kalender/` sind rein `user_id`-
+  skopiert, es gibt noch keinen Sharing-Mechanismus dafür (anders als normale CalDAV-Kalender, die
+  Nextclouds eigenes Sharing bereits nutzen können).
+- **ICS-Import**: neues `IcsImportRepository` (Package `calendar`) + zwei neue Tabellen
+  (`imported_calendars`/`imported_calendar_events`, Schema-Version 17→18, echte Migration in
+  `DatabaseModule.kt`). `IcsFormat.parseEvents()` (neu, `sync`-Package) liest mehrere VEVENT-Blöcke
+  aus einer kompletten `.ics`-Datei statt nur des einen Events, das `parseEvent()` erwartet —
+  RRULE wird bewusst nicht expandiert. Menüpunkt "ICS importieren" im 3-Punkte-Menü der Kalender-
+  Monatsansicht öffnet direkt den SAF-Dateiauswahldialog (`ActivityResultContracts.OpenDocument()`,
+  `*/*`, da `.ics` nicht zuverlässig als `text/calendar` erkannt wird); danach fragt
+  `IcsImportDialog` Name (vorausgefüllt aus `OpenableColumns.DISPLAY_NAME`) und Farbe
+  (`SHIFT_COLOR_PALETTE`) ab. Importierte Events fließen in beide bestehenden Aggregations-
+  ViewModels ein (`CalendarMonthViewModel.entriesByDay` als neuer `ImportedCalendarDayEntry`-Typ,
+  `CalendarDayViewModel.items` als `AllDayAgendaItem`/`TimedAgendaItem` je nach `allDay`) — beide
+  mussten dafür von 5 auf 6 kombinierte Flows erweitert werden (`combine(...).combine(importedFlow)
+  {...}`, da Kotlins `combine()` nur bis 5 Flows als direkte Funktion anbietet).
+- **Kästchen statt Punkt**: neue wiederverwendbare `ColorCheckboxRow`-Komponente (ersetzt die
+  bisherige `HolidayLegendRow`, die komplett entfernt wurde) — gefülltes Kästchen in der jeweiligen
+  Farbe statt reinem Punkt, Antippen der ganzen Zeile schaltet direkt um. Gilt jetzt für Feiertage/
+  Ferien (`HolidayRepository.setHolidayVisibility()`, neue Methode, ändert nur die beiden
+  Sichtbarkeits-Flags ohne das gewählte Bundesland zu berühren — Tippen ohne gewähltes Bundesland
+  öffnet stattdessen den Einstellungs-Screen) sowie für jeden importierten ICS-Kalender (zusätzlich
+  mit Löschen per langem Gedrückthalten, analog zum bestehenden Rotations-Löschen-Muster in
+  derselben Seitenleiste).
+- Wie immer **nicht committet/gepusht** (Standing-Regel). Kein lokales Android-SDK/aapt2 verfügbar;
+  alle geänderten Dateien auf Klammernbalance geprüft (`CalendarMonthScreen.kt` 382/382,
+  `CalendarMonthViewModel.kt` 83/83, `CalendarDayViewModel.kt` 39/39), neue `@OptIn(
+  ExperimentalFoundationApi::class)`-Annotationen für die beiden neuen Composables ergänzt, die
+  `combinedClickable` nutzen (gleiches Muster wie bei der bereits bestehenden `DayCell`-Funktion).

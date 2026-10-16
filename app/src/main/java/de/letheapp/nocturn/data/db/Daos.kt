@@ -35,6 +35,9 @@ interface JobDao {
     @Query("SELECT * FROM jobs ORDER BY name")
     fun observeAll(): Flow<List<JobEntity>>
 
+    @Query("SELECT * FROM jobs ORDER BY name")
+    suspend fun getAllOnce(): List<JobEntity>
+
     @Query("SELECT * FROM jobs WHERE id = :id")
     fun observeById(id: Long): Flow<JobEntity?>
 
@@ -85,6 +88,9 @@ interface ShiftDao {
     @Query("SELECT * FROM shifts")
     fun observeAll(): Flow<List<ShiftEntity>>
 
+    @Query("SELECT * FROM shifts")
+    suspend fun getAllOnce(): List<ShiftEntity>
+
     @Query("SELECT * FROM shifts WHERE id = :id")
     suspend fun getById(id: Long): ShiftEntity?
 
@@ -109,6 +115,9 @@ interface RotationDao {
 
     @Query("SELECT * FROM rotations ORDER BY name")
     fun observeAll(): Flow<List<RotationEntity>>
+
+    @Query("SELECT * FROM rotations ORDER BY name")
+    suspend fun getAllOnce(): List<RotationEntity>
 
     @Query("SELECT * FROM rotations WHERE id = :id")
     suspend fun getById(id: Long): RotationEntity?
@@ -137,6 +146,18 @@ interface RotationDao {
 
 @Dao
 interface CalendarEntryDao {
+    @Query("SELECT * FROM calendar_entries WHERE id = :id")
+    suspend fun getById(id: Long): CalendarEntryEntity?
+
+    @Insert
+    suspend fun insert(entry: CalendarEntryEntity): Long
+
+    @Update
+    suspend fun update(entry: CalendarEntryEntity)
+
+    @Delete
+    suspend fun delete(entry: CalendarEntryEntity)
+
     @Query("DELETE FROM calendar_entries WHERE rotationId = :rotationId")
     suspend fun deleteForRotation(rotationId: Long)
 
@@ -249,6 +270,13 @@ interface ManualShiftEntryDao {
     @Query("SELECT * FROM manual_shift_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<ManualShiftEntryEntity>>
 
+    /** Für den Nextcloud-Sync (siehe [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]), einmalig statt reaktiv. */
+    @Query("SELECT * FROM manual_shift_entries WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
+    suspend fun getRangeOnce(fromEpochDay: Long, toEpochDay: Long): List<ManualShiftEntryEntity>
+
+    @Query("SELECT * FROM manual_shift_entries WHERE id = :id")
+    suspend fun getById(id: Long): ManualShiftEntryEntity?
+
     /** Nächste Vorkommen einer der [shiftIds] ab [fromEpochDay], für [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]. */
     @Query(
         "SELECT * FROM manual_shift_entries WHERE shiftId IN (:shiftIds) AND dateEpochDay >= :fromEpochDay " +
@@ -258,6 +286,9 @@ interface ManualShiftEntryDao {
 
     @Insert
     suspend fun insert(entry: ManualShiftEntryEntity): Long
+
+    @Update
+    suspend fun update(entry: ManualShiftEntryEntity)
 
     @Delete
     suspend fun delete(entry: ManualShiftEntryEntity)
@@ -343,6 +374,24 @@ interface SyncedEventDao {
 }
 
 @Dao
+interface NocturnSyncMappingDao {
+    @Query("SELECT * FROM nocturn_sync_mappings WHERE localType = :type")
+    suspend fun getAllForType(type: String): List<NocturnSyncMappingEntity>
+
+    @Query("SELECT * FROM nocturn_sync_mappings WHERE localType = :type AND localId = :localId LIMIT 1")
+    suspend fun getByLocal(type: String, localId: Long): NocturnSyncMappingEntity?
+
+    @Query("SELECT * FROM nocturn_sync_mappings WHERE remoteUid = :uid LIMIT 1")
+    suspend fun getByRemoteUid(uid: String): NocturnSyncMappingEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(mapping: NocturnSyncMappingEntity)
+
+    @Delete
+    suspend fun delete(mapping: NocturnSyncMappingEntity)
+}
+
+@Dao
 interface IoBrokerAccountDao {
     @Query("SELECT * FROM iobroker_accounts LIMIT 1")
     fun observeAccount(): Flow<IoBrokerAccountEntity?>
@@ -358,4 +407,58 @@ interface IoBrokerAccountDao {
 
     @Delete
     suspend fun delete(account: IoBrokerAccountEntity)
+}
+
+@Dao
+interface WearVisibleSourceDao {
+    @Query("SELECT * FROM wear_visible_sources")
+    fun observeAll(): Flow<List<WearVisibleSourceEntity>>
+
+    @Query("SELECT * FROM wear_visible_sources")
+    suspend fun getAllOnce(): List<WearVisibleSourceEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: WearVisibleSourceEntity)
+
+    @Query("DELETE FROM wear_visible_sources WHERE sourceType = :type AND sourceKey = :key")
+    suspend fun delete(type: String, key: Long)
+}
+
+/** Projektion für [ImportedCalendarDao.observeVisibleEvents] — Event + Farbe seines Kalenders. */
+data class ImportedEventRow(
+    val title: String,
+    val location: String,
+    val startEpochMillis: Long,
+    val endEpochMillis: Long,
+    val allDay: Boolean,
+    val colorArgb: Int
+)
+
+@Dao
+interface ImportedCalendarDao {
+    @Query("SELECT * FROM imported_calendars ORDER BY importedAtEpochMillis")
+    fun observeCalendars(): Flow<List<ImportedCalendarEntity>>
+
+    @Insert
+    suspend fun insertCalendar(calendar: ImportedCalendarEntity): Long
+
+    @Insert
+    suspend fun insertEvents(events: List<ImportedCalendarEventEntity>)
+
+    @Query("UPDATE imported_calendars SET visible = :visible WHERE id = :id")
+    suspend fun setVisible(id: Long, visible: Boolean)
+
+    @Query("DELETE FROM imported_calendars WHERE id = :id")
+    suspend fun deleteCalendar(id: Long)
+
+    @Query(
+        """
+        SELECT e.title as title, e.location as location, e.startEpochMillis as startEpochMillis,
+               e.endEpochMillis as endEpochMillis, e.allDay as allDay, c.colorArgb as colorArgb
+        FROM imported_calendar_events e
+        JOIN imported_calendars c ON c.id = e.calendarId
+        WHERE c.visible = 1 AND e.startEpochMillis <= :toMillis AND e.endEpochMillis >= :fromMillis
+        """
+    )
+    fun observeVisibleEvents(fromMillis: Long, toMillis: Long): Flow<List<ImportedEventRow>>
 }

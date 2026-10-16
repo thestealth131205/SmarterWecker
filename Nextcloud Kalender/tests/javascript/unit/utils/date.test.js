@@ -1,0 +1,144 @@
+/**
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import {
+	dateFactory,
+	getDateFromDateTimeValue,
+	getDateFromFirstdayParam,
+	getUnixTimestampFromDate,
+	getYYYYMMDDFromDate,
+	getYYYYMMDDFromFirstdayParam,
+	modifyDate,
+} from '@/utils/date.js'
+import logger from '@/utils/logger.js'
+vi.mock('@/utils/logger.js')
+
+describe('utils/alarms test suite', () => {
+	beforeEach(() => {
+		logger.error.mockClear()
+	})
+
+	it('should return a date', () => {
+		expect(dateFactory()).toBeInstanceOf(Date)
+	})
+
+	it('should return YYYYMMDD from a given date object', () => {
+		expect(getYYYYMMDDFromDate(new Date(2019, 0, 1, 0, 0, 0))).toEqual('2019-01-01')
+		expect(getYYYYMMDDFromDate(new Date(2019, 11, 31, 23, 59, 59))).toEqual('2019-12-31')
+	})
+
+	it('should return the unix timestamp from a given date object', () => {
+		expect(getUnixTimestampFromDate(new Date(Date.UTC(2019, 0, 1, 23, 59, 59)))).toEqual(1546387199)
+		expect(getUnixTimestampFromDate(new Date(Date.UTC(2019, 11, 31, 23, 59, 59)))).toEqual(1577836799)
+	})
+
+	it('should get a date object from the first-day-parameter', () => {
+		expect(getDateFromFirstdayParam('now')).toBeInstanceOf(Date)
+
+		const date1 = getDateFromFirstdayParam('2019-01-01')
+		const date2 = getDateFromFirstdayParam('2019-12-31')
+
+		expect(date1.getFullYear()).toEqual(2019)
+		expect(date1.getMonth()).toEqual(0)
+		expect(date1.getDate()).toEqual(1)
+		expect(date1.getHours()).toEqual(0)
+		expect(date1.getMinutes()).toEqual(0)
+		expect(date1.getSeconds()).toEqual(0)
+		expect(date1.getMilliseconds()).toEqual(0)
+		expect(date1.getTimezoneOffset()).toEqual(new Date(2019, 0, 1).getTimezoneOffset())
+
+		expect(date2.getFullYear()).toEqual(2019)
+		expect(date2.getMonth()).toEqual(11)
+		expect(date2.getDate()).toEqual(31)
+		expect(date2.getHours()).toEqual(0)
+		expect(date2.getMinutes()).toEqual(0)
+		expect(date2.getSeconds()).toEqual(0)
+		expect(date2.getMilliseconds()).toEqual(0)
+		expect(date2.getTimezoneOffset()).toEqual(new Date(2019, 11, 31).getTimezoneOffset())
+	})
+
+	it('should log an error when providing a non-numerical first-day-parameter', () => {
+		const date1 = getDateFromFirstdayParam('ab-05-05')
+		const date2 = getDateFromFirstdayParam('2020-ab-06')
+		const date3 = getDateFromFirstdayParam('2020-06-ab')
+
+		// It should return a Date anyway
+		expect(date1).toBeInstanceOf(Date)
+		expect(date2).toBeInstanceOf(Date)
+		expect(date3).toBeInstanceOf(Date)
+
+		// but also log an error message
+		expect(logger.error).toHaveBeenCalledTimes(3)
+		expect(logger.error).toHaveBeenNthCalledWith(1, 'First day parameter contains non-numerical components, falling back to today')
+		expect(logger.error).toHaveBeenNthCalledWith(2, 'First day parameter contains non-numerical components, falling back to today')
+		expect(logger.error).toHaveBeenNthCalledWith(3, 'First day parameter contains non-numerical components, falling back to today')
+	})
+
+	it('shoud get YYYYMMDD from a given first day-param', () => {
+		expect(getYYYYMMDDFromFirstdayParam('now')).toEqual(expect.any(String))
+
+		const date1 = getYYYYMMDDFromFirstdayParam('2019-01-01')
+		const date2 = getYYYYMMDDFromFirstdayParam('2019-12-31')
+
+		expect(date1).toEqual('2019-01-01')
+		expect(date2).toEqual('2019-12-31')
+	})
+
+	it('should return from a date-time-value', () => {
+		const date = getDateFromDateTimeValue({
+			year: 2019,
+			month: 1,
+			day: 1,
+			hour: 14,
+			minute: 42,
+			seconds: 13,
+		})
+
+		expect(date.getFullYear()).toEqual(2019)
+		expect(date.getMonth()).toEqual(0)
+		expect(date.getDate()).toEqual(1)
+		expect(date.getHours()).toEqual(14)
+		expect(date.getMinutes()).toEqual(42)
+		expect(date.getSeconds()).toEqual(0)
+		expect(date.getMilliseconds()).toEqual(0)
+	})
+
+	it('should modify a date', () => {
+		const date1 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { day: 5 })
+		const date2 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { day: 60 })
+		const date3 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { week: 1 })
+		const date4 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { week: 7 })
+		const date5 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { month: 1 })
+		const date6 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { month: 18 })
+		const date7 = modifyDate(new Date(2019, 0, 1, 0, 0, 0), { day: 22, week: 42, month: 5 })
+
+		expect(date1.getFullYear()).toEqual(2019)
+		expect(date1.getMonth()).toEqual(0)
+		expect(date1.getDate()).toEqual(6)
+
+		expect(date2.getFullYear()).toEqual(2019)
+		expect(date2.getMonth()).toEqual(2)
+		expect(date2.getDate()).toEqual(2)
+
+		expect(date3.getFullYear()).toEqual(2019)
+		expect(date3.getMonth()).toEqual(0)
+		expect(date3.getDate()).toEqual(8)
+
+		expect(date4.getFullYear()).toEqual(2019)
+		expect(date4.getMonth()).toEqual(1)
+		expect(date4.getDate()).toEqual(19)
+
+		expect(date5.getFullYear()).toEqual(2019)
+		expect(date5.getMonth()).toEqual(1)
+		expect(date5.getDate()).toEqual(1)
+
+		expect(date6.getFullYear()).toEqual(2020)
+		expect(date6.getMonth()).toEqual(6)
+		expect(date6.getDate()).toEqual(1)
+
+		expect(date7.getFullYear()).toEqual(2020)
+		expect(date7.getMonth()).toEqual(3)
+		expect(date7.getDate()).toEqual(13)
+	})
+})

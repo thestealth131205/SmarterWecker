@@ -34,8 +34,8 @@ android {
         // + Gradle 9 + Kotlin 2.2/KSP2 (API 37/Android 17) — bewusst (noch) nicht gemacht.
         minSdk = 33
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.28.1"
+        versionCode = 30
+        versionName = "0.29.0"
 
         // OpenWeatherMap-Key-Handling analog zum Iosync-Projekt: lokal aus local.properties,
         // im CI aus dem GitHub-Secret OPENWEATHER_API_KEY als gleichnamige Umgebungsvariable.
@@ -116,4 +116,12 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
+
+    // Für die Wear-Data-Layer-Kommunikation mit einer gekoppelten WearOS-Smartwatch (siehe
+    // de.letheapp.nocturn.wear). Bewusste Ausnahme von der sonstigen FOSS-Minimalismus-Leitlinie
+    // (siehe CLAUDE.md): die Wearable-Data-Layer-API ist Teil von Google Play Services (closed-
+    // source) und es gibt keinen praktikablen FOSS-Ersatz, der zuverlässig Handy↔Uhr kommuniziert
+    // (analog zur bereits bestehenden Health-Connect-Abhängigkeit).
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
 }

@@ -59,6 +59,30 @@ object IcsFormat {
         return lines.joinToString("\r\n") + "\r\n"
     }
 
+    /** Liest alle VEVENT-Blöcke einer kompletten .ics-Datei (z. B. ein externer ICS-Kalender-Import,
+     *  siehe [de.letheapp.nocturn.calendar.IcsImportRepository]) statt nur des einen Events, das
+     *  [parseEvent] erwartet. Wiederholungsregeln (RRULE) werden bewusst nicht expandiert — importiert
+     *  wird nur das jeweils erste/einzelne Vorkommen jedes VEVENT-Blocks (FOSS-Minimalismus: kein
+     *  eigener RRULE-Expander für einen Import-Nebenpfad). */
+    fun parseEvents(ics: String): List<ParsedEvent> {
+        val blocks = mutableListOf<String>()
+        var current: MutableList<String>? = null
+        for (line in unfold(ics)) {
+            when {
+                line == "BEGIN:VEVENT" -> current = mutableListOf(line)
+                line == "END:VEVENT" -> {
+                    current?.let {
+                        it.add(line)
+                        blocks += it.joinToString("\r\n")
+                    }
+                    current = null
+                }
+                current != null -> current.add(line)
+            }
+        }
+        return blocks.mapNotNull { parseEvent(it) }
+    }
+
     fun parseEvent(ics: String): ParsedEvent? {
         val properties = linkedMapOf<String, Pair<String, String>>() // Name -> (Parameter, Wert)
         for (line in unfold(ics)) {

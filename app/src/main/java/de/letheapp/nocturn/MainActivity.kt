@@ -36,6 +36,7 @@ import de.letheapp.nocturn.settings.SettingsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
 import de.letheapp.nocturn.sync.NextcloudSyncScreen
 import de.letheapp.nocturn.ui.NocturnTab
+import de.letheapp.nocturn.wear.WearSettingsScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
 import de.letheapp.nocturn.weather.WeatherScreen
 import java.net.URLDecoder
@@ -66,6 +67,7 @@ private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
 private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
 private const val ROUTE_WEATHER = "weather"
+private const val ROUTE_WEAR_SETTINGS = "wearSettings"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 /** Von Widgets (siehe `widget`-Package) genutzt, um nach dem Start direkt die Monatsansicht zu öffnen. */
@@ -167,6 +169,10 @@ private fun NocturnNavHost(
             NextcloudSyncScreen(onBack = { navController.popBackStack() })
         }
 
+        composable(ROUTE_WEAR_SETTINGS) {
+            WearSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(ROUTE_PERMISSIONS) { backStackEntry ->
             val isFirstRun = backStackEntry.arguments?.getString("firstRun") == "true"
             PermissionsScreen(
@@ -204,6 +210,7 @@ private fun NocturnNavHost(
                 onOpenCalendarTemplates = { navController.navigate(ROUTE_JOB_LIST) },
                 onOpenHolidaySettings = { navController.navigate(ROUTE_HOLIDAY_SETTINGS) },
                 onOpenNextcloudSync = { navController.navigate(ROUTE_NEXTCLOUD_SYNC) },
+                onOpenWearSettings = { navController.navigate(ROUTE_WEAR_SETTINGS) },
                 onOpenLetterImport = { navController.navigate(ROUTE_LETTER_IMPORT) },
                 onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->

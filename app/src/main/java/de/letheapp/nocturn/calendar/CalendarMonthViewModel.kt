@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.HolidayType
+import de.letheapp.nocturn.data.db.ImportedCalendarEntity
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.db.ShiftEntity
@@ -84,6 +85,15 @@ data class TaskDayEntry(
     override val label: String get() = if (completed) "✓ $title" else title
 }
 
+/** Ein Event aus einem per ICS-Datei importierten externen Kalender, siehe [IcsImportRepository]. */
+data class ImportedCalendarDayEntry(
+    val title: String,
+    val location: String,
+    override val colorArgb: Int
+) : CalendarDayEntry {
+    override val label: String get() = title
+}
+
 const val PUBLIC_HOLIDAY_COLOR_ARGB = 0xFFEF9A9A.toInt()
 const val SCHOOL_HOLIDAY_COLOR_ARGB = 0xFFAED581.toInt()
 const val BIRTHDAY_COLOR_ARGB = 0xFFCE93D8.toInt()
@@ -101,7 +111,8 @@ class CalendarMonthViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val holidayRepository: HolidayRepository,
     private val contactBirthdayRepository: ContactBirthdayRepository,
-    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
+    private val icsImportRepository: IcsImportRepository
 ) : ViewModel() {
 
     private val _month = MutableStateFlow(YearMonth.now())
@@ -226,8 +237,33 @@ class CalendarMonthViewModel @Inject constructor(
                     }
                 }
 
+                val fromMillis = LocalDate.ofEpochDay(fromEpochDay).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val toMillis = LocalDate.ofEpochDay(toEpochDay).plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val importedFlow = icsImportRepository.observeVisibleEvents(fromMillis, toMillis).map { events ->
+                    events.flatMap { event ->
+                        val startDay = maxOf(
+                            java.time.Instant.ofEpochMilli(event.startEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toEpochDay(),
+                            fromEpochDay
+                        )
+                        val endDay = minOf(
+                            java.time.Instant.ofEpochMilli(event.endEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toEpochDay(),
+                            toEpochDay
+                        )
+                        (startDay..endDay).map { epochDay ->
+                            LocalDate.ofEpochDay(epochDay) to
+                                (ImportedCalendarDayEntry(
+                                    title = event.title,
+                                    location = event.location,
+                                    colorArgb = event.colorArgb
+                                ) as CalendarDayEntry)
+                        }
+                    }
+                }
+
                 combine(shiftAndAppointmentFlow, manualShiftFlow, holidayFlow, birthdayFlow, taskFlow) { a, b, c, d, e ->
-                    (a + b + c + d + e).groupBy({ it.first }, { it.second })
+                    a + b + c + d + e
+                }.combine(importedFlow) { rest, imported ->
+                    (rest + imported).groupBy({ it.first }, { it.second })
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -375,5 +411,43 @@ class CalendarMonthViewModel @Inject constructor(
 
     fun consumeShareFile() {
         _shareFileUri.value = null
+    }
+
+    /** Für die Seitenleisten-Kästchen: aktuelle Feiertage/Ferien-Einstellung (null = noch kein
+     *  Bundesland gewählt). */
+    val holidaySettingsState: StateFlow<de.letheapp.nocturn.data.db.HolidaySettingsEntity?> = holidaySettings
+
+    /** Schaltet die Anzeige von Feiertagen bzw. Ferien per Kästchen in der Seitenleiste um, ohne das
+     *  gewählte Bundesland zu verändern (siehe [HolidayRepository.setHolidayVisibility]). */
+    fun toggleHolidayVisibility(isSchoolHolidays: Boolean) {
+        viewModelScope.launch {
+            val current = holidaySettings.value ?: return@launch
+            if (isSchoolHolidays) {
+                holidayRepository.setHolidayVisibility(showSchoolHolidays = !current.showSchoolHolidays)
+            } else {
+                holidayRepository.setHolidayVisibility(showPublicHolidays = !current.showPublicHolidays)
+            }
+        }
+    }
+
+    /** Für die Seitenleiste: alle per ICS-Datei importierten externen Kalender. */
+    val importedCalendars: StateFlow<List<ImportedCalendarEntity>> = icsImportRepository.observeCalendars()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Liest die gewählte .ics-Datei ein und legt sie als neuen externen Kalender an. [onResult]
+     *  erhält die Anzahl importierter Events (0, falls die Datei keine lesbaren VEVENTs enthielt). */
+    fun importIcsFile(uri: Uri, name: String, colorArgb: Int, onResult: (Int) -> Unit) {
+        viewModelScope.launch {
+            val count = icsImportRepository.importFromUri(uri, name, colorArgb)
+            onResult(count)
+        }
+    }
+
+    fun setImportedCalendarVisible(calendarId: Long, visible: Boolean) {
+        viewModelScope.launch { icsImportRepository.setVisible(calendarId, visible) }
+    }
+
+    fun deleteImportedCalendar(calendarId: Long) {
+        viewModelScope.launch { icsImportRepository.deleteCalendar(calendarId) }
     }
 }

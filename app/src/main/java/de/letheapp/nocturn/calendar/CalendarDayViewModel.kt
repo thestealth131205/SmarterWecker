@@ -9,6 +9,7 @@ import de.letheapp.nocturn.contacts.ContactBirthdayRepository
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.HolidayEntity
 import de.letheapp.nocturn.data.db.HolidayType
+import de.letheapp.nocturn.data.db.ImportedEventRow
 import de.letheapp.nocturn.data.db.JobEntity
 import de.letheapp.nocturn.data.db.JobMode
 import de.letheapp.nocturn.data.db.ShiftEntity
@@ -81,6 +82,7 @@ class CalendarDayViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val holidayRepository: HolidayRepository,
     private val contactBirthdayRepository: ContactBirthdayRepository,
+    private val icsImportRepository: IcsImportRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -153,7 +155,14 @@ class CalendarDayViewModel @Inject constructor(
             tasks.map(::taskToItem)
         }
 
+        val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val dayEndMillis = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val importedFlow = icsImportRepository.observeVisibleEvents(dayStartMillis, dayEndMillis).map { events ->
+            events.map(::importedEventToItem)
+        }
+
         combine(shiftFlow, appointmentFlow, holidayFlow, birthdayFlow, taskFlow) { a, b, c, d, e -> a + b + c + d + e }
+            .combine(importedFlow) { rest, imported -> rest + imported }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Hakt eine Aufgabe ab oder macht das rückgängig (Checkbox in [CalendarDayScreen]). */
@@ -216,6 +225,26 @@ class CalendarDayViewModel @Inject constructor(
             title = holiday.name,
             subtitle = if (isSchool) "Ferien" else "Feiertag",
             colorArgb = if (isSchool) SCHOOL_HOLIDAY_COLOR_ARGB else PUBLIC_HOLIDAY_COLOR_ARGB
+        )
+    }
+
+    private fun importedEventToItem(event: ImportedEventRow): DayAgendaItem {
+        if (event.allDay) {
+            return AllDayAgendaItem(
+                title = event.title,
+                subtitle = event.location.ifBlank { null },
+                colorArgb = event.colorArgb
+            )
+        }
+        val zone = ZoneId.systemDefault()
+        val start = Instant.ofEpochMilli(event.startEpochMillis).atZone(zone).toLocalTime()
+        val end = Instant.ofEpochMilli(event.endEpochMillis).atZone(zone).toLocalTime()
+        return TimedAgendaItem(
+            title = event.title,
+            subtitle = event.location.ifBlank { null },
+            startMinuteOfDay = start.hour * 60 + start.minute,
+            endMinuteOfDay = end.hour * 60 + end.minute,
+            colorArgb = event.colorArgb
         )
     }
 }

@@ -42,7 +42,8 @@ class NextcloudSyncRepository @Inject constructor(
     private val appointmentDao: AppointmentDao,
     private val calendarEntryDao: CalendarEntryDao,
     private val shiftDao: ShiftDao,
-    private val jobDao: JobDao
+    private val jobDao: JobDao,
+    private val scheduleSyncRepository: NocturnScheduleSyncRepository
 ) {
     fun observeAccount(): Flow<CalDavAccountEntity?> = accountDao.observeAccount()
 
@@ -56,7 +57,8 @@ class NextcloudSyncRepository @Inject constructor(
         password: String,
         calendar: CalDavCalendarInfo,
         syncAppointments: Boolean,
-        syncShifts: Boolean
+        syncShifts: Boolean,
+        syncNocturnSchedule: Boolean = false
     ): Long {
         disconnect()
         val id = accountDao.insert(
@@ -66,7 +68,8 @@ class NextcloudSyncRepository @Inject constructor(
                 calendarHref = calendar.href,
                 calendarDisplayName = calendar.displayName,
                 syncAppointments = syncAppointments,
-                syncShifts = syncShifts
+                syncShifts = syncShifts,
+                syncNocturnSchedule = syncNocturnSchedule
             )
         )
         credentialsStore.savePassword(id, password)
@@ -81,8 +84,8 @@ class NextcloudSyncRepository @Inject constructor(
         }
     }
 
-    suspend fun updateSyncOptions(account: CalDavAccountEntity, syncAppointments: Boolean, syncShifts: Boolean) {
-        accountDao.update(account.copy(syncAppointments = syncAppointments, syncShifts = syncShifts))
+    suspend fun updateSyncOptions(account: CalDavAccountEntity, syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean = account.syncNocturnSchedule) {
+        accountDao.update(account.copy(syncAppointments = syncAppointments, syncShifts = syncShifts, syncNocturnSchedule = syncNocturnSchedule))
     }
 
     suspend fun syncNow(): Result<Unit> {
@@ -92,10 +95,16 @@ class NextcloudSyncRepository @Inject constructor(
         return try {
             if (account.syncAppointments) syncAppointments(account, password)
             if (account.syncShifts) pushShiftOccurrences(account, password)
-            accountDao.update(account.copy(lastSyncEpochMillis = System.currentTimeMillis(), lastSyncError = null))
+            if (account.syncNocturnSchedule) scheduleSyncRepository.runSync(account, password)
+            // scheduleSyncRepository.runSync() aktualisiert ggf. selbst schon nocturnScheduleSyncToken -
+            // Konto frisch nachladen, damit dieses abschließende Update diesen neuen Cursor nicht wieder
+            // mit dem alten, hier noch zwischengespeicherten Stand überschreibt.
+            val latest = accountDao.getAccountOnce() ?: account
+            accountDao.update(latest.copy(lastSyncEpochMillis = System.currentTimeMillis(), lastSyncError = null))
             Result.success(Unit)
         } catch (e: Exception) {
-            accountDao.update(account.copy(lastSyncError = e.message ?: "Unbekannter Fehler"))
+            val latest = accountDao.getAccountOnce() ?: account
+            accountDao.update(latest.copy(lastSyncError = e.message ?: "Unbekannter Fehler"))
             Result.failure(e)
         }
     }

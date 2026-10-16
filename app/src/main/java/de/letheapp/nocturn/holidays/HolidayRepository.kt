@@ -51,6 +51,19 @@ class HolidayRepository @Inject constructor(
         if (current == null) settingsDao.insert(entity) else settingsDao.update(entity)
     }
 
+    /** Schaltet nur die Sichtbarkeit um (Kästchen in der Kalender-Seitenleiste), ohne das gewählte
+     *  Bundesland zu verändern. Tut nichts, falls noch gar keine Einstellungen existieren (dann muss
+     *  der Nutzer zuerst im Einstellungs-Screen ein Bundesland wählen). */
+    suspend fun setHolidayVisibility(showPublicHolidays: Boolean? = null, showSchoolHolidays: Boolean? = null) {
+        val current = settingsDao.getOnce() ?: return
+        settingsDao.update(
+            current.copy(
+                showPublicHolidays = showPublicHolidays ?: current.showPublicHolidays,
+                showSchoolHolidays = showSchoolHolidays ?: current.showSchoolHolidays
+            )
+        )
+    }
+
     fun observeHolidays(subdivisionCode: String, fromEpochDay: Long, toEpochDay: Long): Flow<List<HolidayEntity>> =
         holidayDao.observeRange(subdivisionCode, fromEpochDay, toEpochDay)
 

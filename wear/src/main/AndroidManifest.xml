@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.NocTurnWatch"
+        android:supportsRtl="true">
+
+        <!--
+            standalone=true: diese App wird nicht über den Play Store als an eine Handy-App
+            gekoppeltes Companion-Paar verteilt (siehe CLAUDE.md "keine Play-Store-
+            Veröffentlichung"), sondern per Sideload direkt auf die Uhr installiert. Sie zeigt beim
+            Start auch ohne aktuell erreichbares Handy den zuletzt per Data-Layer-API empfangenen
+            Stand an (siehe WearAgendaRepository).
+        -->
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

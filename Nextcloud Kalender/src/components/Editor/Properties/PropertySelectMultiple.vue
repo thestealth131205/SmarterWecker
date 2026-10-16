@@ -1,0 +1,181 @@
+<!--
+  - SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
+<template>
+	<div v-if="display" class="property-select-multiple">
+		<component
+			:is="icon"
+			:title="info"
+			:size="20"
+			:name="readableName"
+			class="property-select-multiple__icon"
+			:class="{ 'property-select-multiple__icon--hidden': !showIcon }" />
+
+		<div
+			class="property-select-multiple__input"
+			:class="{ 'property-select-multiple__input--readonly': isReadOnly }">
+			<NcSelect
+				v-if="!isReadOnly"
+				:modelValue="selectionData"
+				:options="options"
+				:searchable="true"
+				:placeholder="placeholder"
+				:name="readableName"
+				:multiple="true"
+				:taggable="true"
+				:noWrap="false"
+				:deselectFromDropdown="false"
+				:createOption="(label) => ({ value: label, label })"
+				:inputId="readableName + '-select-multiple-input'"
+				:inputLabel="readableName"
+				:ariaLabelListbox="readableName"
+				label="label"
+				@option:selecting="tag"
+				@option:deselected="unselectValue">
+				<template v-if="coloredOptions" #option="scope">
+					<PropertySelectMultipleColoredOption :option="scope" />
+				</template>
+				<template v-if="coloredOptions" #selected-option-container="scope">
+					<PropertySelectMultipleColoredOption :option="scope.option" :closeable="true" @deselect="unselectValue" />
+				</template>
+			</NcSelect>
+			<!-- eslint-disable-next-line vue/singleline-html-element-content-newline -->
+			<div v-else class="property-select-multiple-colored-tag-wrapper">
+				<PropertySelectMultipleColoredTag
+					v-for="singleValue in value"
+					:key="singleValue.value"
+					:option="singleValue" />
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+import { getLocale } from '@nextcloud/l10n'
+import { NcSelect } from '@nextcloud/vue'
+import InformationVariant from 'vue-material-design-icons/InformationVariant.vue'
+import PropertySelectMultipleColoredOption from '@/components/Editor/Properties/PropertySelectMultipleColoredOption.vue'
+import PropertySelectMultipleColoredTag from '@/components/Editor/Properties/PropertySelectMultipleColoredTag.vue'
+import PropertyMixin from '@/mixins/PropertyMixin.js'
+
+export default {
+	name: 'PropertySelectMultiple',
+	components: {
+		PropertySelectMultipleColoredOption,
+		PropertySelectMultipleColoredTag,
+
+		NcSelect,
+		InformationVariant,
+	},
+
+	mixins: [
+		PropertyMixin,
+	],
+
+	props: {
+		coloredOptions: {
+			type: Boolean,
+			default: false,
+		},
+	},
+
+	emits: ['removeSingleValue', 'addSingleValue'],
+
+	data() {
+		return {
+			selectionData: [],
+			customLabelBuffer: [],
+		}
+	},
+
+	computed: {
+		display() {
+			return !(this.isReadOnly && this.selectionData.length === 0)
+		},
+
+		options() {
+			const options = this.propModel.options.slice()
+			for (const category of (this.selectionData ?? [])) {
+				if (options.find((option) => option.value === category.value)) {
+					continue
+				}
+
+				// Add pseudo options for unknown values
+				options.push({
+					value: category.value,
+					label: category.label,
+				})
+			}
+
+			for (const category of this.value) {
+				if (!options.find((option) => option.value === category) && category !== undefined) {
+					options.splice(options.findIndex((options) => options.value === category), 1)
+				}
+			}
+
+			if (this.customLabelBuffer) {
+				for (const category of this.customLabelBuffer) {
+					if (!options.find((option) => option.value === category.value)) {
+						options.push(category)
+					}
+				}
+			}
+
+			return options
+				.sort((a, b) => {
+					return a.label.localeCompare(
+						b.label,
+						getLocale().replace('_', '-'),
+						{ sensitivity: 'base' },
+					)
+				})
+		},
+	},
+
+	created() {
+		for (const category of this.value) {
+			// Create and select pseudo option if is not yet known
+			const option = this.options.find((option) => option.value === category)
+				?? { label: category, value: category }
+			this.selectionData.push(option)
+		}
+	},
+
+	methods: {
+		unselectValue(value) {
+			if (!value) {
+				return
+			}
+
+			this.$emit('removeSingleValue', value.value)
+
+			this.selectionData.splice(this.selectionData.findIndex((option) => option.value === value.value), 1)
+
+			// store removed custom options to keep it in the option list
+			const options = this.propModel.options.slice()
+			if (!options.find((option) => option.value === value.value)) {
+				if (!this.customLabelBuffer) {
+					this.customLabelBuffer = []
+				}
+				this.customLabelBuffer.push(value)
+			}
+		},
+
+		tag(value) {
+			if (!value) {
+				return
+			}
+
+			// budget deselectFromDropdown since the vue-select implementation doesn't work
+			if (this.selectionData.find((option) => option.value === value.value)) {
+				this.selectionData.splice(this.selectionData.findIndex((option) => option.value === value.value), 1)
+			}
+
+			this.selectionData.push(value)
+			this.$emit('addSingleValue', value.value)
+		},
+	},
+}
+</script>

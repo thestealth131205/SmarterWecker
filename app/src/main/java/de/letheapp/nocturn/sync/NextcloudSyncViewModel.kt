@@ -59,17 +59,17 @@ class NextcloudSyncViewModel @Inject constructor(
         _discoveryState.value = DiscoveryState.Idle
     }
 
-    fun connect(calendar: CalDavCalendarInfo, syncAppointments: Boolean, syncShifts: Boolean) {
+    fun connect(calendar: CalDavCalendarInfo, syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean) {
         viewModelScope.launch {
-            syncRepository.connect(pendingServerUrl, pendingUsername, pendingPassword, calendar, syncAppointments, syncShifts)
+            syncRepository.connect(pendingServerUrl, pendingUsername, pendingPassword, calendar, syncAppointments, syncShifts, syncNocturnSchedule)
             _discoveryState.value = DiscoveryState.Idle
             syncNow()
         }
     }
 
-    fun updateSyncOptions(syncAppointments: Boolean, syncShifts: Boolean) {
+    fun updateSyncOptions(syncAppointments: Boolean, syncShifts: Boolean, syncNocturnSchedule: Boolean) {
         val current = account.value ?: return
-        viewModelScope.launch { syncRepository.updateSyncOptions(current, syncAppointments, syncShifts) }
+        viewModelScope.launch { syncRepository.updateSyncOptions(current, syncAppointments, syncShifts, syncNocturnSchedule) }
     }
 
     fun syncNow() {

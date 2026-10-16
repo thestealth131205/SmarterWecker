@@ -6,6 +6,7 @@ import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.ManualShiftEntryDao
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.repository.AlarmRepository
+import de.letheapp.nocturn.wear.WearSyncManager
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -28,6 +29,11 @@ private data class ShiftOccurrenceCandidate(val shiftId: Long, val dateEpochDay:
  * CalendarRepository ab — eine Injection hier hinein würde einen Dagger-Abhängigkeitszyklus
  * erzeugen. Aufrufer sind daher die ViewModels, die die kalenderverändernden Repository-Methoden
  * ohnehin schon aufrufen.
+ *
+ * Dient aus demselben Grund auch als zentraler Anstoßpunkt für [WearSyncManager]: jede
+ * Kalenderänderung, die hier einen Lauf auslöst, muss auch der gekoppelten WearOS-Smartwatch
+ * nachgereicht werden — [WearSyncManager] hängt nur von [de.letheapp.nocturn.data.repository.CalendarRepository]
+ * (keinem der hier riskanten Typen) ab, eine Injection ist also zyklusfrei möglich.
  */
 @Singleton
 class ShiftWakeupAlarmSyncer @Inject constructor(
@@ -35,9 +41,11 @@ class ShiftWakeupAlarmSyncer @Inject constructor(
     private val calendarEntryDao: CalendarEntryDao,
     private val manualShiftEntryDao: ManualShiftEntryDao,
     private val alarmRepository: AlarmRepository,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    private val wearSyncManager: WearSyncManager
 ) {
     suspend fun sync() {
+        wearSyncManager.syncNow()
         val configuredShifts = shiftDao.getAllWithWakeupConfigured()
         val existingAlarm = alarmRepository.getAutoShiftWakeupAlarm()
 

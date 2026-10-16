@@ -1,0 +1,82 @@
+<!--
+  - SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
+<template>
+	<div class="property-alarm-list">
+		<!-- TODO: probably not use index here for the key -->
+		<AlarmListNew
+			v-if="!isReadOnly"
+			:isAllDay="calendarObjectInstance.isAllDay"
+			:showIcon="alarms.length === 0"
+			@addAlarm="addAlarm" />
+		<AlarmListItem
+			v-for="(alarm, index) in alarms"
+			:key="index"
+			:alarm="alarm"
+			:isReadOnly="isReadOnly"
+			@removeAlarm="removeAlarm" />
+	</div>
+</template>
+
+<script>
+import { mapState, mapStores } from 'pinia'
+import AlarmListItem from '@/components/Editor/Alarm/AlarmListItem.vue'
+import AlarmListNew from '@/components/Editor/Alarm/AlarmListNew.vue'
+import useCalendarObjectInstanceStore from '@/store/calendarObjectInstance.js'
+import useSettingsStore from '@/store/settings.js'
+
+export default {
+	name: 'AlarmList',
+	components: {
+		AlarmListItem,
+		AlarmListNew,
+	},
+
+	props: {
+		isReadOnly: {
+			type: Boolean,
+			required: true,
+		},
+	},
+
+	computed: {
+		...mapStores(useCalendarObjectInstanceStore),
+		...mapState(useCalendarObjectInstanceStore, ['calendarObjectInstance']),
+		...mapState(useSettingsStore, ['forceEventAlarmType']),
+		alarms() {
+			return this.calendarObjectInstance.alarms.slice().sort((a, b) => {
+				const aIsDefault = a.alarmComponent.getFirstPropertyFirstValue('X-NC-DEFAULT-ALARM') ? 1 : 0
+				const bIsDefault = b.alarmComponent.getFirstPropertyFirstValue('X-NC-DEFAULT-ALARM') ? 1 : 0
+				return bIsDefault - aIsDefault
+			})
+		},
+	},
+
+	methods: {
+		/**
+		 * Adds another of the default alarms to the event
+		 *
+		 * @param {number} totalSeconds Amount of seconds for the alarm
+		 */
+		addAlarm(totalSeconds) {
+			this.calendarObjectInstanceStore.addAlarmToCalendarObjectInstance({
+				type: this.forceEventAlarmType || 'DISPLAY',
+				totalSeconds,
+			})
+		},
+
+		/**
+		 * Removes an alarm from this event
+		 *
+		 * @param {object} alarm The alarm object
+		 */
+		removeAlarm(alarm) {
+			this.calendarObjectInstanceStore.removeAlarmFromCalendarObjectInstance({
+				alarm,
+			})
+		},
+	},
+}
+</script>

@@ -5,22 +5,26 @@ on:
     branches: [ main ]
     paths:
       - 'app/**'
+      - 'wear/**'
       - 'gradle/**'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
+      - 'Nextcloud Kalender/**'
       - '.github/workflows/build-apk.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'app/**'
+      - 'wear/**'
+      - 'Nextcloud Kalender/**'
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Android APK
+  android:
+    name: Android-APKs bauen
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.name }}
 
     steps:
       - name: Checkout
@@ -39,6 +43,13 @@ jobs:
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: WearOS-Begleit-App bauen
+        # Debug-Build statt Release: automatisch mit dem Debug-Keystore signiert und damit direkt
+        # per ADB auf die Uhr sideloadbar — eine eigene Release-Signierung lohnt für diese kleine,
+        # nicht im Play Store vertriebene Begleit-App nicht (siehe CLAUDE.md "keine Play-Store-
+        # Veröffentlichung").
+        run: ./gradlew :wear:assembleDebug --no-daemon
 
       - name: Release-Keystore einrichten
         if: github.event_name != 'pull_request'
@@ -78,6 +89,13 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
+      - name: WearOS-Begleit-App hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: nocturn-watch-${{ github.run_number }}
+          path: wear/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
       - name: Versionsname auslesen
         if: github.event_name != 'pull_request'
         id: version
@@ -85,11 +103,97 @@ jobs:
           NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
-      - name: GitHub Release veröffentlichen
+  nextcloud-kalender:
+    name: NocTurn-Kalender-App (Nextcloud) bauen
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Nextcloud Kalender
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 24 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'Nextcloud Kalender/package-lock.json'
+
+      - name: PHP 8.2 einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Composer-Abhängigkeiten installieren
+        run: composer install --no-dev --prefer-dist --no-progress
+
+      - name: npm-Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Frontend bauen (rspack production)
+        run: npm run build
+
+      - name: App-Paket (für Nextcloud-Installation) packen
         if: github.event_name != 'pull_request'
+        id: package
+        run: |
+          APP_ID=calendar
+          VERSION=$(grep -oP '<version>\K[^<]+' appinfo/info.xml)
+          BUILD_DIR="$RUNNER_TEMP/nc-app-build"
+          PKG_DIR="$BUILD_DIR/$APP_ID"
+          mkdir -p "$PKG_DIR"
+          rsync -a --exclude='.git' --exclude='node_modules' --exclude='tests' \
+            --exclude='playwright*' --exclude='screenshots' \
+            ./ "$PKG_DIR/"
+          OUT_FILE="$RUNNER_TEMP/nocturn-kalender-${VERSION}.tar.gz"
+          tar -czf "$OUT_FILE" -C "$BUILD_DIR" "$APP_ID"
+          echo "path=$OUT_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: App-Paket hochladen
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextcloud-kalender-app-${{ github.run_number }}
+          path: ${{ steps.package.outputs.path }}
+          retention-days: 30
+
+  release:
+    name: GitHub Release veröffentlichen
+    needs: [ android, nextcloud-kalender ]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Release-APK herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: nocturn-release-${{ github.run_number }}
+          path: artifacts/release-apk
+
+      - name: WearOS-APK herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: nocturn-watch-${{ github.run_number }}
+          path: artifacts/watch-apk
+
+      - name: NocTurn-Kalender-Paket herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: nextcloud-kalender-app-${{ github.run_number }}
+          path: artifacts/nextcloud-kalender
+
+      - name: GitHub Release veröffentlichen
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.name }}-${{ github.run_number }}
-          name: NocTurn ${{ steps.version.outputs.name }} (Build ${{ github.run_number }})
-          files: app/build/outputs/apk/release/*.apk
+          tag_name: v${{ needs.android.outputs.version }}-${{ github.run_number }}
+          name: NocTurn ${{ needs.android.outputs.version }} (Build ${{ github.run_number }})
+          files: |
+            artifacts/release-apk/*.apk
+            artifacts/watch-apk/*.apk
+            artifacts/nextcloud-kalender/*.tar.gz
           generate_release_notes: true

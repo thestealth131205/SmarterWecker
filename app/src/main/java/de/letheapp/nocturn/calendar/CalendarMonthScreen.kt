@@ -1,6 +1,10 @@
 package de.letheapp.nocturn.calendar
 
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -32,6 +36,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudSync
@@ -43,6 +49,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
@@ -83,6 +91,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -127,6 +136,7 @@ fun CalendarMonthScreen(
     onOpenCalendarTemplates: () -> Unit,
     onOpenHolidaySettings: () -> Unit,
     onOpenNextcloudSync: () -> Unit,
+    onOpenWearSettings: () -> Unit,
     onOpenLetterImport: () -> Unit,
     onOpenRotationEditor: (jobId: Long) -> Unit,
     onOpenJobTimetable: (jobId: Long, jobName: String) -> Unit,
@@ -155,6 +165,10 @@ fun CalendarMonthScreen(
     var phaseQueryFor by remember { mutableStateOf<RotationTodayShiftQueryState?>(null) }
     var fridayQueryFor by remember { mutableStateOf<RotationFridayQueryState?>(null) }
     var nextOccurrenceQueryFor by remember { mutableStateOf<RotationNextOccurrenceQueryState?>(null) }
+    var pendingDeleteImportedCalendar by remember { mutableStateOf<de.letheapp.nocturn.data.db.ImportedCalendarEntity?>(null) }
+    var pendingIcsUri by remember { mutableStateOf<Uri?>(null) }
+    val holidaySettings by viewModel.holidaySettingsState.collectAsState()
+    val importedCalendars by viewModel.importedCalendars.collectAsState()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerScope = rememberCoroutineScope()
     val scope = rememberCoroutineScope()
@@ -167,6 +181,10 @@ fun CalendarMonthScreen(
     BackHandler(enabled = editMode && !drawerState.isOpen) {
         editMode = false
         selectedDays = emptySet()
+    }
+
+    val icsFilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) pendingIcsUri = uri
     }
 
     LaunchedEffect(shareFileUri) {
@@ -313,13 +331,51 @@ fun CalendarMonthScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
                 Text(
-                    "Diese Farben markieren Feiertage und Ferien im Kalender:",
+                    "Antippen schaltet die Anzeige im Kalender um:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
                 )
-                HolidayLegendRow(color = Color(PUBLIC_HOLIDAY_COLOR_ARGB), label = "Gesetzliche Feiertage")
-                HolidayLegendRow(color = Color(SCHOOL_HOLIDAY_COLOR_ARGB), label = "Schulferien")
+                ColorCheckboxRow(
+                    color = Color(PUBLIC_HOLIDAY_COLOR_ARGB),
+                    label = "Gesetzliche Feiertage",
+                    checked = holidaySettings?.showPublicHolidays ?: false,
+                    onToggle = {
+                        if (holidaySettings == null) onOpenHolidaySettings() else viewModel.toggleHolidayVisibility(isSchoolHolidays = false)
+                    }
+                )
+                ColorCheckboxRow(
+                    color = Color(SCHOOL_HOLIDAY_COLOR_ARGB),
+                    label = "Schulferien",
+                    checked = holidaySettings?.showSchoolHolidays ?: false,
+                    onToggle = {
+                        if (holidaySettings == null) onOpenHolidaySettings() else viewModel.toggleHolidayVisibility(isSchoolHolidays = true)
+                    }
+                )
+
+                if (importedCalendars.isNotEmpty()) {
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    Text(
+                        "Externe Kalender",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                    Text(
+                        "Zum Löschen gedrückt halten.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
+                    )
+                    importedCalendars.forEach { calendar ->
+                        ColorCheckboxRow(
+                            color = Color(calendar.colorArgb),
+                            label = calendar.name,
+                            checked = calendar.visible,
+                            onToggle = { viewModel.setImportedCalendarVisible(calendar.id, !calendar.visible) },
+                            onLongClick = { pendingDeleteImportedCalendar = calendar }
+                        )
+                    }
+                }
             }
         }
     ) {
@@ -402,11 +458,27 @@ fun CalendarMonthScreen(
                                 }
                             )
                             DropdownMenuItem(
+                                text = { Text("WearOS-Verwaltung") },
+                                leadingIcon = { Icon(Icons.Filled.Watch, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onOpenWearSettings()
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Kalender exportieren") },
                                 leadingIcon = { Icon(Icons.Filled.Print, contentDescription = null) },
                                 onClick = {
                                     showOverflowMenu = false
                                     onOpenExport()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("ICS importieren") },
+                                leadingIcon = { Icon(Icons.Filled.UploadFile, contentDescription = null) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    icsFilePicker.launch(arrayOf("*/*"))
                                 }
                             )
                         }
@@ -588,6 +660,49 @@ fun CalendarMonthScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showNoJobTip = false }) { Text("Abbrechen") }
+                }
+            )
+        }
+
+        val icsUri = pendingIcsUri
+        if (icsUri != null) {
+            val suggestedName = remember(icsUri) {
+                val cursor = context.contentResolver.query(icsUri, null, null, null, null)
+                val name = cursor?.use {
+                    val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (it.moveToFirst() && nameIndex >= 0) it.getString(nameIndex) else null
+                }
+                name?.removeSuffix(".ics")?.removeSuffix(".ICS") ?: "Importierter Kalender"
+            }
+            IcsImportDialog(
+                suggestedName = suggestedName,
+                onDismiss = { pendingIcsUri = null },
+                onConfirm = { name, colorArgb ->
+                    viewModel.importIcsFile(icsUri, name, colorArgb) { count ->
+                        pendingIcsUri = null
+                        Toast.makeText(
+                            context,
+                            if (count > 0) "$count Termine importiert" else "Keine Termine in der Datei gefunden",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            )
+        }
+
+        pendingDeleteImportedCalendar?.let { calendar ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteImportedCalendar = null },
+                title = { Text("Kalender „${calendar.name}“ löschen?") },
+                text = { Text("Alle importierten Termine dieses Kalenders werden entfernt.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteImportedCalendar(calendar.id)
+                        pendingDeleteImportedCalendar = null
+                    }) { Text("Löschen") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteImportedCalendar = null }) { Text("Abbrechen") }
                 }
             )
         }
@@ -1069,15 +1184,99 @@ private fun EditModeShiftChipRow(
     }
 }
 
+/**
+ * Zeile in der Kalender-Seitenleiste für eine farbige, ein-/ausschaltbare Kalenderquelle (Feiertage,
+ * Ferien, importierte ICS-Kalender): statt eines reinen Farbpunkts als Legende zeigt sie ein mit
+ * [color] gefülltes Kästchen, das bei [checked] = false leer bleibt — Tippen auf die ganze Zeile
+ * schaltet die Anzeige im Kalender direkt um, ohne einen separaten Einstellungs-Screen öffnen zu
+ * müssen.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HolidayLegendRow(color: Color, label: String) {
+private fun ColorCheckboxRow(
+    color: Color,
+    label: String,
+    checked: Boolean,
+    onToggle: () -> Unit,
+    onLongClick: (() -> Unit)? = null
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onToggle, onLongClick = onLongClick ?: {})
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(12.dp).background(color, CircleShape))
-        Text(label, modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
+        Icon(
+            if (checked) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
+            contentDescription = null,
+            tint = color
+        )
+        Text(
+            label,
+            modifier = Modifier.padding(start = 12.dp).weight(1f),
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
+}
+
+/**
+ * Dialog nach Auswahl einer .ics-Datei (siehe [IcsImportRepository]): Name (vorausgefüllt mit dem
+ * Dateinamen) und Farbe für den neuen externen Kalender, bevor er tatsächlich importiert wird.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun IcsImportDialog(
+    suggestedName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, colorArgb: Int) -> Unit
+) {
+    var name by remember { mutableStateOf(suggestedName) }
+    var selectedColor by remember { mutableStateOf(SHIFT_COLOR_PALETTE.first()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Kalender importieren") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                Text("Farbe", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SHIFT_COLOR_PALETTE.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(color, CircleShape)
+                                .border(
+                                    width = if (selectedColor == color) 3.dp else 0.dp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    shape = CircleShape
+                                )
+                                .combinedClickable(onClick = { selectedColor = color }, onLongClick = {})
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim(), selectedColor.toArgb()) },
+                enabled = name.isNotBlank()
+            ) { Text("Importieren") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        }
+    )
 }
 
 /**

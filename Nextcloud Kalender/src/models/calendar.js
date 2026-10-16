@@ -1,0 +1,200 @@
+import { mapDavShareeToCalendarShareObject } from '@/models/calendarShare.js'
+/**
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH and Nextcloud contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import { detectColor, uidToHexColor } from '@/utils/color.js'
+import { isAfterVersion } from '@/utils/nextcloudVersion.ts'
+
+/**
+ * Creates a complete calendar-object based on given props
+ *
+ * @param {object} props Calendar-props already provided
+ * @return {object}
+ */
+function getDefaultCalendarObject(props = {}) {
+	return { // Id of the calendar
+		id: '',
+		// Visible display name
+		displayName: '',
+		// Color of the calendar
+		color: uidToHexColor(''),
+		// Whether or not the calendar is visible in the grid
+		enabled: true,
+		// Whether or not the calendar is loading events at the moment
+		loading: false,
+		// Whether this calendar supports VEvents
+		supportsEvents: true,
+		// Whether this calendar supports VJournals
+		supportsJournals: false,
+		// Whether this calendar supports VTodos
+		supportsTasks: false,
+		// The principal uri of the owner
+		owner: '',
+		// Timezone set for this calendar
+		timezone: null,
+		// List of shares
+		shares: [],
+		// Published url
+		publishURL: null,
+		// Internal CalDAV url of this calendar
+		url: '',
+		// Whether this calendar is read-only
+		readOnly: false,
+		// The order of this calendar in the calendar-list
+		order: 0,
+		// Whether or not the calendar is shared with me
+		isSharedWithMe: false,
+		// Whether or not the calendar belongs to a user who delegated to me
+		isDelegated: false,
+		// Principal URL of the delegator whose home this calendar was fetched from
+		// (may differ from `owner` when the delegator only has access via a share)
+		delegatorUrl: '',
+		// Whether or not the calendar can be shared by me
+		canBeShared: false,
+		// Whether or not the calendar can be published by me
+		canBePublished: false,
+		// Whether or not I can create objects in this calendar
+		canCreateObject: false,
+		// Whether or not I can modify objects in this calendar
+		canModifyObject: false,
+		// Whether or not I can delete objects in this calendar
+		canDeleteObject: false,
+		// Reference to cdav-lib object
+		dav: false,
+		// All calendar-objects from this calendar that have already been fetched
+		calendarObjects: [],
+		// Time-ranges that have already been fetched for this calendar
+		fetchedTimeRanges: [],
+		// Scheduling transparency
+		transparency: 'opaque',
+		// Default alarm/reminder for part-day events in seconds (null if disabled)
+		defaultAlarmPartDay: null,
+		// Default alarm/reminder for full-day events in seconds (null if disabled)
+		defaultAlarmFullDay: null,
+		// Whether alarm notifications/reminders are disabled for this calendar
+		disableAlarmNotifications: false,
+		...props,
+	}
+}
+
+/**
+ * Map a dav collection to our calendar object model
+ *
+ * @param {object} calendar The calendar object from the cdav library
+ * @param {object=} currentUserPrincipal The principal model of the current user principal
+ * @return {object}
+ */
+function mapDavCollectionToCalendar(calendar, currentUserPrincipal) {
+	const id = btoa(calendar.url)
+	const displayName = calendar.displayname || getCalendarUriFromUrl(calendar.url)
+
+	// calendar.color can be set to anything on the server,
+	// so make sure it's something that remotely looks like a color
+	let color = detectColor(calendar.color)
+	if (!color) {
+		// As fallback if we don't know what color that is supposed to be
+		color = uidToHexColor(displayName)
+	}
+
+	const supportsEvents = calendar.components.includes('VEVENT')
+	const supportsJournals = calendar.components.includes('VJOURNAL')
+	const supportsTasks = calendar.components.includes('VTODO')
+	const owner = calendar.owner
+	const readOnly = !calendar.isWriteable()
+	const canBeShared = calendar.isShareable()
+	const canBePublished = calendar.isPublishable()
+	const canCreateObject = calendar.currentUserPrivilegeSet.includes('{DAV:}bind') || calendar.currentUserPrivilegeSet.includes('{DAV:}write') || calendar.currentUserPrivilegeSet.includes('{DAV:}all') === true
+	const canModifyObject = calendar.currentUserPrivilegeSet.includes('{DAV:}write-content') || calendar.currentUserPrivilegeSet.includes('{DAV:}write') || calendar.currentUserPrivilegeSet.includes('{DAV:}all') === true
+	const canDeleteObject = calendar.currentUserPrivilegeSet.includes('{DAV:}unbind') || calendar.currentUserPrivilegeSet.includes('{DAV:}write') || calendar.currentUserPrivilegeSet.includes('{DAV:}all') === true
+	const order = calendar.order || 0
+	const url = calendar.url
+	const publishURL = calendar.publishURL || null
+	const timezone = calendar.timezone || null
+	// If this property is not present on a calendar collection,
+	// then the default value CALDAV:opaque MUST be assumed.
+	// https://datatracker.ietf.org/doc/html/rfc6638#section-9.1
+	const transparency = calendar.transparency || 'opaque'
+	// Default alarm for part-day events in this calendar (in seconds)
+	const defaultAlarmPartDay = isAfterVersion(34) && calendar.defaultAlarmPartDay !== undefined ? calendar.defaultAlarmPartDay : null
+	// Default alarm for full-day events in this calendar (in seconds)
+	const defaultAlarmFullDay = isAfterVersion(34) && calendar.defaultAlarmFullDay !== undefined ? calendar.defaultAlarmFullDay : null
+	const disableAlarmNotifications = isAfterVersion(36) && calendar.disableAlarmNotifications !== undefined ? Boolean(calendar.disableAlarmNotifications) : false
+
+	// If the user is not authenticated, the calendar
+	// will always be marked as shared with them
+	const isSharedWithMe = !currentUserPrincipal || (owner !== currentUserPrincipal.url)
+
+	let enabled
+	if (!currentUserPrincipal) {
+		// If the user is not authenticated,
+		// always enable the calendar
+		enabled = true
+	} else if (typeof calendar.enabled === 'boolean') {
+		// If calendar-enabled is set, we will just take that
+		enabled = calendar.enabled
+	} else {
+		// If there is no calendar-enabled,
+		// we will display the calendar by default and set enabled
+		enabled = true
+		calendar.enabled = true
+	}
+
+	const shares = []
+	if (!!currentUserPrincipal && Array.isArray(calendar.shares)) {
+		for (const share of calendar.shares) {
+			if (share.href === currentUserPrincipal.principalScheme) {
+				continue
+			}
+
+			shares.push(mapDavShareeToCalendarShareObject(share))
+		}
+	}
+
+	return getDefaultCalendarObject({
+		id,
+		displayName,
+		color,
+		order,
+		url,
+		enabled,
+		supportsEvents,
+		supportsJournals,
+		supportsTasks,
+		isSharedWithMe,
+		owner,
+		readOnly,
+		publishURL,
+		canBeShared,
+		canBePublished,
+		canCreateObject,
+		canModifyObject,
+		canDeleteObject,
+		shares,
+		timezone,
+		transparency,
+		defaultAlarmPartDay,
+		defaultAlarmFullDay,
+		disableAlarmNotifications,
+		dav: calendar,
+	})
+}
+
+/**
+ * Gets the calendar uri from the url
+ *
+ * @param {string} url The url to get calendar uri from
+ * @return {string}
+ */
+function getCalendarUriFromUrl(url) {
+	if (url.endsWith('/')) {
+		url = url.substring(0, url.length - 1)
+	}
+
+	return url.substring(url.lastIndexOf('/') + 1)
+}
+
+export {
+	getDefaultCalendarObject,
+	mapDavCollectionToCalendar,
+}

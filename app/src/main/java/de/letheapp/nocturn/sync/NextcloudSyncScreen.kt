@@ -95,7 +95,7 @@ fun NextcloudSyncScreen(onBack: () -> Unit, viewModel: NextcloudSyncViewModel = 
 private fun ConnectForm(
     discoveryState: DiscoveryState,
     onDiscover: (String, String, String) -> Unit,
-    onConnect: (CalDavCalendarInfo, Boolean, Boolean) -> Unit,
+    onConnect: (CalDavCalendarInfo, Boolean, Boolean, Boolean) -> Unit,
     onResetDiscovery: () -> Unit
 ) {
     var serverUrl by remember { mutableStateOf("") }
@@ -103,6 +103,7 @@ private fun ConnectForm(
     var password by remember { mutableStateOf("") }
     var syncAppointments by remember { mutableStateOf(true) }
     var syncShifts by remember { mutableStateOf(true) }
+    var syncNocturnSchedule by remember { mutableStateOf(false) }
     var selectedCalendar by remember { mutableStateOf<CalDavCalendarInfo?>(null) }
 
     Text(
@@ -192,8 +193,21 @@ private fun ConnectForm(
                 checked = syncShifts,
                 onCheckedChange = { syncShifts = it }
             )
+            LabeledSwitch(
+                label = "Jobs/Schichten/Rotationen mit der Nextcloud-Kalender-App abstimmen",
+                checked = syncNocturnSchedule,
+                onCheckedChange = { syncNocturnSchedule = it }
+            )
+            Text(
+                "Lässt deine Jobs, Schichten und Rotations-Muster (inkl. Änderungen von dort) " +
+                    "auch in der eigenen \"NocTurn\"-Seitenleiste der Nextcloud-Calendar-App " +
+                    "erscheinen — getrennt vom reinen Termin-Export oben.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
             Button(
-                onClick = { selectedCalendar?.let { onConnect(it, syncAppointments, syncShifts) } },
+                onClick = { selectedCalendar?.let { onConnect(it, syncAppointments, syncShifts, syncNocturnSchedule) } },
                 enabled = selectedCalendar != null,
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
             ) { Text("Verbinden") }
@@ -206,7 +220,7 @@ private fun ConnectedStatus(
     account: CalDavAccountEntity,
     isSyncing: Boolean,
     onSyncNow: () -> Unit,
-    onUpdateOptions: (Boolean, Boolean) -> Unit,
+    onUpdateOptions: (Boolean, Boolean, Boolean) -> Unit,
     onDisconnect: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -239,12 +253,17 @@ private fun ConnectedStatus(
     LabeledSwitch(
         label = "Freie Termine synchronisieren",
         checked = account.syncAppointments,
-        onCheckedChange = { onUpdateOptions(it, account.syncShifts) }
+        onCheckedChange = { onUpdateOptions(it, account.syncShifts, account.syncNocturnSchedule) }
     )
     LabeledSwitch(
         label = "Schichten exportieren",
         checked = account.syncShifts,
-        onCheckedChange = { onUpdateOptions(account.syncAppointments, it) }
+        onCheckedChange = { onUpdateOptions(account.syncAppointments, it, account.syncNocturnSchedule) }
+    )
+    LabeledSwitch(
+        label = "Jobs/Schichten/Rotationen mit der Nextcloud-Kalender-App abstimmen",
+        checked = account.syncNocturnSchedule,
+        onCheckedChange = { onUpdateOptions(account.syncAppointments, account.syncShifts, it) }
     )
 
     Button(onClick = onSyncNow, enabled = !isSyncing, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {

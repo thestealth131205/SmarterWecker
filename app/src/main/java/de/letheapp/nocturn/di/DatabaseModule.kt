@@ -15,15 +15,18 @@ import de.letheapp.nocturn.data.db.CalDavAccountDao
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.HolidayDao
 import de.letheapp.nocturn.data.db.HolidaySettingsDao
+import de.letheapp.nocturn.data.db.ImportedCalendarDao
 import de.letheapp.nocturn.data.db.IoBrokerAccountDao
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.LessonDao
 import de.letheapp.nocturn.data.db.ManualShiftEntryDao
 import de.letheapp.nocturn.data.db.NocturnDatabase
+import de.letheapp.nocturn.data.db.NocturnSyncMappingDao
 import de.letheapp.nocturn.data.db.RotationDao
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.SyncedEventDao
 import de.letheapp.nocturn.data.db.TaskDao
+import de.letheapp.nocturn.data.db.WearVisibleSourceDao
 import javax.inject.Singleton
 
 @Module
@@ -54,11 +57,104 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Neue Tabelle für [de.letheapp.nocturn.data.db.WearVisibleSourceEntity] — pro Kalenderquelle
+     * (Job/Rotation/Geburtstage/Feiertage/Ferien), ob sie an eine gekoppelte WearOS-Smartwatch
+     * übertragen wird (siehe [de.letheapp.nocturn.wear.WearSettingsScreen]).
+     */
+    private val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS wear_visible_sources (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "sourceType TEXT NOT NULL, " +
+                    "sourceKey INTEGER NOT NULL, " +
+                    "enabled INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_wear_visible_sources_sourceType_sourceKey " +
+                    "ON wear_visible_sources (sourceType, sourceKey)"
+            )
+        }
+    }
+
+    /**
+     * Neue Tabelle für [de.letheapp.nocturn.data.db.NocturnSyncMappingEntity] (lokal<->Server-uid-
+     * Zuordnung für den bidirektionalen Nextcloud-Schedule-Sync, siehe
+     * [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]) sowie die neue Sync-Cursor-Spalte
+     * auf [de.letheapp.nocturn.data.db.CalDavAccountEntity].
+     */
+    private val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE caldav_accounts ADD COLUMN nocturnScheduleSyncToken INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS nocturn_sync_mappings (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "localType TEXT NOT NULL, " +
+                    "localId INTEGER NOT NULL, " +
+                    "remoteUid TEXT NOT NULL, " +
+                    "remoteUpdatedAt INTEGER NOT NULL, " +
+                    "contentHash INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_nocturn_sync_mappings_localType_localId " +
+                    "ON nocturn_sync_mappings (localType, localId)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_nocturn_sync_mappings_remoteUid " +
+                    "ON nocturn_sync_mappings (remoteUid)"
+            )
+        }
+    }
+
+    /**
+     * Neue Opt-in-Spalte [de.letheapp.nocturn.data.db.CalDavAccountEntity.syncNocturnSchedule] —
+     * schaltet den bidirektionalen Jobs/Schichten/Rotationen-Abgleich über
+     * [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository] frei, unabhängig vom reinen
+     * CalDAV-Export in [syncShifts].
+     */
+    private val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE caldav_accounts ADD COLUMN syncNocturnSchedule INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    /** Neue Tabellen für den ICS-Import (siehe [de.letheapp.nocturn.calendar.IcsImportRepository]). */
+    private val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS imported_calendars (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    name TEXT NOT NULL,
+                    colorArgb INTEGER NOT NULL,
+                    visible INTEGER NOT NULL DEFAULT 1,
+                    importedAtEpochMillis INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS imported_calendar_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    calendarId INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    location TEXT NOT NULL DEFAULT '',
+                    startEpochMillis INTEGER NOT NULL,
+                    endEpochMillis INTEGER NOT NULL,
+                    allDay INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_imported_calendar_events_calendarId ON imported_calendar_events(calendarId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
-            .addMigrations(MIGRATION_12_13, MIGRATION_13_14)
+            .addMigrations(MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18)
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
             // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN
@@ -111,4 +207,13 @@ object DatabaseModule {
 
     @Provides
     fun provideTaskDao(db: NocturnDatabase): TaskDao = db.taskDao()
+
+    @Provides
+    fun provideWearVisibleSourceDao(db: NocturnDatabase): WearVisibleSourceDao = db.wearVisibleSourceDao()
+
+    @Provides
+    fun provideNocturnSyncMappingDao(db: NocturnDatabase): NocturnSyncMappingDao = db.nocturnSyncMappingDao()
+
+    @Provides
+    fun provideImportedCalendarDao(db: NocturnDatabase): ImportedCalendarDao = db.importedCalendarDao()
 }
