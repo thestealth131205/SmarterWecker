@@ -358,7 +358,7 @@ data class CalDavAccountEntity(
     val lastSyncError: String? = null,
     /**
      * `since`-Cursor (Server-Millis) für den nächsten inkrementellen Abruf über
-     * `/apps/calendar/v1/nocturn/sync` (siehe [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]).
+     * `/apps/nocturnkalender/v1/nocturn/sync` (siehe [de.letheapp.nocturn.sync.NocturnScheduleSyncRepository]).
      * 0 = noch nie synchronisiert, nächster Lauf holt den vollen Bestand.
      */
     val nocturnScheduleSyncToken: Long = 0,

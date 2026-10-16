@@ -9,14 +9,14 @@ on:
       - 'gradle/**'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
-      - 'Nextcloud Kalender/**'
+      - 'Nocturn-Kalender/**'
       - '.github/workflows/build-apk.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'app/**'
       - 'wear/**'
-      - 'Nextcloud Kalender/**'
+      - 'Nocturn-Kalender/**'
   workflow_dispatch:
 
 jobs:
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Nextcloud Kalender
+        working-directory: Nocturn-Kalender
 
     steps:
       - name: Checkout
@@ -119,7 +119,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: 'Nextcloud Kalender/package-lock.json'
+          cache-dependency-path: 'Nocturn-Kalender/package-lock.json'
 
       - name: PHP 8.2 einrichten
         uses: shivammathur/setup-php@v2

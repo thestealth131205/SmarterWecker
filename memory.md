@@ -730,9 +730,10 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
 
 - **Ausgangslage**: Aus einer durch das Session-/Wochenlimit unterbrochenen vorherigen Sitzung
   lag bereits das komplette Server-/UI-Grundgerüst für den strukturierten NocTurn-Schedule-Sync in
-  `Nextcloud Kalender/` (geforkte `nextcloud/calendar`-App): PHP-Entities/-Mapper/-Controller/
+  `Nocturn-Kalender/` (geforkte `nextcloud/calendar`-App): PHP-Entities/-Mapper/-Controller/
   -Service unter `lib/Db/Nocturn*`/`lib/Service/Nocturn/NocturnScheduleService.php`, Routen unter
-  `/apps/calendar/v1/nocturn/...`, sowie eine eigene Vue-Seitenleiste
+  `/apps/nocturnkalender/v1/nocturn/...` (ursprünglich `/apps/calendar/...`, siehe
+  App-ID-Umbenennung unten), sowie eine eigene Vue-Seitenleiste
   (`src/components/AppNavigation/NocturnScheduleList.vue` + Modals). Auf Android-Seite existierte
   dafür bereits `NocturnScheduleApiClient.kt` (kompletter OkHttp-Client für exakt diese API) sowie,
   unkommittiert im Arbeitsverzeichnis, das komplette Room-Vorfeld dafür: `NocturnSyncMappingEntity`/
@@ -790,7 +791,7 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
 - Zwei der drei in Phase C noch offen gelassenen Punkte aus dem ursprünglichen Nextcloud-Kalender-
   Auftrag sind jetzt umgesetzt: **ICS-Import** und **Kästchen statt Punkt** in der Seitenleiste.
   Weiterhin offen: Kalender-Teilen der NocTurn-Schedule-Daten (Jobs/Schichten/Rotationen) mit
-  anderen Nextcloud-Nutzern — die Server-Tabellen in `Nextcloud Kalender/` sind rein `user_id`-
+  anderen Nextcloud-Nutzern — die Server-Tabellen in `Nocturn-Kalender/` sind rein `user_id`-
   skopiert, es gibt noch keinen Sharing-Mechanismus dafür (anders als normale CalDAV-Kalender, die
   Nextclouds eigenes Sharing bereits nutzen können).
 - **ICS-Import**: neues `IcsImportRepository` (Package `calendar`) + zwei neue Tabellen
@@ -819,3 +820,56 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   `CalendarMonthViewModel.kt` 83/83, `CalendarDayViewModel.kt` 39/39), neue `@OptIn(
   ExperimentalFoundationApi::class)`-Annotationen für die beiden neuen Composables ergänzt, die
   `combinedClickable` nutzen (gleiches Muster wie bei der bereits bestehenden `DayCell`-Funktion).
+
+## App-ID der Nextcloud-Kalender-App geändert: `calendar` -> `nocturnkalender` (2026-10-16)
+
+- **Anlass**: Nutzer hat die frühere bewusste Design-Entscheidung ("App-ID bleibt `calendar`,
+  damit die App die eingebaute Nextcloud-Calendar-App ersetzt") explizit umgekehrt: die App soll
+  jetzt eigenständig neben dem Original installierbar sein, ohne es zu überschreiben.
+- **Ordner umbenannt**: `Nextcloud Kalender/` → `Nocturn-Kalender/` (per `git mv`).
+- **Geänderte Stellen** (mechanisch, da PHP-Namespace/App-ID ein eindeutiger Token sind, keine
+  Kollision mit dem generischen Wort "calendar" im UI-Text, das unverändert blieb):
+  - `appinfo/info.xml`: `<id>` (App- und Navigationseintrag), `<route>`.
+  - `lib/AppInfo/Application.php`: `APP_ID`-Konstante.
+  - PHP-Namespace `OCA\Calendar` → `OCA\NocturnKalender` in allen 101 Dateien unter `lib/`,
+    `appinfo/`, `tests/`.
+  - `composer.json`: PSR-4-Autoload-Key + `autoloader-suffix`.
+  - `package.json`: `name` (steuert über `process.env.npm_package_name` den
+    JS-Bundle-Dateinamen-Präfix in `rspack.config.js`).
+  - Hartcodierte `Util::addScript`/`addStyle`-Aufrufe mit `calendar-*`-Bundle-Namen sowie der
+    CSS-Output-Präfix in `rspack.config.js`.
+  - System-eindeutige Identifier, die bei gleichzeitig aktiver Original-App sonst kollidiert
+    hätten: `Capabilities.php`-Top-Level-Key, `ReferenceProvider::getId()`,
+    `UserMigration/Migrator::getId()`.
+  - `l10nFactory->get('calendar', ...)`, `imagePath('calendar', ...)`, `setApp('calendar')`,
+    Logger-Kontext-Tags (`'app' => 'calendar'`/`'calendar-appointments'`).
+  - Alle `generateUrl('apps/calendar/...')`-Aufrufe im Vue-/JS-Code (~25 Stellen, u. a.
+    `router.js`, `nocturnScheduleService.js`, `appointmentService.js`).
+  - Android-Client `NocturnScheduleApiClient.kt` (Route-Kandidaten `/apps/calendar/...` →
+    `/apps/nocturnkalender/...`) sowie Doc-Kommentare in `NocturnScheduleSyncRepository.kt`/
+    `Entities.kt`.
+  - CI-Workflow `build-apk.yml` (Pfad-Filter, `working-directory`, Cache-Pfad).
+- **Bewusst unverändert**: generische Verwendungen des Wortes "calendar" als Domänenbegriff (z. B.
+  `calendarId`, UI-Texte, CSS-Klassen, `ReferenceProvider`-Anzeigetitel "calendar widget") — die
+  bezeichnen das Konzept eines CalDAV-Kalenders, nicht die App-ID, und sind nicht Teil des
+  Kollisionsrisikos.
+- **Verifikation**: `php -l` über alle `lib/`+`appinfo/`+`tests/`-PHP-Dateien fehlerfrei,
+  `info.xml`/`composer.json`/`package.json` strukturell valide, `node --check` auf die
+  geänderten `.js`-Dateien fehlerfrei, YAML-Validierung des CI-Workflows.
+- **Bekannte Restgrenze**: Falls auf derselben Nextcloud-Instanz jemals die eingebaute
+  Calendar-App aktiv war/ist, könnten ererbte `CREATE TABLE`-Migrationsschritte (Appointments/
+  Reminder-Tabellen) beim Enable unter der neuen ID an bereits existierenden Tabellen scheitern —
+  nur relevant bei paralleler Nutzung beider Apps auf demselben Server, nicht bei einer
+  Neuinstallation. Nicht weiter untersucht/gelöst, da außerhalb des unmittelbaren Auftrags.
+- Siehe auch [[Nextcloud-Server-Update]].
+
+## Nextcloud-Server-Update auf thestealth.de (2026-10-16)
+
+- **Zugang**: `thestealth@thestealth.de` (= Host "NextcloudDebian", vormals fälschlich unter
+  192.168.1.138 vermutet — das war falsch, siehe frühere Session). Passwort war zu diesem
+  Zeitpunkt in der Konversation bereits bekannt; `sudo` ist passwortlos erlaubt.
+- Native Installation unter `/var/www/nextcloud` (kein Docker), MySQL-Backend, Apache.
+- Update 34.0.3 → 34.0.5 über den offiziellen `updater/updater.phar --no-interaction` durchgeführt
+  (keine Major-Version-Grenze, daher kein Ordnerwechsel/Downloads nötig). Vorher DB-Dump
+  (`mysqldump`) + `config.php`-Kopie nach `~/nocturn-nc-backup-pre-update/` als Sicherheitsnetz.
+  Danach `occ status`/`occ check`/`curl status.php` verifiziert — keine Fehler mehr.

@@ -522,7 +522,7 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 - **Schichtplan-Sync mit der geforkten Nextcloud-Calendar-App** (`NocturnScheduleSyncRepository`,
   Package `sync`): zusätzlich zum reinen CalDAV-Termin-/Schicht-Export synchronisiert NocTurn
   Jobs/Schichten/Rotations-Muster/Tageseinträge bidirektional mit der NocTurn-Schedule-REST-API
-  der geforkten Calendar-App (`Nextcloud Kalender/`, siehe "Nextcloud-Kalender-App" unten) — damit
+  der geforkten Calendar-App (`Nocturn-Kalender/`, siehe "Nextcloud-Kalender-App" unten) — damit
   zeigt deren eigene Vue-Seitenleiste denselben Schichtplan und Änderungen dort fließen zurück
   nach NocTurn. Opt-in über einen dritten Schalter im Nextcloud-Sync-Screen
   (`CalDavAccountEntity.syncNocturnSchedule`, Default aus), nutzt dasselbe bereits verbundene
@@ -720,16 +720,26 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `/opt/letheapp/push-and-deploy.sh` für den Lethe Media Player (`com.Lethe.mediaplayer`,
   hinter dem bestehenden `--fdroid`-Flag), damit beide Begleit-Apps zuverlässig eine aktuelle
   "Current"-Version im selben Repo zeigen.
-- **Nextcloud-Kalender-App ("NocTurn Kalender")** (`Nextcloud Kalender/`): vollständiger Fork
+- **Nextcloud-Kalender-App ("NocTurn Kalender")** (`Nocturn-Kalender/`): vollständiger Fork
   von `nextcloud/calendar`, der die unter "Schichtplan-Sync"/"Job-Sharing" oben beschriebene
   NocTurn-eigene REST-API und Vue-Seitenleiste ergänzt. Angezeigter App-Name ist **"NocTurn
-  Kalender"** (`appinfo/info.xml` `<name>`, sowohl App- als auch Navigationseintrag) — die
-  technische App-`<id>` bleibt bewusst `calendar` (ebenso PHP-Namespace `OCA\Calendar`, Route
-  `calendar.view.index`, Datenbanktabellen), da diese App die eingebaute Nextcloud-Calendar-App
-  ersetzt und über dieselbe ID/CalDAV-Anbindung laufen muss — eine geänderte ID würde eine
-  zweite, parallele Kalender-App statt eines Ersatzes erzeugen. **CI/Release**: `build-apk.yml`
-  baut diese App als eigenen Job (`nextcloud-kalender`, Node 24 + PHP 8.2, `npm run build` +
-  `composer install --no-dev`) parallel zu den Android-APKs und packt sie als
+  Kalender"** (`appinfo/info.xml` `<name>`, sowohl App- als auch Navigationseintrag). **Eigene,
+  vom Original getrennte App-`<id>` `nocturnkalender`** (ebenso PHP-Namespace
+  `OCA\NocturnKalender`, Route `nocturnkalender.view.index`, npm-Paketname `nocturnkalender`,
+  JS-Bundle-Präfix, Composer-Autoloader-Suffix, Capabilities-Schlüssel, Reference-Provider-ID,
+  UserMigration-ID) — bewusste Kurskorrektur gegenüber einer früheren Entscheidung, die die ID
+  noch absichtlich auf `calendar` beließ: eine identische ID hätte beim Enable neben der
+  eingebauten Nextcloud-Calendar-App zu PHP-Klassenkollisionen (doppelte `OCA\Calendar`-Klassen)
+  geführt und die Original-App faktisch überschrieben/ersetzt statt eigenständig daneben zu
+  existieren. Der Android-Client (`NocturnScheduleApiClient.kt`) spricht entsprechend
+  `/apps/nocturnkalender/v1/nocturn/...` an. **Bekannte Grenze**: Enthält die Fork-eigenen
+  Migrationen (Appointments/Reminder-Tabellen, ererbt von `nextcloud/calendar`) `CREATE TABLE`-
+  Schritte für Tabellennamen, die die eingebaute Calendar-App bei vorheriger Nutzung auf
+  demselben Server bereits angelegt hat, kann das Enable dieser App unter der neuen ID an
+  "Tabelle existiert bereits" scheitern — nur relevant, wenn beide Apps je auf derselben
+  Nextcloud-Instanz aktiv waren/sind, nicht bei einer Neuinstallation. **CI/Release**:
+  `build-apk.yml` baut diese App als eigenen Job (`nextcloud-kalender`, Node 24 + PHP 8.2,
+  `npm run build` + `composer install --no-dev`) parallel zu den Android-APKs und packt sie als
   `nocturn-kalender-<Version>.tar.gz`; ein dritter Job `release` lädt alle drei Artefakte
   (Release-APK, WearOS-APK, Nextcloud-Paket) herunter und hängt sie gemeinsam an dasselbe
   GitHub Release — die Nextcloud-App landet damit bei jedem Release automatisch als

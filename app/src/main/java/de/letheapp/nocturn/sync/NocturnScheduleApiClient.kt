@@ -65,7 +65,7 @@ data class RemoteScheduleChanges(
 
 /**
  * Hand-rollter HTTP-Client für die strukturierte NocTurn-Schedule-REST-API der Nextcloud-
- * Calendar-App (`/apps/calendar/v1/nocturn/...`, siehe `Nextcloud Kalender/lib/Controller/
+ * Calendar-App (`/apps/nocturnkalender/v1/nocturn/...`, siehe `Nocturn-Kalender/lib/Controller/
  * NocturnScheduleController.php`) — bewusst ohne Retrofit/Moshi (FOSS-Minimalismus, wie bei
  * [CalDavClient]/[IcsFormat]), nur OkHttp + das in Android eingebaute `org.json`.
  *
@@ -268,7 +268,7 @@ class NocturnScheduleApiClient @Inject constructor() {
         if (cached != null) {
             runCatching { executeRequest(cached, username, password, method, path, body) }.getOrNull()?.let { return it }
         }
-        val candidates = listOfNotNull(cached, "$trimmed/apps/calendar/v1/nocturn", "$trimmed/index.php/apps/calendar/v1/nocturn").distinct()
+        val candidates = listOfNotNull(cached, "$trimmed/apps/nocturnkalender/v1/nocturn", "$trimmed/index.php/apps/nocturnkalender/v1/nocturn").distinct()
         var lastError: Exception? = null
         for (base in candidates) {
             try {

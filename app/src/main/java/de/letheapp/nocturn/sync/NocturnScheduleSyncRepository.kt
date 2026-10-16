@@ -23,7 +23,7 @@ import javax.inject.Singleton
 /**
  * Bidirektionale Synchronisierung von Jobs/Schichten/Rotationen/Tageseinträgen zwischen NocTurn
  * und der NocTurn-Schedule-REST-API der Nextcloud-Calendar-App (siehe
- * [NocturnScheduleApiClient] und `Nextcloud Kalender/lib/Controller/NocturnScheduleController.php`)
+ * [NocturnScheduleApiClient] und `Nocturn-Kalender/lib/Controller/NocturnScheduleController.php`)
  * — damit zeigt die geforkte Nextcloud-Calendar-App (eigene Vue-Seitenleiste
  * `NocturnScheduleList`) denselben Schichtplan wie NocTurn, inkl. Rückschreiben von Änderungen,
  * die dort vorgenommen werden.
