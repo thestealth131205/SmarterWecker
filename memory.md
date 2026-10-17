@@ -910,3 +910,49 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   Nextcloud-Oberfläche mehr nötig. Falls der Nutzer stattdessen wirklich ein sichtbares
   "Update verfügbar"-Badge in der Nextcloud-Apps-Seite selbst will, bräuchte das einen
   vollständigen Appstore-API-Mirror (viel größerer Scope, noch nicht umgesetzt).
+
+## NocTurn-Kalender-Auftrag abgeschlossen: Schichten/Rotationen jetzt sichtbar im Kalenderraster (2026-10-17)
+
+- **Vorgefundener Stand beim Fortsetzen von "Phase C" (Sitzung durch Wochenlimit unterbrochen)**:
+  Das Teilen der NocTurn-Schedule-Daten mit anderen Nextcloud-Nutzern (`NocturnJobShare` + Mapper,
+  `shareJob`/`unshareJob`/`listSharesForJob`/`sharedWithMe`/`sharedOccurrences`-Endpunkte,
+  `ShareJobModal.vue`, "Shared with me"-Sidebar-Sektion) war bereits **vollständig implementiert und
+  committet** (Version 0.30.0) — nur nie in dieser Memory-Datei dokumentiert worden. Das ICS-Import +
+  Kästchen-statt-Punkt-Feature aus dem ursprünglichen Auftrag war ebenfalls fertig, aber **in der
+  Android-NocTurn-App selbst** umgesetzt (`CalendarMonthScreen.kt`), nicht im Nextcloud-Webclient —
+  korrekt, da der Nutzer wörtlich "nocturn im Kalender Bereich... 3 Punkte Menü" schrieb.
+- **Tatsächlich noch fehlender Rest**: Jobs/Schichten/Rotationen (eigene UND geteilte) existierten im
+  Nextcloud-Webclient nur als reine Verwaltungsliste in der Seitenleiste (`NocturnScheduleList.vue`)
+  — die generierten Tageseinträge (`NocturnOccurrence`) erschienen **nirgends im eigentlichen
+  FullCalendar-Kalenderraster**. Das war in der Phase-B-Sitzung bewusst ausgeklammert worden
+  ("gehört zur Sync-Brücke", siehe älterer Eintrag), aber auch Phase C (Android↔Nextcloud-REST-Sync)
+  deckte das nicht ab — das betraf nur den Android-Client, nicht den Web-Kalender selbst.
+- **Fix**: Neuer GET-Endpunkt `jobs/{jobUid}/occurrences` (`NocturnScheduleService::
+  getOwnJobOccurrences`, Controller `ownOccurrences`, Route in `appinfo/routes.php`) — mirror von
+  `getSharedJobOccurrences`, aber per Ownership statt Share-Grant autorisiert (fehlte bisher komplett,
+  es gab nur den Pull-Endpunkt für Android-Delta-Sync, keinen reinen Datumsbereich-Read für eigene
+  Jobs). Neue eigenständige FullCalendar-Event-Source `src/fullcalendar/eventSources/
+  nocturnEventSource.js` — bewusst UNABHÄNGIG von der bestehenden CalDAV-`eventSource.js`-Pipeline
+  (die ICAL.js-geparste VEVENT-Objekte erwartet; NocTurns Zeilen sind einfaches JSON), rendert pro
+  sichtbarem Job (eigen oder "shared with me") ein farbiges Ganztags-Event je Tageseintrag
+  (Titel "Job: Schicht", Farbe der jeweiligen Schicht). In `CalendarGrid.vue` eingehängt
+  (`eventSources`-Computed kombiniert jetzt CalDAV- + NocTurn-Quellen; zusätzlicher `created()`-Hook
+  lädt den `nocturnSchedule`-Store redundant/idempotent, falls die Sidebar noch nicht gemountet ist).
+- **Sichtbarkeits-Kästchen analog zur bestehenden Kalenderliste**: `NocturnJobItem.vue` (eigene Jobs)
+  und die "Shared with me"-Liste in `NocturnScheduleList.vue` zeigen jetzt dasselbe
+  `CheckboxMarked`/`CheckboxBlankOutline`-Muster wie normale CalDAV-Kalender in `CalendarListItem.vue`
+  (gefülltes Kästchen in der Farbe der ersten/frühesten Schicht des Jobs, Antippen blendet die
+  Occurrences dieses Jobs im Kalenderraster ein/aus). Reine Browser-lokale Anzeige-Präferenz
+  (`nocturnSchedule`-Pinia-Store, neues `hiddenJobKeys`-Array in `localStorage` persistiert, Key-Schema
+  `nocturnJobVisibilityKey(ownerId, jobUid)` — eigene Jobs nur per uid, geteilte zusätzlich per
+  Eigentümer, da zwei verschiedene Besitzer theoretisch dieselbe Job-uid teilen könnten) — bewusst
+  NICHT auf den Server oder die Android-App synchronisiert, da reine Darstellungsoption dieses einen
+  Webclients.
+- Damit sind jetzt **alle** ursprünglichen Punkte aus dem Nextcloud-Kalender-Auftrag umgesetzt: Repo-
+  Fork + CI, volle Schicht-/Rotations-Verwaltung mit bidirektionalem Android↔Nextcloud-Sync, Teilen
+  mit anderen Nextcloud-Nutzern, UND Sichtbarkeit der eigenen wie geteilten Schichten direkt im
+  Kalenderraster (nicht nur in der Verwaltungsliste).
+- Wie immer **nicht committet/gepusht** (Standing-Regel). `php -l` über alle geänderten PHP-Dateien
+  fehlerfrei, `node --check` über alle geänderten/neuen JS-Dateien fehlerfrei, Klammernbalance aller
+  geänderten `.vue`-Dateien geprüft. Kein `npm run build` lokal möglich (kein `node_modules`) — läuft
+  wie beim Rest dieses Teilprojekts über die GitHub Action beim nächsten Push.

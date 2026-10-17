@@ -25,6 +25,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 private const val ACTION_TICK = "de.letheapp.nocturn.widget.ACTION_CALENDAR_TICK"
+private const val ACTION_OPEN_CALENDAR_FROM_WIDGET = "de.letheapp.nocturn.widget.ACTION_CALENDAR_WIDGET_OPEN"
 private const val TICK_INTERVAL_MILLIS = 20 * 60_000L
 private const val MAX_AGENDA_ITEMS = 4
 
@@ -145,7 +146,12 @@ class CalendarWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        // Eigene Action-Zeichenkette, damit dieser PendingIntent nicht mit dem bare
+        // "Intent(context, MainActivity::class.java)" des Uhr-Widgets kollidiert - PendingIntent-
+        // Gleichheit prüft Action/Component/Daten, nicht die Extras; ohne Unterscheidung hätte
+        // FLAG_UPDATE_CURRENT dort live die Extras überschrieben.
         val openIntent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_OPEN_CALENDAR_FROM_WIDGET
             putExtra(EXTRA_OPEN_CALENDAR, true)
         }
         val pendingIntent = PendingIntent.getActivity(

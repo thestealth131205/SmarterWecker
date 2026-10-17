@@ -23,6 +23,34 @@ import {
 } from '@/services/nocturnScheduleService.js'
 import logger from '@/utils/logger.js'
 
+const HIDDEN_JOB_KEYS_STORAGE_KEY = 'nocturnkalender-hidden-job-keys'
+
+/**
+ * @return {string[]}
+ */
+function loadHiddenJobKeys() {
+	try {
+		const raw = localStorage.getItem(HIDDEN_JOB_KEYS_STORAGE_KEY)
+		const parsed = raw ? JSON.parse(raw) : []
+		return Array.isArray(parsed) ? parsed : []
+	} catch {
+		return []
+	}
+}
+
+/**
+ * Visibility key for one entry in the sidebar's job/share list - identifies
+ * an owned job just by its uid, a shared-with-me job additionally by its
+ * owner (two different owners could otherwise share a job uid).
+ *
+ * @param {string|null} ownerId null for the current user's own jobs
+ * @param {string} jobUid
+ * @return {string}
+ */
+export function nocturnJobVisibilityKey(ownerId, jobUid) {
+	return ownerId ? `shared:${ownerId}:${jobUid}` : `own:${jobUid}`
+}
+
 export default defineStore('nocturnSchedule', {
 	state: () => {
 		return {
@@ -35,6 +63,10 @@ export default defineStore('nocturnSchedule', {
 			// Jobs other Nextcloud users shared with the current user:
 			// [{ job: NocturnJob, ownerId, permission, shifts: NocturnShift[], rotations: NocturnRotation[] }]
 			sharedWithMe: [],
+			// Visibility keys (see nocturnJobVisibilityKey) of own/shared jobs
+			// the user unchecked in the sidebar - hidden from the calendar grid.
+			// Purely a client-side display preference, persisted in localStorage.
+			hiddenJobKeys: loadHiddenJobKeys(),
 		}
 	},
 	getters: {
@@ -48,6 +80,43 @@ export default defineStore('nocturnSchedule', {
 			return Object.values(state.rotations)
 				.filter((rotation) => rotation.jobUid === jobUid)
 				.sort((a, b) => a.name.localeCompare(b.name))
+		},
+		isJobVisible: (state) => (key) => !state.hiddenJobKeys.includes(key),
+		/**
+		 * Flattened list of own + shared-with-me jobs that are currently
+		 * visible, in the shape the NocTurn FullCalendar event source needs.
+		 */
+		visibleScheduleEntries(state) {
+			const entries = []
+			for (const job of Object.values(state.jobs)) {
+				const key = nocturnJobVisibilityKey(null, job.uid)
+				if (state.hiddenJobKeys.includes(key)) {
+					continue
+				}
+				entries.push({
+					key,
+					jobUid: job.uid,
+					ownerId: null,
+					job,
+					shifts: this.shiftsForJob(job.uid),
+					editable: true,
+				})
+			}
+			for (const shared of state.sharedWithMe) {
+				const key = nocturnJobVisibilityKey(shared.ownerId, shared.job.uid)
+				if (state.hiddenJobKeys.includes(key)) {
+					continue
+				}
+				entries.push({
+					key,
+					jobUid: shared.job.uid,
+					ownerId: shared.ownerId,
+					job: shared.job,
+					shifts: shared.shifts,
+					editable: shared.permission === 'WRITE',
+				})
+			}
+			return entries
 		},
 	},
 	actions: {
@@ -228,6 +297,25 @@ export default defineStore('nocturnSchedule', {
 		 * Loads every job other Nextcloud users shared with the current
 		 * user, into `sharedWithMe`.
 		 */
+		/**
+		 * Shows/hides one own or shared job in the calendar grid - see
+		 * {@see nocturnJobVisibilityKey}. Purely local to this browser, not
+		 * synced to the server or the NocTurn Android app.
+		 *
+		 * @param {string} key
+		 */
+		toggleJobVisibility(key) {
+			if (this.hiddenJobKeys.includes(key)) {
+				this.hiddenJobKeys = this.hiddenJobKeys.filter((existing) => existing !== key)
+			} else {
+				this.hiddenJobKeys = [...this.hiddenJobKeys, key]
+			}
+			try {
+				localStorage.setItem(HIDDEN_JOB_KEYS_STORAGE_KEY, JSON.stringify(this.hiddenJobKeys))
+			} catch (error) {
+				logger.error('Failed to persist NocTurn job visibility', { error })
+			}
+		},
 		async loadSharedWithMe() {
 			try {
 				const entries = await fetchSharedWithMe()

@@ -86,10 +86,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val openCalendar = intent?.getBooleanExtra(EXTRA_OPEN_CALENDAR, false) == true
         val openWeather = intent?.getBooleanExtra(EXTRA_OPEN_WEATHER, false) == true
+        // Launcher-Icons rufen MainActivity über einen der drei activity-alias-Einträge
+        // (Uhr/Kalender/Wetter) auf; die Klasse im Intent bleibt dabei der Alias-Name, nicht
+        // ".MainActivity" (Standard-Android-Verhalten) — daran lässt sich erkennen, über
+        // welches Icon gestartet wurde.
+        val launchedAlias = intent?.component?.className
         val startDestination = when {
             !appPreferences.isOnboardingCompleted() -> "permissions/true"
-            openCalendar -> ROUTE_CALENDAR_MONTH
-            openWeather -> ROUTE_WEATHER
+            openCalendar || launchedAlias == "$packageName.CalendarLauncherAlias" -> ROUTE_CALENDAR_MONTH
+            openWeather || launchedAlias == "$packageName.WeatherLauncherAlias" -> ROUTE_WEATHER
             else -> ROUTE_ALARM_LIST
         }
         setContent {

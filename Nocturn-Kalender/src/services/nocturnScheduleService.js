@@ -132,6 +132,23 @@ export async function applyRotation(uid, startEpochDay, months) {
 }
 
 /**
+ * Occurrences of one of the current user's own jobs, within a date range -
+ * used by the calendar grid's NocTurn event source.
+ *
+ * @param {string} jobUid
+ * @param {number} fromEpochDay
+ * @param {number} toEpochDayExclusive
+ * @return {Promise<object[]>}
+ */
+export async function fetchOwnOccurrences(jobUid, fromEpochDay, toEpochDayExclusive) {
+	logger.debug('Fetching own NocTurn occurrences', { jobUid, fromEpochDay, toEpochDayExclusive })
+	const url = generateUrl('/apps/nocturnkalender/v1/nocturn/jobs/{jobUid}/occurrences', { jobUid })
+
+	const response = await axios.get(url, { params: { fromEpochDay, toEpochDayExclusive } })
+	return response.data.data
+}
+
+/**
  * Grants (or updates) another Nextcloud user read or read/write access to a
  * job's full schedule - the NocTurn equivalent of sharing a calendar.
  *

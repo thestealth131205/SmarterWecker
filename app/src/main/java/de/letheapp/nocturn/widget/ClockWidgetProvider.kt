@@ -32,6 +32,9 @@ import javax.inject.Inject
 
 private const val ACTION_CLOCK_TICK = "de.letheapp.nocturn.widget.ACTION_CLOCK_TICK"
 private const val ACTION_DATA_TICK = "de.letheapp.nocturn.widget.ACTION_DATA_TICK"
+private const val ACTION_OPEN_WECKER = "de.letheapp.nocturn.widget.ACTION_CLOCK_OPEN_WECKER"
+private const val ACTION_OPEN_WEATHER = "de.letheapp.nocturn.widget.ACTION_CLOCK_OPEN_WEATHER"
+private const val ACTION_OPEN_CALENDAR = "de.letheapp.nocturn.widget.ACTION_CLOCK_OPEN_CALENDAR"
 private const val CLOCK_TICK_INTERVAL_MILLIS = 60_000L
 private const val DATA_TICK_INTERVAL_MILLIS = 20 * 60_000L
 private const val AGENDA_SHOWN_COUNT = 2
@@ -156,14 +159,22 @@ class ClockWidgetProvider : AppWidgetProvider() {
         applyAgenda(views, agenda)
 
         // Drei getrennte Tap-Zonen: Uhrzeit/Datum/nächster Alarm -> Wecker, Wetter -> Wetter-Screen,
-        // Termin-Agenda -> Kalender. Jede braucht eine eigene Request-Code-Nummer, da PendingIntent-
-        // Gleichheit nur über Action/Component/Daten geprüft wird, nicht über die Extras - mit
-        // identischem Request-Code würden sich die drei Intents gegenseitig überschreiben.
-        val openWeckerPendingIntent = activityPendingIntent(context, requestCode = 1) {}
+        // Termin-Agenda -> Kalender. PendingIntent-Gleichheit wird über Action/Component/Daten
+        // geprüft, NICHT über die Extras oder den Request-Code alleine (der Request-Code ist nur
+        // ein zusätzliches Unterscheidungsmerkmal, wenn Action/Component/Daten bereits gleich sind).
+        // Jede der drei Intents bekommt daher zusätzlich eine eigene, eindeutige Action-Zeichenkette
+        // - sonst wäre sie mit dem bare "Intent(context, MainActivity::class.java)" von
+        // CalendarWidgetProvider identisch, und FLAG_UPDATE_CURRENT hätte dort live die Extras
+        // überschrieben (beobachteter Bug: Tippen auf die Uhr öffnete den Kalender).
+        val openWeckerPendingIntent = activityPendingIntent(context, requestCode = 1) {
+            action = ACTION_OPEN_WECKER
+        }
         val openWeatherPendingIntent = activityPendingIntent(context, requestCode = 2) {
+            action = ACTION_OPEN_WEATHER
             putExtra(EXTRA_OPEN_WEATHER, true)
         }
         val openCalendarPendingIntent = activityPendingIntent(context, requestCode = 3) {
+            action = ACTION_OPEN_CALENDAR
             putExtra(EXTRA_OPEN_CALENDAR, true)
         }
 

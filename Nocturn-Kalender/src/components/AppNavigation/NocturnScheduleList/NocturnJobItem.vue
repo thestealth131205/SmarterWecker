@@ -14,8 +14,9 @@ import {
 } from '@nextcloud/vue'
 import { computed, ref } from 'vue'
 import AccountPlusOutlineIcon from 'vue-material-design-icons/AccountPlusOutline.vue'
-import BriefcaseIcon from 'vue-material-design-icons/BriefcaseOutline.vue'
 import CalendarSyncIcon from 'vue-material-design-icons/CalendarSync.vue'
+import CheckboxBlank from 'vue-material-design-icons/CheckboxBlankOutline.vue'
+import CheckboxMarked from 'vue-material-design-icons/CheckboxMarked.vue'
 import ChevronDownIcon from 'vue-material-design-icons/ChevronDown.vue'
 import ChevronUpIcon from 'vue-material-design-icons/ChevronUp.vue'
 import ClockPlusIcon from 'vue-material-design-icons/ClockPlusOutline.vue'
@@ -29,7 +30,7 @@ import ShareJobModal from '@/components/NocturnScheduleModal/ShareJobModal.vue'
 import ShiftModal from '@/components/NocturnScheduleModal/ShiftModal.vue'
 import NocturnRotation from '@/models/nocturnRotation.js'
 import NocturnShift from '@/models/nocturnShift.js'
-import useNocturnScheduleStore from '@/store/nocturnSchedule.js'
+import useNocturnScheduleStore, { nocturnJobVisibilityKey } from '@/store/nocturnSchedule.js'
 import logger from '@/utils/logger.js'
 
 const props = defineProps<{
@@ -42,6 +43,16 @@ const expanded = ref(false)
 
 const shifts = computed(() => nocturnScheduleStore.shiftsForJob(props.job.uid))
 const rotations = computed(() => nocturnScheduleStore.rotationsForJob(props.job.uid))
+
+const visibilityKey = computed(() => nocturnJobVisibilityKey(null, props.job.uid))
+const isVisible = computed(() => nocturnScheduleStore.isJobVisible(visibilityKey.value))
+// Representative color for the checkbox: the earliest shift's, falling
+// back to a neutral gray before the job has any shifts yet.
+const jobColor = computed(() => shifts.value[0]?.color ?? '#999999')
+
+function toggleVisibility(): void {
+	nocturnScheduleStore.toggleJobVisibility(visibilityKey.value)
+}
 
 const showJobEditor = ref(false)
 const shiftModalTarget = ref<NocturnShift | null>(null)
@@ -111,7 +122,16 @@ async function removeJob(): Promise<void> {
 			:name="job.name"
 			@click="toggleExpanded">
 			<template #icon>
-				<BriefcaseIcon :size="20" decorative />
+				<CheckboxMarked
+					v-if="isVisible"
+					:size="20"
+					:fillColor="jobColor"
+					@click.prevent.stop="toggleVisibility" />
+				<CheckboxBlank
+					v-else
+					:size="20"
+					:fillColor="jobColor"
+					@click.prevent.stop="toggleVisibility" />
 			</template>
 			<template #counter>
 				<ChevronUpIcon v-if="expanded" :size="16" />

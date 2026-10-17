@@ -259,6 +259,26 @@ class NocturnScheduleService {
 	}
 
 	/**
+	 * Occurrences of one of the caller's own jobs within a date range - used
+	 * by the calendar grid's NocTurn event source (same shape as
+	 * {@see getSharedJobOccurrences()}, but authorized via ownership).
+	 *
+	 * @return NocturnOccurrence[]
+	 * @throws ClientException if the job doesn't exist (or isn't the caller's)
+	 * @throws ServiceException
+	 */
+	public function getOwnJobOccurrences(string $userId, string $jobUid, int $fromEpochDay, int $toEpochDayExclusive): array {
+		if ($this->findJobOrNull($jobUid, $userId) === null) {
+			throw new ClientException('Job not found', 0, null, Http::STATUS_NOT_FOUND);
+		}
+		try {
+			return $this->occurrenceMapper->findByJobAndRangeForUser($jobUid, $userId, $fromEpochDay, $toEpochDayExclusive);
+		} catch (DbException $e) {
+			throw new ServiceException('Could not load occurrences', 0, $e);
+		}
+	}
+
+	/**
 	 * Lets a WRITE-permission collaborator enter/edit a single day's shift
 	 * on someone else's job - e.g. agreeing to a shift swap - without
 	 * giving them any access beyond that one job's occurrences.

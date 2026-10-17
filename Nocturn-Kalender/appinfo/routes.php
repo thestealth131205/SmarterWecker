@@ -56,6 +56,7 @@ return [
 		['name' => 'nocturnSchedule#applyRotation', 'url' => '/v1/nocturn/rotations/{uid}/apply', 'verb' => 'POST'],
 		['name' => 'nocturnSchedule#upsertOccurrence', 'url' => '/v1/nocturn/occurrences', 'verb' => 'POST'],
 		['name' => 'nocturnSchedule#deleteOccurrence', 'url' => '/v1/nocturn/occurrences/{uid}', 'verb' => 'DELETE'],
+		['name' => 'nocturnSchedule#ownOccurrences', 'url' => '/v1/nocturn/jobs/{jobUid}/occurrences', 'verb' => 'GET'],
 		// NocTurn job sharing (share a job's full schedule with another Nextcloud user)
 		['name' => 'nocturnSchedule#shareJob', 'url' => '/v1/nocturn/jobs/{uid}/share', 'verb' => 'POST'],
 		['name' => 'nocturnSchedule#unshareJob', 'url' => '/v1/nocturn/jobs/{uid}/share/{sharedWithUserId}', 'verb' => 'DELETE'],

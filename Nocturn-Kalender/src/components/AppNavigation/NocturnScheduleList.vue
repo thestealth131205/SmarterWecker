@@ -8,11 +8,13 @@ import { showError } from '@nextcloud/dialogs'
 import { t } from '@nextcloud/l10n'
 import { NcActionButton as ActionButton, NcAppNavigationCaption as AppNavigationCaption, NcAvatar } from '@nextcloud/vue'
 import { computed, onMounted, ref } from 'vue'
+import CheckboxBlank from 'vue-material-design-icons/CheckboxBlankOutline.vue'
+import CheckboxMarked from 'vue-material-design-icons/CheckboxMarked.vue'
 import PlusIcon from 'vue-material-design-icons/Plus.vue'
 import NocturnJobItem from '@/components/AppNavigation/NocturnScheduleList/NocturnJobItem.vue'
 import JobModal from '@/components/NocturnScheduleModal/JobModal.vue'
 import NocturnJob from '@/models/nocturnJob.js'
-import useNocturnScheduleStore from '@/store/nocturnSchedule.js'
+import useNocturnScheduleStore, { nocturnJobVisibilityKey } from '@/store/nocturnSchedule.js'
 import logger from '@/utils/logger.js'
 
 const nocturnScheduleStore = useNocturnScheduleStore()
@@ -21,6 +23,18 @@ const showModalForNewJob = ref(false)
 
 const jobs = computed<NocturnJob[]>(() => nocturnScheduleStore.allJobs)
 const sharedWithMe = computed(() => nocturnScheduleStore.sharedWithMe)
+
+function sharedJobColor(entry) {
+	return entry.shifts[0]?.color ?? '#999999'
+}
+
+function isSharedJobVisible(entry) {
+	return nocturnScheduleStore.isJobVisible(nocturnJobVisibilityKey(entry.ownerId, entry.job.uid))
+}
+
+function toggleSharedJobVisibility(entry) {
+	nocturnScheduleStore.toggleJobVisibility(nocturnJobVisibilityKey(entry.ownerId, entry.job.uid))
+}
 
 onMounted(async () => {
 	try {
@@ -66,6 +80,16 @@ onMounted(async () => {
 				v-for="entry in sharedWithMe"
 				:key="`${entry.ownerId}-${entry.job.uid}`"
 				class="nocturn-schedule-list__shared-job">
+				<CheckboxMarked
+					v-if="isSharedJobVisible(entry)"
+					:size="20"
+					:fillColor="sharedJobColor(entry)"
+					@click.prevent.stop="toggleSharedJobVisibility(entry)" />
+				<CheckboxBlank
+					v-else
+					:size="20"
+					:fillColor="sharedJobColor(entry)"
+					@click.prevent.stop="toggleSharedJobVisibility(entry)" />
 				<NcAvatar :size="20" :user="entry.ownerId" />
 				<span class="nocturn-schedule-list__shared-job-name">{{ entry.job.name }}</span>
 				<span class="nocturn-schedule-list__shared-job-permission">

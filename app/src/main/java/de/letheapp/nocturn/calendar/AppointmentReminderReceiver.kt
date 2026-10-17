@@ -21,6 +21,7 @@ import javax.inject.Inject
 
 const val CHANNEL_APPOINTMENT_REMINDERS = "appointment_reminders"
 private const val NOTIFICATION_ID_BASE = 3000
+private const val ACTION_OPEN_CALENDAR_FROM_REMINDER = "de.letheapp.nocturn.calendar.ACTION_REMINDER_OPEN_CALENDAR"
 
 /**
  * Zeigt die Erinnerungs-Benachrichtigung für einen Termin, geplant über
@@ -64,10 +65,14 @@ class AppointmentReminderReceiver : BroadcastReceiver() {
         val timeText = time.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
         val contentText = if (location.isBlank()) timeText else "$timeText · $location"
 
+        // Eigene Action-Zeichenkette, da der Request-Code hier von der Termin-ID abhängt und bei
+        // kleinen IDs (1/2/3) sonst mit den Uhr-/Kalender-Widget-PendingIntents kollidieren könnte
+        // - PendingIntent-Gleichheit prüft Action/Component/Daten, nicht die Extras.
         val contentIntent = PendingIntent.getActivity(
             context,
             appointmentId.toInt(),
             Intent(context, MainActivity::class.java).apply {
+                action = ACTION_OPEN_CALENDAR_FROM_REMINDER
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 putExtra(EXTRA_OPEN_CALENDAR, true)
             },

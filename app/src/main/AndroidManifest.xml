@@ -43,10 +43,11 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.NocTurn">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            <!--
+                Bewusst KEIN eigener MAIN/LAUNCHER-Intent-Filter mehr hier: die drei
+                activity-alias-Einträge unten (Uhr/Kalender/Wetter) übernehmen das, damit im
+                App-Drawer nicht zusätzlich ein viertes, generisches "NocTurn"-Icon auftaucht.
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.SET_ALARM" />
                 <action android:name="android.intent.action.SHOW_ALARMS" />
@@ -63,6 +64,53 @@
                 <category android:name="android.intent.category.APP_CLOCK" />
             </intent-filter>
         </activity>
+
+        <!--
+            System-App-Launcher-Icons (CLAUDE.md "NocTurn als System-App mit mehreren
+            Launcher-Einstiegspunkten"): LetheOS ersetzt die LineageOS-Standardapps
+            Uhr/Wecker und Kalender durch NocTurn, zeigt dafür aber bewusst weiterhin
+            getrennte Launcher-Icons mit den gewohnten Namen statt eines einzigen
+            "NocTurn"-Icons. Technisch drei activity-alias-Einträge auf dieselbe
+            MainActivity (die App hat nur eine Activity mit internem Compose-NavHost) statt
+            eigener Activity-Klassen — MainActivity erkennt anhand von
+            `intent.component.className`, über welchen Alias sie gestartet wurde, und wählt
+            passend die Start-Route (siehe MainActivity.kt).
+        -->
+        <activity-alias
+            android:name=".ClockLauncherAlias"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:label="Uhr"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".CalendarLauncherAlias"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:label="Kalender"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".WeatherLauncherAlias"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:label="Wetter"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!--
             Damit NocTurn im Android-"Zum Kalender hinzufügen"-Auswahlmenü erscheint, z. B. bei

@@ -26,6 +26,7 @@ import { mapState, mapStores } from 'pinia'
 import { isNavigationFailure, NavigationFailureType } from 'vue-router'
 // Import event sources
 import eventSource from '@/fullcalendar/eventSources/eventSource.js'
+import nocturnEventSource from '@/fullcalendar/eventSources/nocturnEventSource.js'
 // Import interaction handlers
 import eventAllow from '@/fullcalendar/interaction/eventAllow.js'
 import eventClick from '@/fullcalendar/interaction/eventClick.js'
@@ -53,6 +54,7 @@ import VTimezoneNamedTimezone from '@/fullcalendar/timezones/vtimezoneNamedTimez
 import useCalendarObjectsStore from '@/store/calendarObjects.js'
 import useCalendarsStore from '@/store/calendars.js'
 import useFetchedTimeRangesStore from '@/store/fetchedTimeRanges.js'
+import useNocturnScheduleStore from '@/store/nocturnSchedule.js'
 import useSettingsStore from '@/store/settings.js'
 import useWidgetStore from '@/store/widget.js'
 import { getAllObjectsInTimeRange } from '@/utils/calendarObject.js'
@@ -97,6 +99,7 @@ export default {
 			useSettingsStore,
 			useCalendarObjectsStore,
 			useFetchedTimeRangesStore,
+			useNocturnScheduleStore,
 		),
 
 		...mapState(useSettingsStore, {
@@ -183,7 +186,10 @@ export default {
 				}
 				return [calendar].map(eventSource())
 			}
-			return this.calendarsStore.enabledCalendars.map(eventSource())
+			return [
+				...this.calendarsStore.enabledCalendars.map(eventSource()),
+				...this.nocturnScheduleStore.visibleScheduleEntries.map(nocturnEventSource()),
+			]
 		},
 
 		/**
@@ -260,6 +266,15 @@ export default {
 	},
 
 	async created() {
+		if (!this.isWidget) {
+			// Loaded independently from the sidebar's NocturnScheduleList so the
+			// grid's NocTurn event source works even if that component hasn't
+			// mounted yet (e.g. narrow screens with a collapsed navigation).
+			// Both calls are safe to run redundantly alongside the sidebar's own.
+			this.nocturnScheduleStore.loadAll().catch(() => {})
+			this.nocturnScheduleStore.loadSharedWithMe().catch(() => {})
+		}
+
 		this.updateTodayJob = setInterval(() => {
 			const newDate = getYYYYMMDDFromFirstdayParam('now')
 

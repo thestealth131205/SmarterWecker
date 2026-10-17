@@ -258,6 +258,29 @@ class NocturnScheduleController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 *
+	 * Occurrences of one of the caller's own jobs within a date range - feeds
+	 * the calendar grid's NocTurn event source.
+	 */
+	public function ownOccurrences(string $jobUid, int $fromEpochDay, int $toEpochDayExclusive): JsonResponse {
+		if (($response = $this->requireUser()) !== null) {
+			return $response;
+		}
+
+		try {
+			$occurrences = $this->service->getOwnJobOccurrences($this->userId, $jobUid, $fromEpochDay, $toEpochDayExclusive);
+			return JsonResponse::success($occurrences);
+		} catch (ClientException $e) {
+			$this->logger->warning('Could not load NocTurn occurrences', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), $e->getHttpCode() ?? Http::STATUS_BAD_REQUEST);
+		} catch (ServiceException $e) {
+			$this->logger->error('Could not load NocTurn occurrences', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 *
 	 * Grants (or updates) another Nextcloud user read or read/write access
 	 * to one job's full schedule - the NocTurn equivalent of sharing a
 	 * calendar.
