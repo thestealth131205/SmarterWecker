@@ -10,6 +10,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.audiofx.LoudnessEnhancer
+import android.net.Uri
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -62,6 +63,10 @@ class EmergencyAlarmService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var alarmId: Long = -1
     private var isRinging = false
+    private var currentVolume = 0.7f
+    private var currentPitch = 1.0f
+    private var currentUri: Uri = Uri.EMPTY
+    private var toneCompletionCount = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -89,6 +94,9 @@ class EmergencyAlarmService : Service() {
         startForeground(NOTIFICATION_ID_EMERGENCY, buildNotification())
         if (!isRinging) {
             isRinging = true
+            toneCompletionCount = 0
+            currentVolume = 0.7f
+            currentPitch = 1.0f
             acquireWakeLock()
             playSound()
             startEscalation()
@@ -105,11 +113,19 @@ class EmergencyAlarmService : Service() {
         }
     }
 
-    private fun playSound() {
+    /**
+     * Spielt [uri] (Default: der Standard-Notfall-Ton) einmal durch statt in einer Dauerschleife
+     * (`isLooping = false`) – so lässt sich über [onToneCompleted] zählen, wie oft der Ton bereits
+     * einmal komplett durchgelaufen ist, und alle zwei solcher Wiederholungen zufällig zu einem
+     * anderen Ton aus der Töne-Liste wechseln (siehe [onToneCompleted]), damit man sich auch beim
+     * Notfall-Alarm nicht an einen einzelnen Sound gewöhnt.
+     */
+    private fun playSound(uri: Uri = soundRepository.defaultAlarmSoundUri()) {
+        mediaPlayer?.setOnCompletionListener(null)
         mediaPlayer?.release()
         loudnessEnhancer?.release()
         loudnessEnhancer = null
-        val uri = soundRepository.defaultAlarmSoundUri()
+        currentUri = uri
         val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
@@ -118,10 +134,12 @@ class EmergencyAlarmService : Service() {
                     .build()
             )
             setDataSource(this@EmergencyAlarmService, uri)
-            isLooping = true
-            setVolume(0.7f, 0.7f)
+            isLooping = false
+            setVolume(currentVolume, currentVolume)
+            setOnCompletionListener { onToneCompleted() }
             prepare()
             start()
+            playbackParams = playbackParams.setPitch(currentPitch)
         }
         mediaPlayer = player
         // Lautheits-Analyse dekodiert kurz Audio (blockierend) – nicht direkt hier, da playSound()
@@ -136,6 +154,20 @@ class EmergencyAlarmService : Service() {
         }
     }
 
+    /** Ton ist einmal komplett durchgelaufen – alle zwei solcher Durchläufe zufällig den Ton wechseln. */
+    private fun onToneCompleted() {
+        if (!isRinging) return
+        toneCompletionCount++
+        val nextUri = if (toneCompletionCount % 2 == 0) pickRandomTone(excluding = currentUri) else currentUri
+        playSound(nextUri)
+    }
+
+    private fun pickRandomTone(excluding: Uri): Uri {
+        val options = soundRepository.bundledSounds().map { it.uri }
+        val candidates = options.filter { it != excluding }.ifEmpty { options }
+        return candidates.randomOrNull() ?: excluding
+    }
+
     private fun startEscalation() {
         escalationJob?.cancel()
         escalationJob = scope.launch {
@@ -143,10 +175,11 @@ class EmergencyAlarmService : Service() {
             while (true) {
                 delay(ESCALATION_STEP_MILLIS)
                 step++
-                val volume = (0.7f + 0.1f * step).coerceAtMost(1.0f)
-                mediaPlayer?.setVolume(volume, volume)
+                currentVolume = (0.7f + 0.1f * step).coerceAtMost(1.0f)
+                currentPitch = (1.0f + 0.03f * step).coerceAtMost(1.5f)
+                mediaPlayer?.setVolume(currentVolume, currentVolume)
                 mediaPlayer?.let { player ->
-                    player.playbackParams = player.playbackParams.setPitch((1.0f + 0.03f * step).coerceAtMost(1.5f))
+                    player.playbackParams = player.playbackParams.setPitch(currentPitch)
                 }
             }
         }
@@ -155,6 +188,7 @@ class EmergencyAlarmService : Service() {
     private fun stopRinging() {
         isRinging = false
         escalationJob?.cancel()
+        mediaPlayer?.setOnCompletionListener(null)
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null

@@ -226,9 +226,6 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments WHERE dirty = 1")
     suspend fun getDirty(): List<AppointmentEntity>
 
-    @Query("SELECT * FROM appointments WHERE reminderMinutesBefore IS NOT NULL")
-    suspend fun getAllWithReminder(): List<AppointmentEntity>
-
     /** Alle Termine, die einen Tag überdecken — für den Bearbeiten-Modus der Monatsansicht. */
     @Query("SELECT * FROM appointments WHERE startEpochDay <= :epochDay AND endEpochDay >= :epochDay")
     suspend fun getForDate(epochDay: Long): List<AppointmentEntity>
@@ -251,6 +248,24 @@ interface AppointmentDao {
 
     @Delete
     suspend fun deleteAttachment(attachment: AppointmentAttachmentEntity)
+
+    @Query("SELECT * FROM appointment_reminders WHERE appointmentId = :appointmentId")
+    fun observeReminders(appointmentId: Long): Flow<List<AppointmentReminderEntity>>
+
+    @Query("SELECT * FROM appointment_reminders WHERE appointmentId = :appointmentId")
+    suspend fun getRemindersForAppointment(appointmentId: Long): List<AppointmentReminderEntity>
+
+    @Query("SELECT * FROM appointment_reminders")
+    suspend fun getAllReminders(): List<AppointmentReminderEntity>
+
+    @Query("SELECT * FROM appointment_reminders WHERE id = :id")
+    suspend fun getReminderById(id: Long): AppointmentReminderEntity?
+
+    @Insert
+    suspend fun insertReminder(reminder: AppointmentReminderEntity): Long
+
+    @Delete
+    suspend fun deleteReminder(reminder: AppointmentReminderEntity)
 
     @Delete
     suspend fun delete(appointment: AppointmentEntity)

@@ -183,6 +183,23 @@
             android:launchMode="singleInstance"
             android:theme="@style/Theme.NocTurn" />
 
+        <!--
+            Systemweiter Timer-Einstiegspunkt (CLAUDE.md Kernfunktion: Stoppuhr/Timer-Symbole im
+            Wecker-Screen statt der bisherigen Wetter-/Kalender-Icons, die bereits über die untere
+            Tab-Leiste erreichbar sind). `SET_TIMER` ist dieselbe Standard-Aktion, über die z. B.
+            Google Assistant ("stelle einen Timer über 10 Minuten") Timer-Apps anspricht.
+        -->
+        <activity
+            android:name=".timer.TimerActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.NocTurn">
+            <intent-filter>
+                <action android:name="android.intent.action.SET_TIMER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
@@ -201,6 +218,10 @@
 
         <receiver
             android:name=".monitoring.AutoShiftRetryReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".timer.TimerCompletionReceiver"
             android:exported="false" />
 
         <receiver
@@ -259,6 +280,11 @@
             android:name=".monitoring.AutoShiftRetryService"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <service
+            android:name=".timer.TimerService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!--
             NocturnApplication initialisiert WorkManager selbst on-demand (Configuration.Provider

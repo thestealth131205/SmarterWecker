@@ -4,6 +4,8 @@ import de.letheapp.nocturn.data.db.AppointmentAttachmentEntity
 import de.letheapp.nocturn.data.db.AppointmentDao
 import de.letheapp.nocturn.data.db.AppointmentEntity
 import de.letheapp.nocturn.data.db.AppointmentPriority
+import de.letheapp.nocturn.data.db.AppointmentReminderEntity
+import de.letheapp.nocturn.data.db.ReminderChannel
 import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.CalendarEntryEntity
 import de.letheapp.nocturn.data.db.JobDao
@@ -468,7 +470,6 @@ class CalendarRepository @Inject constructor(
         endEpochMillis: Long,
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
-        reminderMinutesBefore: Int? = null,
         showAsBusy: Boolean = true,
         colorArgb: Int = DEFAULT_APPOINTMENT_COLOR_ARGB
     ): Long {
@@ -486,17 +487,50 @@ class CalendarRepository @Inject constructor(
             allDay = allDay,
             colorArgb = colorArgb,
             priority = priority.name,
-            reminderMinutesBefore = reminderMinutesBefore,
             showAsBusy = showAsBusy
         )
-        val id = appointmentDao.insert(appointment)
-        appointmentReminderScheduler.schedule(appointment.copy(id = id))
-        return id
+        return appointmentDao.insert(appointment)
     }
 
     suspend fun deleteAppointment(appointment: AppointmentEntity) {
-        appointmentReminderScheduler.cancel(appointment.id)
+        appointmentDao.getRemindersForAppointment(appointment.id).forEach {
+            appointmentReminderScheduler.cancel(it.id)
+        }
         appointmentDao.delete(appointment)
+    }
+
+    fun observeAppointmentReminders(appointmentId: Long): Flow<List<AppointmentReminderEntity>> =
+        appointmentDao.observeReminders(appointmentId)
+
+    /**
+     * Legt eine zusätzliche Erinnerung für einen Termin an (per "+" im Termin-Formular, siehe
+     * [de.letheapp.nocturn.calendar.AddAppointmentScreen]) — entweder eine Benachrichtigung oder
+     * eine E-Mail an [emailAddress]. Ein Termin kann beliebig viele Erinnerungen haben, jede wird
+     * einzeln über [AppointmentReminderScheduler] geplant.
+     */
+    suspend fun addAppointmentReminder(
+        appointmentId: Long,
+        minutesBefore: Int,
+        channel: ReminderChannel,
+        emailAddress: String? = null
+    ): Long {
+        val reminder = AppointmentReminderEntity(
+            appointmentId = appointmentId,
+            minutesBefore = minutesBefore,
+            channel = channel.name,
+            emailAddress = emailAddress
+        )
+        val id = appointmentDao.insertReminder(reminder)
+        val appointment = appointmentDao.getById(appointmentId)
+        if (appointment != null) {
+            appointmentReminderScheduler.schedule(appointment, reminder.copy(id = id))
+        }
+        return id
+    }
+
+    suspend fun removeAppointmentReminder(reminder: AppointmentReminderEntity) {
+        appointmentReminderScheduler.cancel(reminder.id)
+        appointmentDao.deleteReminder(reminder)
     }
 
     fun observeAppointmentAttachments(appointmentId: Long): Flow<List<AppointmentAttachmentEntity>> =

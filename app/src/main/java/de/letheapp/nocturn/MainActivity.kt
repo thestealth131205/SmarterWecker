@@ -34,7 +34,11 @@ import de.letheapp.nocturn.onboarding.AppPreferences
 import de.letheapp.nocturn.onboarding.PermissionsScreen
 import de.letheapp.nocturn.settings.SettingsScreen
 import de.letheapp.nocturn.sound.SoundPickerScreen
+import de.letheapp.nocturn.stopwatch.StopwatchScreen
 import de.letheapp.nocturn.sync.NextcloudSyncScreen
+import de.letheapp.nocturn.timer.EXTRA_TIMER_DURATION_MILLIS
+import de.letheapp.nocturn.timer.EXTRA_TIMER_LABEL
+import de.letheapp.nocturn.timer.TimerScreen
 import de.letheapp.nocturn.ui.NocturnTab
 import de.letheapp.nocturn.wear.WearSettingsScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
@@ -68,6 +72,8 @@ private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
 private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
 private const val ROUTE_WEATHER = "weather"
 private const val ROUTE_WEAR_SETTINGS = "wearSettings"
+private const val ROUTE_TIMER = "timer"
+private const val ROUTE_STOPWATCH = "stopwatch"
 private const val KEY_SELECTED_SOUND_URI = "selected_sound_uri"
 
 /** Von Widgets (siehe `widget`-Package) genutzt, um nach dem Start direkt die Monatsansicht zu öffnen. */
@@ -75,6 +81,9 @@ const val EXTRA_OPEN_CALENDAR = "de.letheapp.nocturn.EXTRA_OPEN_CALENDAR"
 
 /** Von Widgets genutzt, um nach dem Start direkt den Wetter-Screen zu öffnen. */
 const val EXTRA_OPEN_WEATHER = "de.letheapp.nocturn.EXTRA_OPEN_WEATHER"
+
+/** Von [de.letheapp.nocturn.timer.TimerActivity] genutzt, um nach dem Start direkt den Timer-Screen zu öffnen. */
+const val EXTRA_OPEN_TIMER = "de.letheapp.nocturn.EXTRA_OPEN_TIMER"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -86,6 +95,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val openCalendar = intent?.getBooleanExtra(EXTRA_OPEN_CALENDAR, false) == true
         val openWeather = intent?.getBooleanExtra(EXTRA_OPEN_WEATHER, false) == true
+        val openTimer = intent?.getBooleanExtra(EXTRA_OPEN_TIMER, false) == true
+        val timerDurationMillis = intent?.getLongExtra(EXTRA_TIMER_DURATION_MILLIS, 0L) ?: 0L
+        val timerLabel = intent?.getStringExtra(EXTRA_TIMER_LABEL).orEmpty()
         // Launcher-Icons rufen MainActivity über einen der drei activity-alias-Einträge
         // (Uhr/Kalender/Wetter) auf; die Klasse im Intent bleibt dabei der Alias-Name, nicht
         // ".MainActivity" (Standard-Android-Verhalten) — daran lässt sich erkennen, über
@@ -95,6 +107,7 @@ class MainActivity : ComponentActivity() {
             !appPreferences.isOnboardingCompleted() -> "permissions/true"
             openCalendar || launchedAlias == "$packageName.CalendarLauncherAlias" -> ROUTE_CALENDAR_MONTH
             openWeather || launchedAlias == "$packageName.WeatherLauncherAlias" -> ROUTE_WEATHER
+            openTimer -> ROUTE_TIMER
             else -> ROUTE_ALARM_LIST
         }
         setContent {
@@ -102,7 +115,9 @@ class MainActivity : ComponentActivity() {
             NocTurnTheme(dynamicColor = dynamicColorEnabled) {
                 NocturnNavHost(
                     startDestination = startDestination,
-                    appPreferences = appPreferences
+                    appPreferences = appPreferences,
+                    initialTimerDurationMillis = timerDurationMillis,
+                    initialTimerLabel = timerLabel
                 )
             }
         }
@@ -125,7 +140,9 @@ private fun NavHostController.navigateToTab(route: String) {
 @Composable
 private fun NocturnNavHost(
     startDestination: String,
-    appPreferences: AppPreferences
+    appPreferences: AppPreferences,
+    initialTimerDurationMillis: Long = 0L,
+    initialTimerLabel: String = ""
 ) {
     val navController = rememberNavController()
     val onSelectTab: (NocturnTab) -> Unit = { tab ->
@@ -141,14 +158,26 @@ private fun NocturnNavHost(
         composable(ROUTE_ALARM_LIST) {
             AlarmListScreen(
                 onEditAlarm = { id -> navController.navigate("alarmEdit/$id") },
-                onOpenCalendarMonth = { navController.navigate(ROUTE_CALENDAR_MONTH) },
                 onOpenPermissions = { navController.navigate("permissions/false") },
                 onOpenHealthConnectStatus = { navController.navigate(ROUTE_HEALTH_CONNECT_STATUS) },
                 onOpenIoBrokerSettings = { navController.navigate(ROUTE_IOBROKER_SETTINGS) },
                 onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                onOpenWeather = { navController.navigate(ROUTE_WEATHER) },
+                onOpenTimer = { navController.navigate(ROUTE_TIMER) },
+                onOpenStopwatch = { navController.navigate(ROUTE_STOPWATCH) },
                 onSelectTab = onSelectTab
             )
+        }
+
+        composable(ROUTE_TIMER) {
+            TimerScreen(
+                initialDurationMillis = initialTimerDurationMillis,
+                initialLabel = initialTimerLabel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_STOPWATCH) {
+            StopwatchScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_WEATHER) {

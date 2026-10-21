@@ -11,9 +11,6 @@ import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
-import de.letheapp.nocturn.onboarding.AppPreferences
-import de.letheapp.nocturn.weather.DetailedWeather
-import de.letheapp.nocturn.weather.WeatherRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,9 +37,7 @@ class AlarmListViewModel @Inject constructor(
     private val alarmScheduler: AlarmScheduler,
     private val calendarRepository: CalendarRepository,
     private val ioBrokerRepository: IoBrokerRepository,
-    private val weatherRepository: WeatherRepository,
-    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
-    appPreferences: AppPreferences
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer
 ) : ViewModel() {
 
     init {
@@ -54,19 +49,6 @@ class AlarmListViewModel @Inject constructor(
 
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val weatherEnabled: StateFlow<Boolean> = appPreferences.weatherEnabled
-
-    private val _weather = MutableStateFlow<DetailedWeather?>(null)
-    val weather: StateFlow<DetailedWeather?> = _weather
-
-    /** Lädt das Wetter-Emoji fürs Topbar-Symbol; greift bei gültigem Cache (30 Min.) ohne Netzwerk-Request. */
-    fun loadWeather() {
-        if (!weatherEnabled.value) return
-        viewModelScope.launch {
-            _weather.value = weatherRepository.currentWeather()
-        }
-    }
 
     val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
         .map { it != null }

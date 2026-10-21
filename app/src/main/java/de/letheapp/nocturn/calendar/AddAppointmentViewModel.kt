@@ -2,8 +2,11 @@ package de.letheapp.nocturn.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.letheapp.nocturn.contacts.ContactEmailRepository
+import de.letheapp.nocturn.contacts.ContactEmailSuggestion
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.letheapp.nocturn.data.db.AppointmentPriority
+import de.letheapp.nocturn.data.db.ReminderChannel
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,10 +18,21 @@ data class PendingAttachment(
     val mimeType: String?
 )
 
+/** Eine im Formular hinzugefügte, aber noch nicht gespeicherte Erinnerung. */
+data class PendingReminder(
+    val minutesBefore: Int,
+    val channel: ReminderChannel = ReminderChannel.NOTIFICATION,
+    val emailAddress: String? = null
+)
+
 @HiltViewModel
 class AddAppointmentViewModel @Inject constructor(
-    private val calendarRepository: CalendarRepository
+    private val calendarRepository: CalendarRepository,
+    private val contactEmailRepository: ContactEmailRepository
 ) : ViewModel() {
+
+    suspend fun searchContactEmails(query: String): List<ContactEmailSuggestion> =
+        contactEmailRepository.search(query)
 
     fun save(
         title: String,
@@ -28,7 +42,7 @@ class AddAppointmentViewModel @Inject constructor(
         endEpochMillis: Long,
         allDay: Boolean,
         priority: AppointmentPriority = AppointmentPriority.NORMAL,
-        reminderMinutesBefore: Int? = null,
+        reminders: List<PendingReminder> = emptyList(),
         showAsBusy: Boolean = true,
         attachments: List<PendingAttachment> = emptyList(),
         onSaved: () -> Unit
@@ -43,9 +57,16 @@ class AddAppointmentViewModel @Inject constructor(
                 endEpochMillis = maxOf(startEpochMillis, endEpochMillis),
                 allDay = allDay,
                 priority = priority,
-                reminderMinutesBefore = reminderMinutesBefore,
                 showAsBusy = showAsBusy
             )
+            reminders.forEach { reminder ->
+                calendarRepository.addAppointmentReminder(
+                    appointmentId = appointmentId,
+                    minutesBefore = reminder.minutesBefore,
+                    channel = reminder.channel,
+                    emailAddress = reminder.emailAddress
+                )
+            }
             attachments.forEach { attachment ->
                 calendarRepository.addAppointmentAttachment(
                     appointmentId = appointmentId,

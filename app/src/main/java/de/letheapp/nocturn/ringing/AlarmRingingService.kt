@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.AlarmScheduler
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
+import de.letheapp.nocturn.alarm.EXTRA_IS_SNOOZE
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.emergency.EmergencyAlarmService
@@ -45,6 +46,8 @@ const val EXTRA_HOUR = "extra_hour"
 const val EXTRA_MINUTE = "extra_minute"
 
 const val CHANNEL_ALARM = "alarm_ringing"
+/** Eigener, leiser Kanal für die "Schlummert bis..."-Anzeige — sonst würde sie den lauten/heads-up-Kanal von [CHANNEL_ALARM] erben. */
+const val CHANNEL_ALARM_SNOOZING = "alarm_snoozing"
 const val NOTIFICATION_ID_RINGING = 1001
 
 private const val SNOOZE_MIN_MINUTES = 3L
@@ -70,6 +73,8 @@ class AlarmRingingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarmId: Long = -1
     private var currentVolume = 0.4f
+    private var snoozeMonitorJob: Job? = null
+    private var movementDetectedDuringLastSnooze: Boolean? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -84,24 +89,41 @@ class AlarmRingingService : Service() {
                     return START_NOT_STICKY
                 }
                 currentAlarmId = alarmId
-                startRinging(alarmId)
+                val isSnoozeRering = intent?.getBooleanExtra(EXTRA_IS_SNOOZE, false) ?: false
+                startRinging(alarmId, isSnoozeRering)
             }
         }
         return START_STICKY
     }
 
-    private fun startRinging(alarmId: Long) {
+    private fun startRinging(alarmId: Long, isSnoozeRering: Boolean = false) {
         acquireWakeLock()
         currentVolume = 0.4f
+        snoozeMonitorJob?.cancel()
+        snoozeMonitorJob = null
         startForeground(NOTIFICATION_ID_RINGING, buildNotification(alarmId))
+
+        // Blieb während des gerade abgelaufenen Schlummerns jede Bewegung aus, wird ignoriert,
+        // welcher Ton eigentlich konfiguriert ist, und stattdessen zufällig ein anderer aus der
+        // Töne-Liste gewählt — wer schon einmal verschlafen hat, gewöhnt sich sonst auch an einen
+        // zweiten, unveränderten Weckversuch.
+        val noMovementAfterSnooze = isSnoozeRering && movementDetectedDuringLastSnooze == false
+        movementDetectedDuringLastSnooze = null
 
         scope.launch {
             val alarm = alarmRepository.getById(alarmId)
-            val primaryUri = alarm?.soundUri?.let { Uri.parse(it) } ?: soundRepository.defaultAlarmSoundUri()
+            val configuredUri = alarm?.soundUri?.let { Uri.parse(it) } ?: soundRepository.defaultAlarmSoundUri()
+            val primaryUri = if (noMovementAfterSnooze) pickRandomTone(excluding = configuredUri) else configuredUri
             playSound(primaryUri)
             startEscalation(primaryUri)
             launchRingingUi(alarm)
         }
+    }
+
+    private fun pickRandomTone(excluding: Uri): Uri {
+        val options = soundRepository.bundledSounds().map { it.uri }
+        val candidates = options.filter { it != excluding }.ifEmpty { options }
+        return candidates.randomOrNull() ?: excluding
     }
 
     private fun playSound(uri: Uri) {
@@ -161,13 +183,27 @@ class AlarmRingingService : Service() {
         startActivity(uiIntent)
     }
 
+    /**
+     * Schlummert statt den Dienst sofort zu beenden: Überwacht per Sensorik die gesamte
+     * Schlummer-Dauer durchgehend auf anhaltende Bewegung (wiederverwendet [quickCheck] mit der
+     * Schlummer-Dauer selbst als Timeout statt eines kurzen Fensters). Bleibt die Wecker-Aktivität
+     * dabei komplett ohne Bewegung, nutzt [startRinging] beim nächsten Klingeln einen zufälligen
+     * statt des konfigurierten Tons. Der Dienst bleibt dafür als schwach-priorisierter Vordergrund-
+     * dienst mit "Schlummert bis..."-Benachrichtigung am Leben, statt sich zu beenden.
+     */
     private fun handleSnooze() {
         stopSoundAndEscalation()
         val delayMinutes = Random.nextLong(SNOOZE_MIN_MINUTES, SNOOZE_MAX_MINUTES + 1)
-        val triggerAt = System.currentTimeMillis() + delayMinutes * 60_000L
+        val delayMillis = delayMinutes * 60_000L
+        val triggerAt = System.currentTimeMillis() + delayMillis
         alarmScheduler.scheduleSnooze(currentAlarmId, triggerAt)
-        stopForegroundCompat()
-        stopSelf()
+        startForeground(NOTIFICATION_ID_RINGING, buildSnoozeNotification(triggerAt))
+
+        snoozeMonitorJob?.cancel()
+        movementDetectedDuringLastSnooze = null
+        snoozeMonitorJob = scope.launch(Dispatchers.Main) {
+            movementDetectedDuringLastSnooze = sensorMovementMonitorFactory.quickCheck(scope, delayMillis)
+        }
     }
 
     /**
@@ -273,6 +309,32 @@ class AlarmRingingService : Service() {
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(0, "Schlummern", snoozeIntent)
             .addAction(0, "Stop", stopIntent)
+            .setOngoing(true)
+            .build()
+    }
+
+    private fun buildSnoozeNotification(triggerAtMillis: Long): Notification {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ALARM_SNOOZING, "Wecker (Schlummern)", NotificationManager.IMPORTANCE_LOW)
+        )
+        val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.GERMAN).format(triggerAtMillis)
+
+        val fullScreenIntent = Intent(this, AlarmRingingActivity::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, currentAlarmId)
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            this, currentAlarmId.toInt(), fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ALARM_SNOOZING)
+            .setContentTitle("Schlummert")
+            .setContentText("Klingelt erneut um $timeText")
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setContentIntent(contentPendingIntent)
             .setOngoing(true)
             .build()
     }

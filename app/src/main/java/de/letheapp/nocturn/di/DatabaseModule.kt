@@ -174,11 +174,79 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Löst [de.letheapp.nocturn.data.db.AppointmentEntity.reminderMinutesBefore] (einzelne,
+     * optionale Erinnerung) durch die neue Tabelle [de.letheapp.nocturn.data.db.AppointmentReminderEntity]
+     * ab — ein Termin kann jetzt mehrere Erinnerungen haben (per "+" im Termin-Formular), auch als
+     * E-Mail statt Benachrichtigung. SQLite kennt kein einfaches "DROP COLUMN" über alle unterstützten
+     * Versionen hinweg zuverlässig, daher der Standard-Umweg: Tabelle umbenennen, neu anlegen, Daten
+     * (ohne die entfernte Spalte) zurückkopieren, alte Tabelle verwerfen. Ein vorhandener einzelner
+     * Erinnerungswert wird dabei 1:1 als Benachrichtigungs-Erinnerung in die neue Tabelle übernommen.
+     */
+    private val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE appointments RENAME TO appointments_old")
+            db.execSQL(
+                """
+                CREATE TABLE appointments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    title TEXT NOT NULL,
+                    location TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    startEpochMillis INTEGER NOT NULL,
+                    endEpochMillis INTEGER NOT NULL,
+                    startEpochDay INTEGER NOT NULL,
+                    endEpochDay INTEGER NOT NULL,
+                    allDay INTEGER NOT NULL,
+                    colorArgb INTEGER NOT NULL,
+                    priority TEXT NOT NULL,
+                    showAsBusy INTEGER NOT NULL,
+                    dirty INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO appointments (id, title, location, description, startEpochMillis, endEpochMillis,
+                    startEpochDay, endEpochDay, allDay, colorArgb, priority, showAsBusy, dirty)
+                SELECT id, title, location, description, startEpochMillis, endEpochMillis,
+                    startEpochDay, endEpochDay, allDay, colorArgb, priority, showAsBusy, dirty
+                FROM appointments_old
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS appointment_reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    appointmentId INTEGER NOT NULL,
+                    minutesBefore INTEGER NOT NULL,
+                    channel TEXT NOT NULL,
+                    emailAddress TEXT,
+                    FOREIGN KEY(appointmentId) REFERENCES appointments(id) ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_appointment_reminders_appointmentId ON appointment_reminders(appointmentId)")
+            db.execSQL(
+                """
+                INSERT INTO appointment_reminders (appointmentId, minutesBefore, channel, emailAddress)
+                SELECT id, reminderMinutesBefore, 'NOTIFICATION', NULL
+                FROM appointments_old
+                WHERE reminderMinutesBefore IS NOT NULL
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE appointments_old")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
-            .addMigrations(MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19)
+            .addMigrations(
+                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
+                MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20
+            )
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem
             // Schema-Bump würde sie bei jedem App-Update löschen. Deshalb bewusst KEIN

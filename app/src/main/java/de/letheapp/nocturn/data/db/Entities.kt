@@ -255,8 +255,6 @@ data class AppointmentEntity(
     val allDay: Boolean = false,
     val colorArgb: Int,
     val priority: String = AppointmentPriority.NORMAL.name,
-    /** Minuten vor [startEpochMillis] für eine Erinnerungs-Benachrichtigung, null = keine Erinnerung. */
-    val reminderMinutesBefore: Int? = null,
     /**
      * Entspricht dem iCalendar-Feld TRANSP (OPAQUE/TRANSPARENT): true = der Zeitraum gilt als
      * belegt (z. B. beim Nextcloud-CalDAV-Sync und künftigem Kalender-Teilen für andere sichtbar
@@ -292,6 +290,38 @@ data class AppointmentAttachmentEntity(
     val uri: String,
     val fileName: String,
     val mimeType: String? = null
+)
+
+/** Über welchen Weg eine [AppointmentReminderEntity] zugestellt wird. */
+enum class ReminderChannel {
+    NOTIFICATION,
+    EMAIL
+}
+
+/**
+ * Eine von mehreren möglichen Erinnerungen zu einem [AppointmentEntity] (per "+" im
+ * Termin-Formular hinzufügbar, siehe [de.letheapp.nocturn.calendar.AddAppointmentScreen]) —
+ * entweder eine normale Benachrichtigung oder eine E-Mail an [emailAddress] (siehe
+ * [de.letheapp.nocturn.calendar.AppointmentReminderReceiver]).
+ */
+@Entity(
+    tableName = "appointment_reminders",
+    foreignKeys = [
+        ForeignKey(
+            entity = AppointmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["appointmentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("appointmentId")]
+)
+data class AppointmentReminderEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val appointmentId: Long,
+    val minutesBefore: Int,
+    val channel: String = ReminderChannel.NOTIFICATION.name,
+    val emailAddress: String? = null
 )
 
 /**

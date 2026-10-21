@@ -35,7 +35,11 @@ class BootReceiver : BroadcastReceiver() {
                 alarmRepository.observeAll().first()
                     .filter { it.enabled }
                     .forEach { alarmScheduler.schedule(it) }
-                appointmentDao.getAllWithReminder().forEach { appointmentReminderScheduler.schedule(it) }
+                appointmentDao.getAllReminders().forEach { reminder ->
+                    appointmentDao.getById(reminder.appointmentId)?.let { appointment ->
+                        appointmentReminderScheduler.schedule(appointment, reminder)
+                    }
+                }
             } finally {
                 pendingResult.finish()
             }

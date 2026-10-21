@@ -23,6 +23,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      geweckt (nicht fest, damit man sich nicht daran gewöhnt/die Zeit totliegt).
    - Der Weckton/die Tonart ändert sich während des Klingelns (eskalierend), damit man
      sich nicht an einen Sound gewöhnt und ihn ausblendet.
+   - **Zufälliger Ton bei bewegungslosem Schlummern**: Während der gesamten Schlummer-Dauer
+     überwacht `AlarmRingingService` per Sensorik durchgehend auf anhaltende Bewegung (der
+     Dienst bleibt dafür mit einer leisen "Schlummert bis..."-Benachrichtigung am Leben statt
+     sich zu beenden). Bleibt es komplett bewegungslos, ignoriert das nächste Klingeln den
+     eigentlich konfigurierten Weckton und wählt stattdessen zufällig einen anderen aus der
+     Töne-Liste — wer schon einmal verschlafen hat, soll sich nicht auch noch an einen zweiten,
+     unveränderten Weckversuch gewöhnen können.
 
 3. **"Stop" ist kein Freifahrtschein:**
    - Drückt man statt "Snooze" auf "Stop", öffnet sich **sofort** die Notfall-Alarm-Aufgabe
@@ -37,7 +44,11 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
 
 4. **Notfall-Alarm:**
    - Lässt sich NICHT durch einfaches Drücken stoppen.
-   - Tonart ändert sich fortlaufend/eskaliert weiter.
+   - Tonart ändert sich fortlaufend/eskaliert weiter — zusätzlich zur schrittweisen
+     Lautstärke-/Tonhöhen-Eskalation (`EmergencyAlarmService`, alle 30 s) wird der Ton nicht
+     endlos in einer Schleife wiederholt, sondern läuft einmal komplett durch und wechselt
+     alle zwei solcher Durchläufe zufällig zu einem anderen Ton aus der Töne-Liste, damit man
+     sich auch beim Notfall-Alarm nicht an einen einzelnen Sound gewöhnen kann.
    - Einzige Möglichkeit zum Stoppen: eine schnell lösbare Zuordnungs-Aufgabe
      (kleines Drag-&-Drop-Puzzle/Minispiel) muss korrekt gelöst werden.
    - **Variierende Aufgabenstellung** (nicht immer dieselbe Aufgabe, damit man sie sich
@@ -221,6 +232,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      hinzufügbar, nur die `content://`-URI wird dauerhaft referenziert
      (`takePersistableUriPermission`, keine Kopie der Datei), antippen in der Tagesansicht
      öffnet den Anhang über die registrierte Fremd-App.
+   - **Mehrere Erinnerungen pro Termin** (`AppointmentReminderEntity`, Schema-Version 20, echte
+     Migration in `DatabaseModule.kt` löst das bisherige einzelne `reminderMinutesBefore`-Feld ab):
+     im Termin-Formular per "+" beliebig viele Erinnerungen hinzufügbar, je mit Voreinstellung
+     (30 Min./1 Std./1 Tag/2 Tage) oder frei wählbarer Anzahl + Einheit (Minuten/Stunden/Tage).
+     Jede Erinnerung ist entweder eine normale **Benachrichtigung** oder eine **E-Mail** —
+     Letztere nutzt bewusst Android-Boardmittel (`ACTION_SEND`/`ACTION_SENDTO`) statt eigener
+     SMTP-Zugangsdaten in NocTurn: ist VectoMail installiert, wird direkt dorthin adressiert
+     (`EmailReminderSender`), sonst öffnet sich die normale App-Auswahl für installierte
+     Mail-Apps. Empfänger-Autocomplete über die Geräte-Kontakte (`ContactEmailRepository`,
+     `READ_CONTACTS`-Berechtigung bereits vorhanden). E-Mail-Text enthält einen Hinweis-Footer
+     mit Link zu VectoMail — ein eigenes Logo-Bild/eine eigene Landingpage hat VectoMail noch
+     nicht (Email-Projekt in früher Build-Phase), daher vorerst Link auf letheapp.de statt
+     einer erfundenen VectoMail-URL oder eines Platzhalter-Logos.
    - **Aufgaben (Tasks)**: dritter Eintragstyp neben Termin/Schicht im "+"-Dialog, angelehnt
      an Google Tasks — anders als ein Termin kein fester Zeitraum, sondern ein abhakbarer
      To-Do-Eintrag mit Titel, Details, Fälligkeitstag und optionaler Frist-Uhrzeit
@@ -415,6 +439,21 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        Töne) sowie je ein Tab pro Streaming-Quelle — bei uns **Spotify**, **Deezer**
        und **Lethe-Bibliothek** (anstelle von YouTube Music) zum Durchsuchen/Auswählen
        eines Songs als Weckton.
+     - **Stoppuhr & Timer statt Wetter-/Kalender-Icon in der Wecker-Topbar**: Da Wetter
+       und Kalender bereits über die untere Tab-Leiste (`NocturnBottomBar`) erreichbar sind,
+       zeigt die Titelleiste der Alarmliste stattdessen zwei eigene Symbole für **Stoppuhr**
+       und **Timer** (neue Packages `stopwatch`/`timer`) — analog zu den entsprechenden Tabs
+       der Google-Uhr-App. Der **Timer** läuft über `TimerService` (Vordergrunddienst,
+       tickende Benachrichtigung mit Pause/+1-Min./Abbrechen-Aktionen) und einen exakten
+       `AlarmManager`-Alarm für den tatsächlichen Ablauf (`TimerCompletionReceiver`) — eine
+       reine `delay()`-Schleife würde Doze/Prozessabbruch nicht zuverlässig überleben.
+       `TimerActivity` registriert zusätzlich Androids systemweite `SET_TIMER`-Aktion (dieselbe
+       Standard-Aktion, über die z. B. Google Assistant "stelle einen Timer über 10 Minuten"
+       Timer-Apps anspricht), inkl. `SKIP_UI`-Unterstützung für den sofortigen Start ohne
+       App-Oberfläche. Die **Stoppuhr** (`StopwatchRepository`, SharedPreferences-basiert,
+       bewusst ohne eigenen Foreground-Service, da es keinen festen Zeitpunkt gibt, der das
+       rechtfertigen würde) unterstützt Start/Stopp/Runde/Zurücksetzen; anders als beim Timer
+       gibt es dafür keine Android-Systemaktion — `SET_TIMER` kennt nur Timer, keine Stoppuhr.
    - Die eigenen Zusatzfunktionen (Health-Connect-Überwachung, Notfall-Alarm,
      Schichtrotation-Verknüpfung je Alarm usw.) werden in dieses vertraute Grundgerüst
      integriert, nicht als komplett eigenes UI-Paradigma entworfen.

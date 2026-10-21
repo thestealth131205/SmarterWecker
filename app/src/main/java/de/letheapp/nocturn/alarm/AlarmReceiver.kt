@@ -32,6 +32,7 @@ class AlarmReceiver : BroadcastReceiver() {
                     val serviceIntent = Intent(context, AlarmRingingService::class.java).apply {
                         action = ACTION_RING
                         putExtra(EXTRA_ALARM_ID, alarmId)
+                        putExtra(EXTRA_IS_SNOOZE, isSnooze)
                     }
                     ContextCompat.startForegroundService(context, serviceIntent)
 
