@@ -348,24 +348,39 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Berechtigung `ACCESS_COARSE_LOCATION`) statt der proprietären Google-Play-Services-
      Standort-Lib, passend zur FOSS-Minimalismus-Leitlinie. 30 Minuten lokal gecacht, damit der
      minütliche Uhr-Tick nicht bei jedem Update einen Netzwerk-Request auslöst.
-   - **Manuelle Ortswahl im Einstellungen-Screen**: statt zwingend der automatischen
-     `LocationManager`-Position kann der Nutzer im Einstellungen-Screen über ein Suchfeld
-     einen festen Ort wählen — Live-Vorschläge während der Eingabe über die
-     OpenWeatherMap-Geocoding-API (`/geo/1.0/direct`, derselbe API-Key, kein zusätzliches Abo).
-     Ein gewählter Ort hat Vorrang vor der GPS-Ermittlung; ein eigener Button setzt wieder auf
-     die automatische Positionserkennung zurück. Der Wetter-Cache wird bei jedem Ortswechsel
-     sofort gelöscht, damit die Anzeige nicht noch den alten Ort zeigt.
-   - **"Standort bei jeder Aktualisierung neu ermitteln"-Schalter** (Einstellungen-Screen,
-     standardmäßig aus, nur sichtbar ohne manuell gewählten Ort): fordert statt der zuletzt vom
-     System zwischengespeicherten Position (`LocationManager.getLastKnownLocation`, kann je nach
-     Gerät veraltet sein) bei jeder Wetter-Aktualisierung aktiv eine frische Position an
-     (`LocationManager.getCurrentLocation`, API 30+, seit minSdk 33 immer verfügbar) — mit
-     COARSE-tauglichen Providern (Netzwerk vor GPS) und 8-Sekunden-Timeout, danach Fallback auf
-     die letzte bekannte Position.
-   - **Wetter ist ein bewusstes Opt-in über einen eigenen Einstellungen-Screen** (3-Punkte-Menü
-     der Alarmliste → "Einstellungen", standardmäßig **aus**): ist es aktiviert, erscheint oben
-     in der Titelleiste der Alarmliste ein Wettersymbol; Antippen öffnet einen eigenen, vollen
-     **Wetter-Screen** (kein Dialog) mit allem, was der kostenlose OpenWeatherMap-"Current
+   - **Mehrere Wetter-Orte, per Wischen durchblätterbar**: Statt eines einzigen Orts verwaltet
+     ein eigener **Orte-Screen** (3-Punkte-Menü des Wetter-Screens → "Ort") eine Liste von Orten.
+     Der **erste Eintrag ist immer der aktive Hauptort** (Name = manuell gewählter Ort oder
+     "Automatisch") — Antippen öffnet den bisherigen Hauptort-Einstellungs-Screen (Suchfeld mit
+     Live-Vorschlägen über die OpenWeatherMap-Geocoding-API `/geo/1.0/direct`, derselbe API-Key,
+     kein zusätzliches Abo; ein gewählter Ort hat Vorrang vor der GPS-Ermittlung, ein eigener
+     Button setzt wieder auf automatische Positionserkennung zurück; der Wetter-Cache wird bei
+     jedem Ortswechsel sofort gelöscht). Darunter folgen frei benannte **zusätzliche Orte**
+     (`AppPreferences.additionalLocations`, feste Koordinaten statt Geräte-Standort), über ein
+     "+" oberhalb der unteren Tab-Leiste hinzufügbar, per Lösch-Icon entfernbar. Im Wetter-Screen
+     selbst lassen sich alle angelegten Orte per Links/Rechts-Wischen durchblättern
+     (`HorizontalPager`, Hauptort immer an erster Stelle) — jeder Ort wird erst beim ersten
+     Anzeigen geladen und danach separat im `WeatherViewModel` zwischengespeichert, inkl.
+     eigenem Cache pro Ort in `WeatherRepository` (Cache-Schlüssel um die jeweilige Orts-ID
+     ergänzt, `MAIN_LOCATION_ID` für den Hauptort). Das **Uhr-Widget fragt beim Hinzufügen**,
+     welcher Ort gezeigt werden soll, falls mehr als ein Ort angelegt ist
+     (`ClockWidgetConfigureActivity`, Android-`android:configure`-Mechanismus) — gibt es nur den
+     Hauptort, entfällt die Rückfrage automatisch (die Konfigurationsaktivität schließt sich
+     dann sofort unsichtbar selbst mit der Hauptort-Auswahl).
+   - **"Standort bei jeder Aktualisierung neu ermitteln"-Schalter** (Hauptort-Einstellungs-
+     Screen, standardmäßig aus, nur sichtbar ohne manuell gewählten Hauptort): fordert statt der
+     zuletzt vom System zwischengespeicherten Position (`LocationManager.getLastKnownLocation`,
+     kann je nach Gerät veraltet sein) bei jeder Wetter-Aktualisierung aktiv eine frische
+     Position an (`LocationManager.getCurrentLocation`, API 30+, seit minSdk 33 immer verfügbar)
+     — mit COARSE-tauglichen Providern (Netzwerk vor GPS) und 8-Sekunden-Timeout, danach
+     Fallback auf die letzte bekannte Position. Gilt nur für den Hauptort, nicht für zusätzliche
+     Orte (die haben feste Koordinaten).
+   - **Wetter ist ein bewusstes Opt-in über das 3-Punkte-Menü des Wetter-Screens** (Eintrag
+     "Wetter" mit Schalter, standardmäßig **aus** — zusammen mit "Ort" von dort aus dem
+     ursprünglichen Wecker-Einstellungen-Screen in den Wetter-Screen selbst verschoben): ist es
+     aktiviert, erscheint oben in der Titelleiste der Alarmliste ein Wettersymbol; Antippen
+     öffnet den **Wetter-Screen** (kein Dialog) mit allem, was der kostenlose
+     OpenWeatherMap-"Current
      Weather Data"-Endpoint hergibt (Temperatur, gefühlte Temperatur, Tageshöchst-/-tiefstwert,
      Beschreibung, Luftfeuchtigkeit, Wind, Luftdruck, Sonnenauf-/-untergang), darunter eine
      **8-Tage-Vorhersage** (heute + 7 Tage: Min/Max-Temperatur, Symbol, Beschreibung,

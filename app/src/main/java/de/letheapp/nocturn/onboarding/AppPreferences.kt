@@ -5,6 +5,9 @@ import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +19,7 @@ private const val KEY_LOCATION_LAT = "weather_location_lat"
 private const val KEY_LOCATION_LON = "weather_location_lon"
 private const val KEY_LIVE_LOCATION_ENABLED = "weather_live_location_enabled"
 private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
+private const val KEY_ADDITIONAL_LOCATIONS = "weather_additional_locations"
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -101,5 +105,61 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             .remove(KEY_LOCATION_LON)
             .apply()
         _manualLocation.value = null
+    }
+
+    /**
+     * Zusätzliche, frei benannte Wetter-Orte (neben dem Hauptort aus [manualLocation]/
+     * [liveLocationEnabled]) — im Wetter-Screen per Links/Rechts-Wischen durchblätterbar, siehe
+     * `LocationListScreen`. Jeder Ort bekommt eine stabile [SavedLocation.id], damit Widgets
+     * (siehe `ClockWidgetConfigureActivity`) und der Wetter-Cache ([WeatherRepository]) ihn
+     * eindeutig referenzieren können, auch wenn der Nutzer ihn später umbenennt.
+     */
+    data class SavedLocation(val id: String, val name: String, val latitude: Double, val longitude: Double)
+
+    private val _additionalLocations = MutableStateFlow(loadAdditionalLocations())
+    val additionalLocations: StateFlow<List<SavedLocation>> = _additionalLocations
+
+    private fun loadAdditionalLocations(): List<SavedLocation> {
+        val json = prefs.getString(KEY_ADDITIONAL_LOCATIONS, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(json)
+            (0 until array.length()).map { index ->
+                val obj = array.getJSONObject(index)
+                SavedLocation(
+                    id = obj.getString("id"),
+                    name = obj.getString("name"),
+                    latitude = obj.getDouble("lat"),
+                    longitude = obj.getDouble("lon")
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun writeAdditionalLocations(locations: List<SavedLocation>) {
+        val array = JSONArray()
+        locations.forEach { location ->
+            array.put(
+                JSONObject()
+                    .put("id", location.id)
+                    .put("name", location.name)
+                    .put("lat", location.latitude)
+                    .put("lon", location.longitude)
+            )
+        }
+        prefs.edit().putString(KEY_ADDITIONAL_LOCATIONS, array.toString()).apply()
+    }
+
+    fun addAdditionalLocation(name: String, latitude: Double, longitude: Double): SavedLocation {
+        val location = SavedLocation(UUID.randomUUID().toString(), name, latitude, longitude)
+        val updated = _additionalLocations.value + location
+        writeAdditionalLocations(updated)
+        _additionalLocations.value = updated
+        return location
+    }
+
+    fun removeAdditionalLocation(id: String) {
+        val updated = _additionalLocations.value.filterNot { it.id == id }
+        writeAdditionalLocations(updated)
+        _additionalLocations.value = updated
     }
 }

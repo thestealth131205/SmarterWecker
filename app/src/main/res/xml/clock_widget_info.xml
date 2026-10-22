@@ -7,6 +7,7 @@
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_clock"
     android:previewImage="@drawable/widget_clock_preview"
+    android:configure="de.letheapp.nocturn.widget.ClockWidgetConfigureActivity"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:description="@string/widget_clock_description" />

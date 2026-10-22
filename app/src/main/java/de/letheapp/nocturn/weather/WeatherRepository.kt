@@ -117,6 +117,15 @@ class WeatherRepository @Inject constructor(
     private val appPreferences: AppPreferences
 ) {
 
+    companion object {
+        /**
+         * Platzhalter-ID des Hauptorts (manueller Ort bzw. automatische Standortermittlung, siehe
+         * [AppPreferences.manualLocation]/[AppPreferences.liveLocationEnabled]) — alle weiteren
+         * Orte werden über ihre echte [AppPreferences.SavedLocation.id] angesprochen.
+         */
+        const val MAIN_LOCATION_ID = "main"
+    }
+
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
@@ -124,30 +133,30 @@ class WeatherRepository @Inject constructor(
 
     private val cachePrefs = context.getSharedPreferences("weather_widget_cache", Context.MODE_PRIVATE)
 
-    suspend fun currentWeather(): DetailedWeather? = withContext(Dispatchers.IO) {
+    suspend fun currentWeather(locationId: String = MAIN_LOCATION_ID): DetailedWeather? = withContext(Dispatchers.IO) {
         if (!appPreferences.isWeatherEnabled()) return@withContext null
 
-        val cachedAt = cachePrefs.getLong(KEY_CACHED_AT, 0L)
-        val cached = readCache()
+        val cachedAt = cachePrefs.getLong(KEY_CACHED_AT + locationId, 0L)
+        val cached = readCache(locationId)
         if (cached != null && System.currentTimeMillis() - cachedAt < CACHE_VALIDITY_MS) {
             return@withContext cached
         }
-        fetchFromApi() ?: cached
+        fetchFromApi(locationId) ?: cached
     }
 
     /**
      * 8-Tage-Vorhersage (heute + 7 Tage) über OpenWeatherMap One Call 3.0, siehe Klassen-
      * Dokumentation zur nötigen einmaligen Abo-Aktivierung im OpenWeatherMap-Konto.
      */
-    suspend fun dailyForecast(): List<DailyForecast>? = withContext(Dispatchers.IO) {
+    suspend fun dailyForecast(locationId: String = MAIN_LOCATION_ID): List<DailyForecast>? = withContext(Dispatchers.IO) {
         if (!appPreferences.isWeatherEnabled()) return@withContext null
 
-        val cachedAt = cachePrefs.getLong(KEY_FORECAST_CACHED_AT, 0L)
-        val cached = readForecastCache()
+        val cachedAt = cachePrefs.getLong(KEY_FORECAST_CACHED_AT + locationId, 0L)
+        val cached = readForecastCache(locationId)
         if (cached != null && System.currentTimeMillis() - cachedAt < FORECAST_CACHE_VALIDITY_MS) {
             return@withContext cached
         }
-        fetchForecastFromApi() ?: cached
+        fetchForecastFromApi(locationId) ?: cached
     }
 
     /**
@@ -166,24 +175,46 @@ class WeatherRepository @Inject constructor(
      * ab jetzt, hier auf den aktuellen Kalendertag gefiltert). Wird im Wetter-Screen oberhalb
      * der 8-Tage-Vorhersage als eigener, vertikal scrollbarer Abschnitt angezeigt.
      */
-    suspend fun hourlyForecastToday(): List<HourlyForecast>? = withContext(Dispatchers.IO) {
+    suspend fun hourlyForecastToday(locationId: String = MAIN_LOCATION_ID): List<HourlyForecast>? = withContext(Dispatchers.IO) {
         if (!appPreferences.isWeatherEnabled()) return@withContext null
 
-        val cachedAt = cachePrefs.getLong(KEY_HOURLY_CACHED_AT, 0L)
-        val cached = readHourlyCache()
+        val cachedAt = cachePrefs.getLong(KEY_HOURLY_CACHED_AT + locationId, 0L)
+        val cached = readHourlyCache(locationId)
         if (cached != null && System.currentTimeMillis() - cachedAt < CACHE_VALIDITY_MS) {
             return@withContext cached
         }
-        fetchHourlyFromApi() ?: cached
+        fetchHourlyFromApi(locationId) ?: cached
     }
 
     @Volatile
     var lastHourlyError: String? = null
         private set
 
-    /** Löscht den Wetter-Cache, z. B. nachdem der Nutzer einen anderen Ort gewählt hat. */
-    fun clearCache() {
-        cachePrefs.edit().clear().apply()
+    /**
+     * Löscht den Wetter-Cache für einen Ort, z. B. nachdem der Nutzer dessen Koordinaten geändert
+     * hat (Hauptort) oder ihn aus der Liste entfernt hat (zusätzlicher Ort). Ohne Parameter wird
+     * nur der Hauptort-Cache gelöscht (bisheriges Verhalten, Standardfall nach Ortswahl).
+     */
+    fun clearCache(locationId: String = MAIN_LOCATION_ID) {
+        cachePrefs.edit()
+            .remove(KEY_CITY + locationId)
+            .remove(KEY_TEMP + locationId)
+            .remove(KEY_FEELS_LIKE + locationId)
+            .remove(KEY_TEMP_MIN + locationId)
+            .remove(KEY_TEMP_MAX + locationId)
+            .remove(KEY_HUMIDITY + locationId)
+            .remove(KEY_PRESSURE + locationId)
+            .remove(KEY_WIND + locationId)
+            .remove(KEY_DESCRIPTION + locationId)
+            .remove(KEY_EMOJI + locationId)
+            .remove(KEY_SUNRISE + locationId)
+            .remove(KEY_SUNSET + locationId)
+            .remove(KEY_CACHED_AT + locationId)
+            .remove(KEY_FORECAST_DATA + locationId)
+            .remove(KEY_FORECAST_CACHED_AT + locationId)
+            .remove(KEY_HOURLY_DATA + locationId)
+            .remove(KEY_HOURLY_CACHED_AT + locationId)
+            .apply()
     }
 
     /**
@@ -218,10 +249,10 @@ class WeatherRepository @Inject constructor(
         }.getOrDefault(emptyList())
     }
 
-    private suspend fun fetchFromApi(): DetailedWeather? {
+    private suspend fun fetchFromApi(locationId: String): DetailedWeather? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) return null
-        val location = resolvedLocation() ?: return null
+        val location = resolveLocation(locationId) ?: return null
 
         return runCatching {
             val url = "https://api.openweathermap.org/data/2.5/weather?" +
@@ -230,18 +261,18 @@ class WeatherRepository @Inject constructor(
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string().orEmpty()
-                parseWeather(JSONObject(body))?.also(::writeCache)
+                parseWeather(JSONObject(body))?.also { writeCache(locationId, it) }
             }
         }.getOrNull()
     }
 
-    private suspend fun fetchForecastFromApi(): List<DailyForecast>? {
+    private suspend fun fetchForecastFromApi(locationId: String): List<DailyForecast>? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) {
             lastForecastError = "Kein OpenWeatherMap-API-Key hinterlegt."
             return null
         }
-        val location = resolvedLocation() ?: run {
+        val location = resolveLocation(locationId) ?: run {
             lastForecastError = "Kein Standort verfügbar (Berechtigung/Ortswahl prüfen)."
             return null
         }
@@ -260,7 +291,7 @@ class WeatherRepository @Inject constructor(
                     ?: error("Antwort enthält kein \"data\"-Feld: ${body.take(200)}")
                 (0 until daily.length()).take(8)
                     .map { index -> parseDailyForecast(daily.getJSONObject(index)) }
-                    .also(::writeForecastCache)
+                    .also { writeForecastCache(locationId, it) }
             }
         }
         result.fold(
@@ -270,13 +301,13 @@ class WeatherRepository @Inject constructor(
         return result.getOrNull()
     }
 
-    private suspend fun fetchHourlyFromApi(): List<HourlyForecast>? {
+    private suspend fun fetchHourlyFromApi(locationId: String): List<HourlyForecast>? {
         val apiKey = BuildConfig.OPENWEATHER_API_KEY
         if (apiKey.isBlank()) {
             lastHourlyError = "Kein OpenWeatherMap-API-Key hinterlegt."
             return null
         }
-        val location = resolvedLocation() ?: run {
+        val location = resolveLocation(locationId) ?: run {
             lastHourlyError = "Kein Standort verfügbar (Berechtigung/Ortswahl prüfen)."
             return null
         }
@@ -299,7 +330,7 @@ class WeatherRepository @Inject constructor(
                     .filter { hour ->
                         Instant.ofEpochMilli(hour.timeEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate() == today
                     }
-                    .also(::writeHourlyCache)
+                    .also { writeHourlyCache(locationId, it) }
             }
         }
         result.fold(
@@ -366,13 +397,20 @@ class WeatherRepository @Inject constructor(
     }
 
     /**
-     * Manuell gewählter Ort (Einstellungen-Screen) hat Vorrang vor jeder Ermittlung. Ohne
-     * manuellen Ort: ist [AppPreferences.liveLocationEnabled] aktiv, wird bei jeder
-     * Wetter-Aktualisierung aktiv eine frische Position angefragt ([freshLocation]) statt der
-     * zuletzt vom System zwischengespeicherten (die je nach Gerät/Provider veraltet sein kann);
-     * schlägt das fehl oder ist die Option aus, fällt es auf [lastKnownLocation] zurück.
+     * Löst einen [locationId] in tatsächliche Koordinaten auf. Für [MAIN_LOCATION_ID] gilt die
+     * bisherige Logik (manueller Ort > Live-Standort > letzte bekannte Position); für einen
+     * zusätzlichen, in [AppPreferences.additionalLocations] gespeicherten Ort werden dessen fest
+     * hinterlegte Koordinaten verwendet (keine Geräte-Standortermittlung nötig).
      */
-    private suspend fun resolvedLocation(): Location? {
+    private suspend fun resolveLocation(locationId: String): Location? {
+        if (locationId != MAIN_LOCATION_ID) {
+            val saved = appPreferences.additionalLocations.value.firstOrNull { it.id == locationId }
+                ?: return null
+            return Location("saved").apply {
+                latitude = saved.latitude
+                longitude = saved.longitude
+            }
+        }
         val manual = appPreferences.manualLocation.value
         if (manual != null) {
             return Location("manual").apply {
@@ -430,46 +468,46 @@ class WeatherRepository @Inject constructor(
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
-    private fun readCache(): DetailedWeather? {
-        val temp = cachePrefs.getInt(KEY_TEMP, Int.MIN_VALUE)
-        val emoji = cachePrefs.getString(KEY_EMOJI, null)
+    private fun readCache(locationId: String): DetailedWeather? {
+        val temp = cachePrefs.getInt(KEY_TEMP + locationId, Int.MIN_VALUE)
+        val emoji = cachePrefs.getString(KEY_EMOJI + locationId, null)
         if (temp == Int.MIN_VALUE || emoji == null) return null
         return DetailedWeather(
-            cityName = cachePrefs.getString(KEY_CITY, "").orEmpty(),
+            cityName = cachePrefs.getString(KEY_CITY + locationId, "").orEmpty(),
             temperatureCelsius = temp,
-            feelsLikeCelsius = cachePrefs.getInt(KEY_FEELS_LIKE, temp),
-            tempMinCelsius = cachePrefs.getInt(KEY_TEMP_MIN, temp),
-            tempMaxCelsius = cachePrefs.getInt(KEY_TEMP_MAX, temp),
-            humidityPercent = cachePrefs.getInt(KEY_HUMIDITY, 0),
-            pressureHpa = cachePrefs.getInt(KEY_PRESSURE, 0),
-            windSpeedKmh = cachePrefs.getInt(KEY_WIND, 0),
-            description = cachePrefs.getString(KEY_DESCRIPTION, "").orEmpty(),
+            feelsLikeCelsius = cachePrefs.getInt(KEY_FEELS_LIKE + locationId, temp),
+            tempMinCelsius = cachePrefs.getInt(KEY_TEMP_MIN + locationId, temp),
+            tempMaxCelsius = cachePrefs.getInt(KEY_TEMP_MAX + locationId, temp),
+            humidityPercent = cachePrefs.getInt(KEY_HUMIDITY + locationId, 0),
+            pressureHpa = cachePrefs.getInt(KEY_PRESSURE + locationId, 0),
+            windSpeedKmh = cachePrefs.getInt(KEY_WIND + locationId, 0),
+            description = cachePrefs.getString(KEY_DESCRIPTION + locationId, "").orEmpty(),
             emoji = emoji,
-            sunriseEpochMillis = cachePrefs.getLong(KEY_SUNRISE, 0L),
-            sunsetEpochMillis = cachePrefs.getLong(KEY_SUNSET, 0L)
+            sunriseEpochMillis = cachePrefs.getLong(KEY_SUNRISE + locationId, 0L),
+            sunsetEpochMillis = cachePrefs.getLong(KEY_SUNSET + locationId, 0L)
         )
     }
 
-    private fun writeCache(weather: DetailedWeather) {
+    private fun writeCache(locationId: String, weather: DetailedWeather) {
         cachePrefs.edit()
-            .putString(KEY_CITY, weather.cityName)
-            .putInt(KEY_TEMP, weather.temperatureCelsius)
-            .putInt(KEY_FEELS_LIKE, weather.feelsLikeCelsius)
-            .putInt(KEY_TEMP_MIN, weather.tempMinCelsius)
-            .putInt(KEY_TEMP_MAX, weather.tempMaxCelsius)
-            .putInt(KEY_HUMIDITY, weather.humidityPercent)
-            .putInt(KEY_PRESSURE, weather.pressureHpa)
-            .putInt(KEY_WIND, weather.windSpeedKmh)
-            .putString(KEY_DESCRIPTION, weather.description)
-            .putString(KEY_EMOJI, weather.emoji)
-            .putLong(KEY_SUNRISE, weather.sunriseEpochMillis)
-            .putLong(KEY_SUNSET, weather.sunsetEpochMillis)
-            .putLong(KEY_CACHED_AT, System.currentTimeMillis())
+            .putString(KEY_CITY + locationId, weather.cityName)
+            .putInt(KEY_TEMP + locationId, weather.temperatureCelsius)
+            .putInt(KEY_FEELS_LIKE + locationId, weather.feelsLikeCelsius)
+            .putInt(KEY_TEMP_MIN + locationId, weather.tempMinCelsius)
+            .putInt(KEY_TEMP_MAX + locationId, weather.tempMaxCelsius)
+            .putInt(KEY_HUMIDITY + locationId, weather.humidityPercent)
+            .putInt(KEY_PRESSURE + locationId, weather.pressureHpa)
+            .putInt(KEY_WIND + locationId, weather.windSpeedKmh)
+            .putString(KEY_DESCRIPTION + locationId, weather.description)
+            .putString(KEY_EMOJI + locationId, weather.emoji)
+            .putLong(KEY_SUNRISE + locationId, weather.sunriseEpochMillis)
+            .putLong(KEY_SUNSET + locationId, weather.sunsetEpochMillis)
+            .putLong(KEY_CACHED_AT + locationId, System.currentTimeMillis())
             .apply()
     }
 
-    private fun readForecastCache(): List<DailyForecast>? {
-        val json = cachePrefs.getString(KEY_FORECAST_DATA, null) ?: return null
+    private fun readForecastCache(locationId: String): List<DailyForecast>? {
+        val json = cachePrefs.getString(KEY_FORECAST_DATA + locationId, null) ?: return null
         return runCatching {
             val array = JSONArray(json)
             (0 until array.length()).map { index ->
@@ -491,8 +529,8 @@ class WeatherRepository @Inject constructor(
         }.getOrNull()
     }
 
-    private fun readHourlyCache(): List<HourlyForecast>? {
-        val json = cachePrefs.getString(KEY_HOURLY_DATA, null) ?: return null
+    private fun readHourlyCache(locationId: String): List<HourlyForecast>? {
+        val json = cachePrefs.getString(KEY_HOURLY_DATA + locationId, null) ?: return null
         return runCatching {
             val array = JSONArray(json)
             (0 until array.length()).map { index ->
@@ -508,7 +546,7 @@ class WeatherRepository @Inject constructor(
         }.getOrNull()
     }
 
-    private fun writeHourlyCache(hourly: List<HourlyForecast>) {
+    private fun writeHourlyCache(locationId: String, hourly: List<HourlyForecast>) {
         val array = JSONArray()
         hourly.forEach { hour ->
             array.put(
@@ -521,12 +559,12 @@ class WeatherRepository @Inject constructor(
             )
         }
         cachePrefs.edit()
-            .putString(KEY_HOURLY_DATA, array.toString())
-            .putLong(KEY_HOURLY_CACHED_AT, System.currentTimeMillis())
+            .putString(KEY_HOURLY_DATA + locationId, array.toString())
+            .putLong(KEY_HOURLY_CACHED_AT + locationId, System.currentTimeMillis())
             .apply()
     }
 
-    private fun writeForecastCache(forecast: List<DailyForecast>) {
+    private fun writeForecastCache(locationId: String, forecast: List<DailyForecast>) {
         val array = JSONArray()
         forecast.forEach { day ->
             array.put(
@@ -545,8 +583,8 @@ class WeatherRepository @Inject constructor(
             )
         }
         cachePrefs.edit()
-            .putString(KEY_FORECAST_DATA, array.toString())
-            .putLong(KEY_FORECAST_CACHED_AT, System.currentTimeMillis())
+            .putString(KEY_FORECAST_DATA + locationId, array.toString())
+            .putLong(KEY_FORECAST_CACHED_AT + locationId, System.currentTimeMillis())
             .apply()
     }
 

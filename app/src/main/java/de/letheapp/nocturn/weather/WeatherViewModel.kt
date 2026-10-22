@@ -3,43 +3,83 @@ package de.letheapp.nocturn.weather
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import de.letheapp.nocturn.onboarding.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Ein Eintrag in der Orte-Liste des Wetter-Screens/der Seitenblätterung — Hauptort oder zusätzlicher Ort. */
+data class WeatherLocationEntry(val id: String, val name: String)
+
+/** Geladener Zustand einer einzelnen Orts-"Seite" im Wetter-Screen. */
+data class WeatherPageState(
+    val weather: DetailedWeather? = null,
+    val forecast: List<DailyForecast> = emptyList(),
+    val hourly: List<HourlyForecast> = emptyList(),
+    val loading: Boolean = true,
+    val forecastError: String? = null
+)
+
+/**
+ * Lädt Wetterdaten für mehrere Orte gleichzeitig (Hauptort + zusätzliche, siehe
+ * [AppPreferences.additionalLocations]) — im Wetter-Screen per Links/Rechts-Wischen
+ * ([androidx.compose.foundation.pager.HorizontalPager]) durchblätterbar. Jede Seite wird erst
+ * beim ersten Anzeigen geladen ([ensureLoaded]) und danach pro Ort separat im Speicher gehalten,
+ * damit ein Seitenwechsel nicht jedes Mal einen neuen Netzwerk-Request auslöst.
+ */
 @HiltViewModel
 class WeatherViewModel @Inject constructor(
-    private val weatherRepository: WeatherRepository
+    private val weatherRepository: WeatherRepository,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
-    private val _weather = MutableStateFlow<DetailedWeather?>(null)
-    val weather: StateFlow<DetailedWeather?> = _weather
+    val weatherEnabled: StateFlow<Boolean> = appPreferences.weatherEnabled
 
-    private val _forecast = MutableStateFlow<List<DailyForecast>>(emptyList())
-    val forecast: StateFlow<List<DailyForecast>> = _forecast
-
-    private val _hourly = MutableStateFlow<List<HourlyForecast>>(emptyList())
-    val hourly: StateFlow<List<HourlyForecast>> = _hourly
-
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading
-
-    private val _forecastError = MutableStateFlow<String?>(null)
-    val forecastError: StateFlow<String?> = _forecastError
-
-    init {
-        load()
+    fun setWeatherEnabled(enabled: Boolean) {
+        appPreferences.setWeatherEnabled(enabled)
+        if (enabled) {
+            _pages.value.keys.forEach { load(it) }
+        }
     }
 
-    fun load() {
+    val locations: StateFlow<List<WeatherLocationEntry>> = combine(
+        appPreferences.manualLocation, appPreferences.additionalLocations
+    ) { manual, additional ->
+        val main = WeatherLocationEntry(WeatherRepository.MAIN_LOCATION_ID, manual?.name ?: "Automatisch")
+        listOf(main) + additional.map { WeatherLocationEntry(it.id, it.name) }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        listOf(WeatherLocationEntry(WeatherRepository.MAIN_LOCATION_ID, "Automatisch"))
+    )
+
+    private val _pages = MutableStateFlow<Map<String, WeatherPageState>>(emptyMap())
+    val pages: StateFlow<Map<String, WeatherPageState>> = _pages
+
+    fun pageFor(locationId: String): WeatherPageState = _pages.value[locationId] ?: WeatherPageState()
+
+    /** Lädt die Seite nur, wenn sie noch nicht im Speicher ist — wird bei jedem Seitenwechsel aufgerufen. */
+    fun ensureLoaded(locationId: String) {
+        if (_pages.value.containsKey(locationId)) return
+        load(locationId)
+    }
+
+    fun load(locationId: String) {
         viewModelScope.launch {
-            _loading.value = true
-            _weather.value = weatherRepository.currentWeather()
-            _forecast.value = weatherRepository.dailyForecast().orEmpty()
-            _forecastError.value = weatherRepository.lastForecastError
-            _hourly.value = weatherRepository.hourlyForecastToday().orEmpty()
-            _loading.value = false
+            setPage(locationId, pageFor(locationId).copy(loading = true))
+            val weather = weatherRepository.currentWeather(locationId)
+            val forecast = weatherRepository.dailyForecast(locationId).orEmpty()
+            val forecastError = weatherRepository.lastForecastError
+            val hourly = weatherRepository.hourlyForecastToday(locationId).orEmpty()
+            setPage(locationId, WeatherPageState(weather, forecast, hourly, loading = false, forecastError = forecastError))
         }
+    }
+
+    private fun setPage(id: String, state: WeatherPageState) {
+        _pages.value = _pages.value + (id to state)
     }
 }

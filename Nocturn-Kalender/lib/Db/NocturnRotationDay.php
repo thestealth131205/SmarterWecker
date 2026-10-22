@@ -46,7 +46,7 @@ class NocturnRotationDay extends Entity implements JsonSerializable {
 	protected $rotationUid;
 
 	/** @var int */
-	protected $dayIndex = 0;
+	protected $dayIndex;
 
 	/** @var string|null */
 	protected $shiftUid;

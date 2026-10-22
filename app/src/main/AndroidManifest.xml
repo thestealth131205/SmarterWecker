@@ -245,6 +245,21 @@
                 android:resource="@xml/clock_widget_info" />
         </receiver>
 
+        <!--
+            Fragt beim Hinzufügen des Uhr-Widgets ab, welcher Wetter-Ort angezeigt werden soll,
+            falls mehrere Orte angelegt sind (siehe ClockWidgetConfigureActivity). Android startet
+            diese Activity für JEDES Hinzufügen des Widgets, daher der sofortige, unsichtbare
+            Abschluss darin, wenn es ohnehin nur den Hauptort gibt.
+        -->
+        <activity
+            android:name=".widget.ClockWidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@style/Theme.NocTurn">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".widget.CalendarWidgetProvider"
             android:exported="true">

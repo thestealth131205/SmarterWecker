@@ -104,6 +104,10 @@ class ClockWidgetProvider : AppWidgetProvider() {
         alarmManager.cancel(dataTickPendingIntent(context))
     }
 
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { ClockWidgetConfigureActivity.clearSelection(context, it) }
+    }
+
     private fun refreshClockOnly(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_clock)
         val now = LocalDateTime.now()
@@ -116,7 +120,8 @@ class ClockWidgetProvider : AppWidgetProvider() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val weather = runCatching { weatherRepository.currentWeather() }.getOrNull()
+                val locationId = ClockWidgetConfigureActivity.locationIdFor(context, widgetId)
+                val weather = runCatching { weatherRepository.currentWeather(locationId) }.getOrNull()
                 val agenda = runCatching { calendarRepository.getUpcomingAgendaForWidget(AGENDA_SHOWN_COUNT) }
                     .getOrNull() ?: WidgetAgenda(emptyList(), 0)
                 updateWidget(context, appWidgetManager, widgetId, weather?.let { "${it.emoji} ${it.temperatureCelsius}°" }, agenda)

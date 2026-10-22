@@ -42,6 +42,8 @@ import de.letheapp.nocturn.timer.TimerScreen
 import de.letheapp.nocturn.ui.NocturnTab
 import de.letheapp.nocturn.wear.WearSettingsScreen
 import de.letheapp.nocturn.ui.theme.NocTurnTheme
+import de.letheapp.nocturn.weather.LocationListScreen
+import de.letheapp.nocturn.weather.MainLocationSettingsScreen
 import de.letheapp.nocturn.weather.WeatherScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -71,6 +73,8 @@ private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_HEALTH_CONNECT_STATUS = "healthConnectStatus"
 private const val ROUTE_CALENDAR_EXPORT = "calendarExport"
 private const val ROUTE_WEATHER = "weather"
+private const val ROUTE_LOCATION_LIST = "locationList"
+private const val ROUTE_MAIN_LOCATION_SETTINGS = "mainLocationSettings"
 private const val ROUTE_WEAR_SETTINGS = "wearSettings"
 private const val ROUTE_TIMER = "timer"
 private const val ROUTE_STOPWATCH = "stopwatch"
@@ -181,7 +185,22 @@ private fun NocturnNavHost(
         }
 
         composable(ROUTE_WEATHER) {
-            WeatherScreen(onSelectTab = onSelectTab)
+            WeatherScreen(
+                onSelectTab = onSelectTab,
+                onOpenLocations = { navController.navigate(ROUTE_LOCATION_LIST) }
+            )
+        }
+
+        composable(ROUTE_LOCATION_LIST) {
+            LocationListScreen(
+                onBack = { navController.popBackStack() },
+                onOpenMainLocationSettings = { navController.navigate(ROUTE_MAIN_LOCATION_SETTINGS) },
+                onSelectTab = onSelectTab
+            )
+        }
+
+        composable(ROUTE_MAIN_LOCATION_SETTINGS) {
+            MainLocationSettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(ROUTE_IOBROKER_SETTINGS) {

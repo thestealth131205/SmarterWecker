@@ -14,19 +14,29 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,28 +64,61 @@ private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm")
  * ([WeatherRepository.dailyForecast], OpenWeatherMap One Call 3.0). Arbeitet als eigenständiger
  * Screen auf Ebene der unteren Tab-Leiste (wie die Kalender-Monatsansicht) — kein Zurück-Pfeil,
  * da er direkt über die Tab-Leiste bzw. das Wettersymbol/die Widget-Tap-Zone erreicht wird.
+ *
+ * Bei mehreren angelegten Orten ([WeatherViewModel.locations]) lässt sich per Links/Rechts-
+ * Wischen zwischen ihnen blättern ([HorizontalPager]) — der Hauptort steht dabei immer an erster
+ * Stelle. Das 3-Punkte-Menü oben rechts übernimmt die beiden Einträge, die zuvor im Wecker-
+ * Einstellungen-Screen lagen: "Wetter" (Opt-in-Schalter) und "Ort" (öffnet [onOpenLocations]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
     onSelectTab: (NocturnTab) -> Unit,
+    onOpenLocations: () -> Unit,
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
-    val weather by viewModel.weather.collectAsState()
-    val forecast by viewModel.forecast.collectAsState()
-    val hourly by viewModel.hourly.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-    val forecastError by viewModel.forecastError.collectAsState()
-    var selectedDay by remember { mutableStateOf<DailyForecast?>(null) }
+    val locations by viewModel.locations.collectAsState()
+    val pages by viewModel.pages.collectAsState()
+    val weatherEnabled by viewModel.weatherEnabled.collectAsState()
+    var menuExpanded by remember { mutableStateOf(false) }
+    val pagerState = rememberPagerState(pageCount = { locations.size })
+
+    LaunchedEffect(pagerState.currentPage, locations) {
+        locations.getOrNull(pagerState.currentPage)?.let { viewModel.ensureLoaded(it.id) }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Wetter") },
+                actions = {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Menü")
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Wetter") },
+                            leadingIcon = { Icon(Icons.Filled.WbSunny, contentDescription = null) },
+                            trailingIcon = {
+                                Switch(checked = weatherEnabled, onCheckedChange = viewModel::setWeatherEnabled)
+                            },
+                            onClick = { viewModel.setWeatherEnabled(!weatherEnabled) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ort") },
+                            leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onOpenLocations()
+                            }
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
@@ -83,78 +126,100 @@ fun WeatherScreen(
             NocturnBottomBar(selected = NocturnTab.WETTER, onSelect = onSelectTab)
         }
     ) { innerPadding ->
-        when {
-            weather != null -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { CurrentWeatherCard(weather!!) }
-                if (hourly.isNotEmpty()) {
-                    item {
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (locations.size > 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    locations.forEachIndexed { index, location ->
+                        val isSelected = index == pagerState.currentPage
                         Text(
-                            "Heute stündlich",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            location.name,
+                            style = if (isSelected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp)
                         )
                     }
-                    item { HourlyForecastCard(hourly) }
                 }
+            }
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                val location = locations.getOrNull(page) ?: return@HorizontalPager
+                WeatherPageContent(page = pages[location.id] ?: WeatherPageState())
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherPageContent(page: WeatherPageState) {
+    var selectedDay by remember { mutableStateOf<DailyForecast?>(null) }
+
+    when {
+        page.weather != null -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { CurrentWeatherCard(page.weather!!) }
+            if (page.hourly.isNotEmpty()) {
                 item {
                     Text(
-                        "Vorhersage",
+                        "Heute stündlich",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
                 }
-                if (forecast.isEmpty()) {
-                    item {
-                        Column {
+                item { HourlyForecastCard(page.hourly) }
+            }
+            item {
+                Text(
+                    "Vorhersage",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            }
+            if (page.forecast.isEmpty()) {
+                item {
+                    Column {
+                        Text(
+                            "8-Tage-Vorhersage aktuell nicht verfügbar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (page.forecastError != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "8-Tage-Vorhersage aktuell nicht verfügbar.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                "Fehlergrund: ${page.forecastError}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
                             )
-                            if (forecastError != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "Fehlergrund: $forecastError",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
                         }
                     }
-                } else {
-                    item {
-                        Card {
-                            Column {
-                                forecast.forEachIndexed { index, day ->
-                                    ForecastRow(day, onClick = { selectedDay = day })
-                                    if (index != forecast.lastIndex) HorizontalDivider()
-                                }
+                }
+            } else {
+                item {
+                    Card {
+                        Column {
+                            page.forecast.forEachIndexed { index, day ->
+                                ForecastRow(day, onClick = { selectedDay = day })
+                                if (index != page.forecast.lastIndex) HorizontalDivider()
                             }
                         }
                     }
                 }
             }
-            loading -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-            else -> Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding).padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "Wetter aktuell nicht verfügbar. Standort-Berechtigung und " +
-                        "Internetverbindung prüfen.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            }
+        }
+        page.loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        else -> Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Text(
+                "Wetter aktuell nicht verfügbar. Standort-Berechtigung und " +
+                    "Internetverbindung prüfen.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 
