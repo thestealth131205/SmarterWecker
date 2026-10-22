@@ -124,6 +124,24 @@ class WeatherRepository @Inject constructor(
          * Orte werden über ihre echte [AppPreferences.SavedLocation.id] angesprochen.
          */
         const val MAIN_LOCATION_ID = "main"
+
+        private const val KEY_CITY = "city"
+        private const val KEY_TEMP = "temp"
+        private const val KEY_FEELS_LIKE = "feels_like"
+        private const val KEY_TEMP_MIN = "temp_min"
+        private const val KEY_TEMP_MAX = "temp_max"
+        private const val KEY_HUMIDITY = "humidity"
+        private const val KEY_PRESSURE = "pressure"
+        private const val KEY_WIND = "wind"
+        private const val KEY_DESCRIPTION = "description"
+        private const val KEY_EMOJI = "emoji"
+        private const val KEY_SUNRISE = "sunrise"
+        private const val KEY_SUNSET = "sunset"
+        private const val KEY_CACHED_AT = "cached_at"
+        private const val KEY_FORECAST_DATA = "forecast_data"
+        private const val KEY_FORECAST_CACHED_AT = "forecast_cached_at"
+        private const val KEY_HOURLY_DATA = "hourly_data"
+        private const val KEY_HOURLY_CACHED_AT = "hourly_cached_at"
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -599,25 +617,5 @@ class WeatherRepository @Inject constructor(
         id == 801 -> "🌤"
         id in 802..804 -> "☁"
         else -> "☁"
-    }
-
-    private companion object {
-        const val KEY_CITY = "city"
-        const val KEY_TEMP = "temp"
-        const val KEY_FEELS_LIKE = "feels_like"
-        const val KEY_TEMP_MIN = "temp_min"
-        const val KEY_TEMP_MAX = "temp_max"
-        const val KEY_HUMIDITY = "humidity"
-        const val KEY_PRESSURE = "pressure"
-        const val KEY_WIND = "wind"
-        const val KEY_DESCRIPTION = "description"
-        const val KEY_EMOJI = "emoji"
-        const val KEY_SUNRISE = "sunrise"
-        const val KEY_SUNSET = "sunset"
-        const val KEY_CACHED_AT = "cached_at"
-        const val KEY_FORECAST_DATA = "forecast_data"
-        const val KEY_FORECAST_CACHED_AT = "forecast_cached_at"
-        const val KEY_HOURLY_DATA = "hourly_data"
-        const val KEY_HOURLY_CACHED_AT = "hourly_cached_at"
     }
 }
