@@ -82,4 +82,8 @@ class WeatherViewModel @Inject constructor(
     private fun setPage(id: String, state: WeatherPageState) {
         _pages.value = _pages.value + (id to state)
     }
+
+    /** Stündliche Vorhersage für einen einzelnen Tag der 8-Tage-Vorhersage, für [DayDetailDialog]. */
+    suspend fun hourlyForDay(locationId: String, dayEpochMillis: Long): List<HourlyForecast> =
+        weatherRepository.hourlyForecastForDay(locationId, dayEpochMillis).orEmpty()
 }

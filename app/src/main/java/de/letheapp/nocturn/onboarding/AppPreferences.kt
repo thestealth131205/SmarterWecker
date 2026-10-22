@@ -20,6 +20,7 @@ private const val KEY_LOCATION_LON = "weather_location_lon"
 private const val KEY_LIVE_LOCATION_ENABLED = "weather_live_location_enabled"
 private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
 private const val KEY_ADDITIONAL_LOCATIONS = "weather_additional_locations"
+private const val KEY_VOICE_COMMANDS_ENABLED = "voice_commands_enabled"
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -74,6 +75,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun setDynamicColorEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, enabled).apply()
         _dynamicColorEnabled.value = enabled
+    }
+
+    /**
+     * Standardmäßig an: Mikrofon-Symbol in der Wecker-Titelleiste für Sprachbefehle
+     * (Timer/Stoppuhr/einmaliger Wecker, siehe [de.letheapp.nocturn.voice.VoiceCommandParser]).
+     * Nutzt nur Androids Board-Mittel-Spracherkennung, keinen eigenen Server/LLM-Aufruf — wer
+     * das Mikrofon-Symbol trotzdem nicht sehen möchte, kann es hier ausblenden.
+     */
+    private val _voiceCommandsEnabled = MutableStateFlow(prefs.getBoolean(KEY_VOICE_COMMANDS_ENABLED, true))
+    val voiceCommandsEnabled: StateFlow<Boolean> = _voiceCommandsEnabled
+
+    fun setVoiceCommandsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_VOICE_COMMANDS_ENABLED, enabled).apply()
+        _voiceCommandsEnabled.value = enabled
     }
 
     /** Manuell gewählter Wetter-Ort statt der automatischen `LocationManager`-Ermittlung. */

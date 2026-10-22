@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
@@ -135,9 +138,11 @@ fun WeatherScreen(
                     locations.forEachIndexed { index, location ->
                         val isSelected = index == pagerState.currentPage
                         Text(
-                            location.name,
+                            location.shortName,
                             style = if (isSelected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
                     }
@@ -145,14 +150,28 @@ fun WeatherScreen(
             }
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 val location = locations.getOrNull(page) ?: return@HorizontalPager
-                WeatherPageContent(page = pages[location.id] ?: WeatherPageState())
+                WeatherPageContent(
+                    page = pages[location.id] ?: WeatherPageState(),
+                    locationName = location.shortName.takeIf { location.name != "Automatisch" },
+                    locationId = location.id,
+                    viewModel = viewModel
+                )
             }
         }
     }
 }
 
+/** Der Teil des [WeatherLocationEntry.name] vor dem ersten Komma (z. B. "Werne" statt "Werne, North Rhine-Westphalia, DE"). */
+private val WeatherLocationEntry.shortName: String
+    get() = name.substringBefore(",").trim().ifBlank { name }
+
 @Composable
-private fun WeatherPageContent(page: WeatherPageState) {
+private fun WeatherPageContent(
+    page: WeatherPageState,
+    locationName: String?,
+    locationId: String,
+    viewModel: WeatherViewModel
+) {
     var selectedDay by remember { mutableStateOf<DailyForecast?>(null) }
 
     when {
@@ -161,7 +180,7 @@ private fun WeatherPageContent(page: WeatherPageState) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { CurrentWeatherCard(page.weather!!) }
+            item { CurrentWeatherCard(page.weather!!, locationName) }
             if (page.hourly.isNotEmpty()) {
                 item {
                     Text(
@@ -224,19 +243,29 @@ private fun WeatherPageContent(page: WeatherPageState) {
     }
 
     selectedDay?.let { day ->
-        DayDetailDialog(day = day, onDismiss = { selectedDay = null })
+        DayDetailDialog(
+            day = day,
+            locationId = locationId,
+            viewModel = viewModel,
+            onDismiss = { selectedDay = null }
+        )
     }
 }
 
 @Composable
-private fun CurrentWeatherCard(weather: DetailedWeather) {
+private fun CurrentWeatherCard(weather: DetailedWeather, locationName: String?) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (weather.cityName.isNotBlank()) {
-                Text(weather.cityName, style = MaterialTheme.typography.titleMedium)
+            // Bevorzugt den selbst gewählten/gesuchten Ortsnamen statt des von OpenWeatherMap
+            // zurückgegebenen "name"-Felds, das für dieselben Koordinaten auf einen anderen,
+            // oft kleineren/unbekannteren Ort (nächstgelegener Eintrag in OWMs eigener
+            // Ortsdatenbank) zeigen kann als den tatsächlich gesuchten/gemeinten Ort.
+            val displayName = locationName?.takeIf { it.isNotBlank() } ?: weather.cityName
+            if (displayName.isNotBlank()) {
+                Text(displayName, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(4.dp))
             }
             Text(weather.emoji, style = MaterialTheme.typography.displayMedium)
@@ -345,11 +374,25 @@ private fun ForecastRow(day: DailyForecast, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DayDetailDialog(day: DailyForecast, onDismiss: () -> Unit) {
+private fun DayDetailDialog(
+    day: DailyForecast,
+    locationId: String,
+    viewModel: WeatherViewModel,
+    onDismiss: () -> Unit
+) {
+    var hourly by remember(day.dateEpochMillis) { mutableStateOf<List<HourlyForecast>>(emptyList()) }
+    var hourlyLoading by remember(day.dateEpochMillis) { mutableStateOf(true) }
+
+    LaunchedEffect(day.dateEpochMillis, locationId) {
+        hourlyLoading = true
+        hourly = viewModel.hourlyForDay(locationId, day.dateEpochMillis)
+        hourlyLoading = false
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                modifier = Modifier.fillMaxWidth().padding(24.dp).verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(formatFullDayLabel(day.dateEpochMillis), style = MaterialTheme.typography.titleMedium)
@@ -396,6 +439,23 @@ private fun DayDetailDialog(day: DailyForecast, onDismiss: () -> Unit) {
                         if (day.precipitationMm != null && day.precipitationMm > 0) {
                             WeatherStat("Niederschlag", "%.1f mm".format(day.precipitationMm))
                         }
+                    }
+                }
+
+                if (hourlyLoading) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    CircularProgressIndicator()
+                } else if (hourly.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(
+                        "Stündlich",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Start
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        items(hourly) { hour -> HourlyColumn(hour, isNow = false) }
                     }
                 }
 

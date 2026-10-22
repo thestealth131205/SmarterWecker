@@ -11,6 +11,8 @@ import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.data.repository.CalendarRepository
 import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import de.letheapp.nocturn.onboarding.AppPreferences
+import de.letheapp.nocturn.voice.VoiceCommandExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,9 @@ class AlarmListViewModel @Inject constructor(
     private val alarmScheduler: AlarmScheduler,
     private val calendarRepository: CalendarRepository,
     private val ioBrokerRepository: IoBrokerRepository,
-    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer
+    private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
+    private val voiceCommandExecutor: VoiceCommandExecutor,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     init {
@@ -130,5 +134,25 @@ class AlarmListViewModel @Inject constructor(
             alarmScheduler.cancel(alarm.id)
             alarmRepository.delete(alarm)
         }
+    }
+
+    val voiceCommandsEnabled: StateFlow<Boolean> = appPreferences.voiceCommandsEnabled
+
+    fun setVoiceCommandsEnabled(enabled: Boolean) {
+        appPreferences.setVoiceCommandsEnabled(enabled)
+    }
+
+    private val _voiceFeedback = MutableStateFlow<String?>(null)
+    val voiceFeedback: StateFlow<String?> = _voiceFeedback
+
+    /** Von Androids Spracherkenner transkribierter Text — Timer/Stoppuhr/einmaliger Wecker per Sprache. */
+    fun handleVoiceCommand(spokenText: String) {
+        viewModelScope.launch {
+            _voiceFeedback.value = voiceCommandExecutor.execute(spokenText)
+        }
+    }
+
+    fun clearVoiceFeedback() {
+        _voiceFeedback.value = null
     }
 }

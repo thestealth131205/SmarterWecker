@@ -469,6 +469,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
        bewusst ohne eigenen Foreground-Service, da es keinen festen Zeitpunkt gibt, der das
        rechtfertigen würde) unterstützt Start/Stopp/Runde/Zurücksetzen; anders als beim Timer
        gibt es dafür keine Android-Systemaktion — `SET_TIMER` kennt nur Timer, keine Stoppuhr.
+     - **Sprachbefehle für Timer/Stoppuhr/einmaligen Wecker** (Mikrofon-Symbol in der
+       Wecker-Titelleiste, neues Package `voice`): Androids Board-Mittel
+       `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` liefert die Spracherkennung (Sprachdaten
+       verlassen das Gerät nicht über diesen Systemaufruf hinaus, kein eigener Server/LLM-
+       Aufruf); der erkannte Text wird danach rein lokal/regelbasiert per Regex
+       (`VoiceCommandParser`) ausgewertet — "stelle einen Timer auf 10 Minuten", "starte/
+       stoppe/setze die Stoppuhr zurück", "wecke mich um 6 Uhr" (ergibt denselben
+       einmaligen Alarm wie `repeatDays = 0` im normalen Anlegen-Dialog, klingelt also
+       automatisch heute oder morgen, je nachdem ob die Uhrzeit schon vorbei ist).
+       `VoiceCommandExecutor` führt den erkannten Befehl aus (Timer-Start-Intent an
+       `TimerService`, `StopwatchRepository`, `AlarmRepository`/`AlarmScheduler`) und liefert
+       eine kurze Text-Rückmeldung als Toast. Nicht erkannte Sätze lösen keine Aktion aus,
+       sondern zeigen den unverstandenen Text zur Kontrolle an.
    - Die eigenen Zusatzfunktionen (Health-Connect-Überwachung, Notfall-Alarm,
      Schichtrotation-Verknüpfung je Alarm usw.) werden in dieses vertraute Grundgerüst
      integriert, nicht als komplett eigenes UI-Paradigma entworfen.

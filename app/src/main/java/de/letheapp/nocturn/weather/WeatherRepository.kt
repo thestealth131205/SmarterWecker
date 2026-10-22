@@ -21,7 +21,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -209,6 +211,32 @@ class WeatherRepository @Inject constructor(
         private set
 
     /**
+     * Stündliche Vorhersage für einen **beliebigen Tag** der 8-Tage-Vorhersage (nicht nur heute) —
+     * genutzt von der Tages-Detailansicht ([DayDetailDialog] im Wetter-Screen), wenn der Nutzer in
+     * der Vorhersage-Liste auf einen Tag tippt. Nutzt denselben "timeline/1h"-Endpoint wie
+     * [hourlyForecastToday], aber mit explizitem `date`-Parameter statt des Standard-"ab jetzt"-
+     * Fensters, und filtert die Antwort auf exakt diesen Kalendertag. Cache-Schlüssel ist pro Ort
+     * **und** Tag getrennt (reuse derselben [readHourlyCache]/[writeHourlyCache]-Helfer über einen
+     * zusammengesetzten Schlüssel, da diese rein als Cache-Suffix und nicht zur Standort-Auflösung
+     * dienen).
+     */
+    suspend fun hourlyForecastForDay(locationId: String = MAIN_LOCATION_ID, dayEpochMillis: Long): List<HourlyForecast>? =
+        withContext(Dispatchers.IO) {
+            if (!appPreferences.isWeatherEnabled()) return@withContext null
+
+            val cacheKey = locationId + "_day" + epochDay(dayEpochMillis)
+            val cachedAt = cachePrefs.getLong(KEY_HOURLY_CACHED_AT + cacheKey, 0L)
+            val cached = readHourlyCache(cacheKey)
+            if (cached != null && System.currentTimeMillis() - cachedAt < FORECAST_CACHE_VALIDITY_MS) {
+                return@withContext cached
+            }
+            fetchHourlyForDayFromApi(locationId, dayEpochMillis, cacheKey) ?: cached
+        }
+
+    private fun epochDay(epochMillis: Long): Long =
+        Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+
+    /**
      * Löscht den Wetter-Cache für einen Ort, z. B. nachdem der Nutzer dessen Koordinaten geändert
      * hat (Hauptort) oder ihn aus der Liste entfernt hat (zusätzlicher Ort). Ohne Parameter wird
      * nur der Hauptort-Cache gelöscht (bisheriges Verhalten, Standardfall nach Ortswahl).
@@ -342,13 +370,53 @@ class WeatherRepository @Inject constructor(
                 val body = response.body?.string().orEmpty()
                 val hourly = JSONObject(body).optJSONArray("data")
                     ?: error("Antwort enthält kein \"data\"-Feld: ${body.take(200)}")
-                val today = java.time.LocalDate.now()
+                val today = LocalDate.now()
                 (0 until hourly.length())
                     .map { index -> parseHourlyForecast(hourly.getJSONObject(index)) }
                     .filter { hour ->
                         Instant.ofEpochMilli(hour.timeEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate() == today
                     }
                     .also { writeHourlyCache(locationId, it) }
+            }
+        }
+        result.fold(
+            onSuccess = { lastHourlyError = null },
+            onFailure = { throwable -> lastHourlyError = throwable.message ?: throwable.toString() }
+        )
+        return result.getOrNull()
+    }
+
+    private suspend fun fetchHourlyForDayFromApi(locationId: String, dayEpochMillis: Long, cacheKey: String): List<HourlyForecast>? {
+        val apiKey = BuildConfig.OPENWEATHER_API_KEY
+        if (apiKey.isBlank()) {
+            lastHourlyError = "Kein OpenWeatherMap-API-Key hinterlegt."
+            return null
+        }
+        val location = resolveLocation(locationId) ?: run {
+            lastHourlyError = "Kein Standort verfügbar (Berechtigung/Ortswahl prüfen)."
+            return null
+        }
+        val targetDate = Instant.ofEpochMilli(dayEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+
+        val result = runCatching {
+            val dateParam = targetDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val url = "https://api.openweathermap.org/data/4.0/onecall/timeline/1h?" +
+                "lat=${location.latitude}&lon=${location.longitude}&date=$dateParam&appid=$apiKey&units=metric&lang=de"
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val bodySnippet = response.body?.string().orEmpty().take(200)
+                    error("HTTP ${response.code} ${response.message}".trim() + if (bodySnippet.isNotBlank()) " – $bodySnippet" else "")
+                }
+                val body = response.body?.string().orEmpty()
+                val hourly = JSONObject(body).optJSONArray("data")
+                    ?: error("Antwort enthält kein \"data\"-Feld: ${body.take(200)}")
+                (0 until hourly.length())
+                    .map { index -> parseHourlyForecast(hourly.getJSONObject(index)) }
+                    .filter { hour ->
+                        Instant.ofEpochMilli(hour.timeEpochMillis).atZone(ZoneId.systemDefault()).toLocalDate() == targetDate
+                    }
+                    .also { writeHourlyCache(cacheKey, it) }
             }
         }
         result.fold(

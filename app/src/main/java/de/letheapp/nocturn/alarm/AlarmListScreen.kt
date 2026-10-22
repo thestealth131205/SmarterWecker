@@ -3,6 +3,10 @@ package de.letheapp.nocturn.alarm
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AvTimer
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -78,6 +84,28 @@ fun AlarmListScreen(
     var pendingHour by remember { mutableIntStateOf(0) }
     var pendingMinute by remember { mutableIntStateOf(0) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showVoiceHelpDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val voiceCommandsEnabled by viewModel.voiceCommandsEnabled.collectAsState()
+    val voiceFeedback by viewModel.voiceFeedback.collectAsState()
+    val speechRecognitionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val spokenText = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+        if (!spokenText.isNullOrBlank()) {
+            viewModel.handleVoiceCommand(spokenText)
+        }
+    }
+
+    LaunchedEffect(voiceFeedback) {
+        voiceFeedback?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearVoiceFeedback()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -92,6 +120,22 @@ fun AlarmListScreen(
                     // Wetter/Kalender sind bereits über die untere Tab-Leiste erreichbar — hier
                     // stattdessen Stoppuhr/Timer, die (anders als Wecker/Wetter/Kalender) keine
                     // eigenen Tabs bekommen, aber genauso schnell zugänglich sein sollen.
+                    if (voiceCommandsEnabled) {
+                        IconButton(onClick = {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE")
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Timer, Stoppuhr oder Wecker per Sprache stellen …")
+                            }
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                speechRecognitionLauncher.launch(intent)
+                            } else {
+                                Toast.makeText(context, "Keine Spracherkennung auf diesem Gerät verfügbar.", Toast.LENGTH_LONG).show()
+                            }
+                        }) {
+                            Icon(Icons.Filled.Mic, contentDescription = "Sprachbefehl")
+                        }
+                    }
                     IconButton(onClick = onOpenStopwatch) {
                         Icon(Icons.Filled.AvTimer, contentDescription = "Stoppuhr")
                     }
@@ -132,6 +176,26 @@ fun AlarmListScreen(
                             onClick = {
                                 showOverflowMenu = false
                                 onOpenSettings()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Spracherkennung")
+                                    Switch(
+                                        checked = voiceCommandsEnabled,
+                                        onCheckedChange = { viewModel.setVoiceCommandsEnabled(it) }
+                                    )
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Filled.Mic, contentDescription = null) },
+                            onClick = {
+                                showOverflowMenu = false
+                                showVoiceHelpDialog = true
                             }
                         )
                     }
@@ -201,6 +265,28 @@ fun AlarmListScreen(
                 showWeekdayPicker = false
             },
             onDismiss = { showWeekdayPicker = false }
+        )
+    }
+
+    if (showVoiceHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showVoiceHelpDialog = false },
+            title = { Text("Sprachbefehle") },
+            text = {
+                Column {
+                    Text(
+                        "Tippe oben auf das Mikrofon-Symbol und sage einen der folgenden Befehle. " +
+                            "Die Spracherkennung läuft komplett über Android selbst, ohne eigenen Server.",
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    Text("„Stelle einen Timer auf 10 Minuten“", style = MaterialTheme.typography.bodyMedium)
+                    Text("„Starte/Stoppe die Stoppuhr“ bzw. „Setze die Stoppuhr zurück“", style = MaterialTheme.typography.bodyMedium)
+                    Text("„Wecke mich um 6 Uhr“", style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVoiceHelpDialog = false }) { Text("Verstanden") }
+            }
         )
     }
 
