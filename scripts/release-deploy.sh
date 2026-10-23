@@ -485,6 +485,13 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
     # dadurch ein nachfolgendes "occ upgrade" mit "Could not find path for nocturnkalenderold"
     # zum Abbruch -- live auf thestealth.de beobachtet und bereinigt.
     NK_BACKUP_DIR="/var/www/nocturnkalender-backups"
+    NK_DEPLOYED_VERSION="${NK_VERSION:-$(grep -oP '(?<=<version>)[^<]+' "$NK_DIR/appinfo/info.xml")}"
+    # "occ nocturnkalender:migrate" fuehrt zwar die Tabellen-Migrationen aus, aktualisiert aber
+    # NICHT den "installed_version"-Eintrag in oc_appconfig (das macht normalerweise nur
+    # "occ upgrade"/"occ app:update"). Ohne den folgenden "config:app:set" blieb dort dauerhaft
+    # die alte Version stehen -- Nextcloud erkannte das bei jedem Aufruf als "App braucht
+    # Upgrade" und ging deshalb staendig in den Wartungsmodus, obwohl das Schema laengst aktuell
+    # war (live auf thestealth.de beobachtet und behoben).
     NK_DEPLOY_CMD="set -e; sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --on; \
         sudo mkdir -p '${NK_BACKUP_DIR}'; \
         sudo rm -rf '${NK_BACKUP_DIR}/nocturnkalender.old' && sudo cp -a '${NEXTCLOUD_APP_DIR}' '${NK_BACKUP_DIR}/nocturnkalender.old' 2>/dev/null || true; \
@@ -493,6 +500,7 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
         sudo rm -f '${NK_REMOTE_TMP}'; \
         sudo chown -R www-data:www-data '${NEXTCLOUD_APP_DIR}'; \
         sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' nocturnkalender:migrate; \
+        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' config:app:set nocturnkalender installed_version --value='${NK_DEPLOYED_VERSION}'; \
         sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --off"
     retry 3 15 -- ssh_nc "$NK_DEPLOY_CMD" \
         || die "Deploy der Nocturn-Kalender-App auf dem Nextcloud-Server fehlgeschlagen (Wartungsmodus ggf. manuell prüfen/ausschalten: occ maintenance:mode --off)"
