@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -165,6 +166,7 @@ fun WeatherScreen(
 private val WeatherLocationEntry.shortName: String
     get() = name.substringBefore(",").trim().ifBlank { name }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WeatherPageContent(
     page: WeatherPageState,
@@ -174,6 +176,11 @@ private fun WeatherPageContent(
 ) {
     var selectedDay by remember { mutableStateOf<DailyForecast?>(null) }
 
+    PullToRefreshBox(
+        isRefreshing = page.loading,
+        onRefresh = { viewModel.load(locationId) },
+        modifier = Modifier.fillMaxSize()
+    ) {
     when {
         page.weather != null -> LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -240,6 +247,7 @@ private fun WeatherPageContent(
                 textAlign = TextAlign.Center
             )
         }
+    }
     }
 
     selectedDay?.let { day ->

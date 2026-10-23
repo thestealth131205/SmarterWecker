@@ -62,8 +62,14 @@ class NocturnOccurrence extends Entity implements JsonSerializable {
 	/** @var string|null */
 	protected $rotationUid;
 
+	// Kein PHP-Default hier (siehe day_index-Fix in Version6070Date20261015120000 für dieselbe
+	// Bug-Klasse): upsertManualOccurrence() setzt source explizit auf SOURCE_MANUAL, exakt den
+	// Wert, den ein PHP-Default hier hätte - Nextcloud's Entity::setter() würde das Feld dann als
+	// "unverändert" betrachten und aus dem INSERT weglassen. Die source-Spalte hat (anders als
+	// z. B. start_hour bei NocturnShift) keinen SQL-Level-Default, also 1364 auf MariaDB statt
+	// eines stillen Fallbacks.
 	/** @var string */
-	protected $source = self::SOURCE_MANUAL;
+	protected $source;
 
 	/** @var int */
 	protected $createdAt;

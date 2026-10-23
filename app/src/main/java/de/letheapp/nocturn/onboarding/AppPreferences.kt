@@ -21,6 +21,8 @@ private const val KEY_LIVE_LOCATION_ENABLED = "weather_live_location_enabled"
 private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
 private const val KEY_ADDITIONAL_LOCATIONS = "weather_additional_locations"
 private const val KEY_VOICE_COMMANDS_ENABLED = "voice_commands_enabled"
+private const val KEY_WEATHER_RAIN_NOTIFIED_HOUR = "weather_rain_notified_hour"
+private const val KEY_WEATHER_MORNING_NOTIFIED_DAY = "weather_morning_notified_day"
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -89,6 +91,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun setVoiceCommandsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_VOICE_COMMANDS_ENABLED, enabled).apply()
         _voiceCommandsEnabled.value = enabled
+    }
+
+    /**
+     * Dedup-Zustand für [de.letheapp.nocturn.weather.WeatherNotificationWorker]: verhindert, dass
+     * dieselbe Regen-Stunde bzw. derselbe Tag mehrfach benachrichtigt wird, da der Worker alle 15
+     * Minuten läuft.
+     */
+    fun getLastRainNotifiedHour(): Long = prefs.getLong(KEY_WEATHER_RAIN_NOTIFIED_HOUR, 0L)
+
+    fun setLastRainNotifiedHour(epochMillis: Long) {
+        prefs.edit().putLong(KEY_WEATHER_RAIN_NOTIFIED_HOUR, epochMillis).apply()
+    }
+
+    fun getLastMorningNotifiedDay(): Long = prefs.getLong(KEY_WEATHER_MORNING_NOTIFIED_DAY, 0L)
+
+    fun setLastMorningNotifiedDay(epochDay: Long) {
+        prefs.edit().putLong(KEY_WEATHER_MORNING_NOTIFIED_DAY, epochDay).apply()
     }
 
     /** Manuell gewählter Wetter-Ort statt der automatischen `LocationManager`-Ermittlung. */

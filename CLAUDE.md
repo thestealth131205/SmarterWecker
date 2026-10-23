@@ -659,7 +659,18 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   Abo-Aktivierung mit Zahlungsmethode im OpenWeatherMap-Konto, siehe
   `WeatherRepository`-Doc-Kommentar), API-Key-Handling analog Iosync-Projekt (`/opt/Iosync`):
   Key aus `local.properties` lokal, aus GitHub-Secret `OPENWEATHER_API_KEY` im CI, Einbindung
-  als `BuildConfig`-Feld — niemals im Repo.
+  als `BuildConfig`-Feld — niemals im Repo. Der Wetter-Screen lässt sich zusätzlich per
+  Pull-to-Refresh (`PullToRefreshBox`, Material3 1.3.0, stabil) manuell aktualisieren, ohne den
+  30-Minuten-Cache abzuwarten. **`WeatherNotificationWorker`** (Package `weather`, periodisch alle
+  15 Minuten über WorkManager — das von `PeriodicWorkRequest` erlaubte Minimum, läuft nur bei
+  aktiviertem Wetter-Opt-in) prüft zwei Benachrichtigungen: eine **Regen-Vorwarnung**, wenn es
+  aktuell trocken ist, aber laut stündlicher Vorhersage demnächst Regen angesagt ist
+  (Regenwahrscheinlichkeit ≥ 50 %, Dedup pro erkannter Regen-Stunde über
+  `AppPreferences.getLastRainNotifiedHour`), sowie eine **Morgen-Übersicht** einmal täglich
+  zwischen 6 und 10 Uhr (Dedup über `getLastMorningNotifiedDay`) mit der aktuellen gefühlten
+  Temperatur plus Kälte-Hinweis (gefühlt < 12 °C) und Wind-Hinweis (> 10 km/h); das Wettersymbol
+  steht dabei direkt als Emoji im Benachrichtigungstitel, passend zur emoji-basierten
+  Wetteranzeige im Rest der App statt eigener Icon-Assets.
 - Foto-Import/OCR (Kernfunktion 5): Texterkennung on-device über **Tesseract4Android**
   (Apache-2.0), final gewählt gemäß FOSS-Leitlinie gegenüber Googles closed-source ML Kit.
   Wird nicht auf Maven Central, sondern nur über **JitPack** veröffentlicht (Repository in

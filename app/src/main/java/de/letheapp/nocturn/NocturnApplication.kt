@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import dagger.hilt.android.HiltAndroidApp
 import de.letheapp.nocturn.sync.NextcloudSyncWorker
 import de.letheapp.nocturn.wear.WearSyncWorker
+import de.letheapp.nocturn.weather.WeatherNotificationWorker
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -39,6 +40,15 @@ class NocturnApplication : Application(), Configuration.Provider {
             WearSyncWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             wearRequest
+        )
+
+        // Regen-Vorwarnung + Morgen-Übersicht (siehe WeatherNotificationWorker) — 15 Minuten ist
+        // das von WorkManager erlaubte Minimum für PeriodicWorkRequest.
+        val weatherRequest = PeriodicWorkRequestBuilder<WeatherNotificationWorker>(15, TimeUnit.MINUTES).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            WeatherNotificationWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            weatherRequest
         )
     }
 }

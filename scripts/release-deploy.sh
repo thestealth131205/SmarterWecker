@@ -212,6 +212,21 @@ else
     grep -q "versionCode = $NEW_CODE" "$GRADLE_FILE" || die "versionCode-Ersetzung fehlgeschlagen"
     grep -q "versionName = \"$NEW_NAME\"" "$GRADLE_FILE" || die "versionName-Ersetzung fehlgeschlagen"
 
+    # ---------- 2b. NocTurn-Kalender-App-Version mitziehen ----------
+    # Stand lange statisch auf "6.7.0-dev.1" über viele Deploys hinweg -- Nextclouds
+    # Migrations-Runner (occ upgrade) erkennt neue, auszuführende Migrationen aber nur über
+    # einen Versionsunterschied zwischen info.xml und der in oc_appconfig.installed_version
+    # gespeicherten Version. Eine nie wechselnde Versionsnummer bedeutete: neue Migrationen
+    # wurden zwar als Datei ausgeliefert, aber nie tatsächlich ausgeführt (fehlende Tabellen/
+    # Spalten blieben bis zu einem manuellen Eingriff liegen). Ab jetzt an den monoton
+    # steigenden NocTurn-versionCode gekoppelt, damit jeder Deploy garantiert einen echten
+    # Versionssprung auslöst.
+    NK_VERSION="6.7.0-dev.${NEW_CODE}"
+    NK_INFO_XML="$REPO_DIR/Nocturn-Kalender/appinfo/info.xml"
+    NK_PACKAGE_JSON="$REPO_DIR/Nocturn-Kalender/package.json"
+    sed -i "s|<version>[^<]*</version>|<version>${NK_VERSION}</version>|" "$NK_INFO_XML"
+    sed -i "s|\"version\": \"[^\"]*\"|\"version\": \"${NK_VERSION}\"|" "$NK_PACKAGE_JSON"
+
     # ---------- 3. Commit + Push ----------
     git add -A
     if git diff --cached --quiet; then
@@ -433,6 +448,8 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
     log "Baue NocTurn-Kalender-App (npm/composer) für den Nextcloud-Deploy..."
     NK_DIR="$REPO_DIR/Nocturn-Kalender"
     [[ -d "$NK_DIR" ]] || die "Nocturn-Kalender-Ordner nicht gefunden unter $NK_DIR"
+    log "NocTurn-Kalender-App-Version: ${NK_VERSION:-$(grep -oP '(?<=<version>)[^<]+' "$NK_DIR/appinfo/info.xml")}"
+
     (cd "$NK_DIR" && npm run build) || die "npm run build für Nocturn-Kalender fehlgeschlagen"
     (cd "$NK_DIR" && composer install --no-dev --optimize-autoloader) || die "composer install für Nocturn-Kalender fehlgeschlagen"
     set_phase "nextcloud_app_built"
@@ -452,12 +469,30 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
     # Wartung an/aus statt eines reinen Datei-Austauschs ohne Absicherung: verhindert, dass
     # ein Nutzer mitten im Austausch halbe/inkonsistente App-Dateien ausgeliefert bekommt,
     # und zwingt Nextcloud danach zu einem sauberen Cache-Rebuild der App-Routen/Scripts.
+    # Der abschließende "occ nocturnkalender:migrate" (eigener, app-interner occ-Befehl, siehe
+    # lib/Command/Migrate.php) führt gezielt nur die NocTurn-Kalender-eigenen DB-Migrationen
+    # (calendar_noct_*-Tabellen) aus, OHNE Nextcloud-Core oder andere Apps anzufassen -- das
+    # allgemeine "occ upgrade" hätte dasselbe geleistet, aber bei jedem Deploy riskiert, einen
+    # eventuell noch anstehenden, unabhängigen Core-Update mit auszulösen. Vorher wurden neue
+    # Migrationen nur als Datei ausgeliefert, aber nie tatsächlich ausgeführt (die statische
+    # info.xml-Versionsnummer änderte sich nie, und reines Datei-Kopieren/Wartungsmodus-Toggle
+    # löst in Nextcloud von sich aus keinen Migrations-Lauf aus) -- fehlende Tabellen/Spalten
+    # blieben dadurch bis zu einem manuellen Eingriff liegen.
+    # Backup bewusst AUSSERHALB von .../apps/ (z. B. .old direkt neben dem App-Ordner läge selbst
+    # noch innerhalb des von Nextcloud gescannten apps-Verzeichnisses) -- Nextclouds App-Scanner
+    # las ein dort liegendes "nocturnkalender.old" sonst als eigene, kaputte Pseudo-App
+    # ("nocturnkalender.old"/"nocturnkalender.old2" tauchten in occ app:list auf) und brachte
+    # dadurch ein nachfolgendes "occ upgrade" mit "Could not find path for nocturnkalenderold"
+    # zum Abbruch -- live auf thestealth.de beobachtet und bereinigt.
+    NK_BACKUP_DIR="/var/www/nocturnkalender-backups"
     NK_DEPLOY_CMD="set -e; sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --on; \
-        sudo rm -rf '${NEXTCLOUD_APP_DIR}.old' && sudo cp -a '${NEXTCLOUD_APP_DIR}' '${NEXTCLOUD_APP_DIR}.old' 2>/dev/null || true; \
+        sudo mkdir -p '${NK_BACKUP_DIR}'; \
+        sudo rm -rf '${NK_BACKUP_DIR}/nocturnkalender.old' && sudo cp -a '${NEXTCLOUD_APP_DIR}' '${NK_BACKUP_DIR}/nocturnkalender.old' 2>/dev/null || true; \
         sudo mkdir -p '${NEXTCLOUD_APP_DIR}'; \
         sudo tar xzf '${NK_REMOTE_TMP}' -C '${NEXTCLOUD_APP_DIR}'; \
         sudo rm -f '${NK_REMOTE_TMP}'; \
         sudo chown -R www-data:www-data '${NEXTCLOUD_APP_DIR}'; \
+        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' nocturnkalender:migrate; \
         sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --off"
     retry 3 15 -- ssh_nc "$NK_DEPLOY_CMD" \
         || die "Deploy der Nocturn-Kalender-App auf dem Nextcloud-Server fehlgeschlagen (Wartungsmodus ggf. manuell prüfen/ausschalten: occ maintenance:mode --off)"

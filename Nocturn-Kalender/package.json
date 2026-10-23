@@ -1,7 +1,7 @@
 {
   "name": "nocturnkalender",
   "description": "NocTurn Kalender - der NocTurn-Schichtkalender fuer Nextcloud, basierend auf der offiziellen Nextcloud-Calendar-App.",
-  "version": "6.7.0-dev.1",
+  "version": "6.7.0-dev.38",
   "keywords": [
     "nextcloud",
     "calendars",
