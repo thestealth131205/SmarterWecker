@@ -54,12 +54,42 @@ data class RemoteOccurrence(
     val deletedAt: Long?
 )
 
+data class RemoteLesson(
+    val uid: String,
+    val jobUid: String,
+    val weekday: Int,
+    val name: String,
+    val color: String,
+    val startHour: Int,
+    val startMinute: Int,
+    val durationMinutes: Int,
+    val earliestWakeOffsetMinutes: Int,
+    val latestWakeupOffsetMinutes: Int,
+    val updatedAt: Long,
+    val deletedAt: Long?
+)
+
+data class RemoteTask(
+    val uid: String,
+    val title: String,
+    val notes: String?,
+    val dueEpochDay: Long,
+    val dueEpochMillis: Long?,
+    val allDay: Boolean,
+    val completed: Boolean,
+    val color: String,
+    val updatedAt: Long,
+    val deletedAt: Long?
+)
+
 data class RemoteScheduleChanges(
     val jobs: List<RemoteJob>,
     val shifts: List<RemoteShift>,
     val rotations: List<RemoteRotation>,
     val rotationDays: List<RemoteRotationDay>,
     val occurrences: List<RemoteOccurrence>,
+    val lessons: List<RemoteLesson>,
+    val tasks: List<RemoteTask>,
     val serverTime: Long
 )
 
@@ -124,8 +154,80 @@ class NocturnScheduleApiClient @Inject constructor() {
             rotations = data.getJSONArray("rotations").map(::parseRotation),
             rotationDays = data.getJSONArray("rotationDays").map(::parseRotationDay),
             occurrences = data.getJSONArray("occurrences").map(::parseOccurrence),
+            lessons = data.optJSONArray("lessons")?.map(::parseLesson).orEmpty(),
+            tasks = data.optJSONArray("tasks")?.map(::parseTask).orEmpty(),
             serverTime = data.getLong("serverTime")
         )
+    }
+
+    suspend fun upsertLesson(
+        serverUrl: String,
+        username: String,
+        password: String,
+        uid: String?,
+        jobUid: String,
+        weekday: Int,
+        name: String,
+        color: String,
+        startHour: Int,
+        startMinute: Int,
+        durationMinutes: Int,
+        earliestWakeOffsetMinutes: Int,
+        latestWakeupOffsetMinutes: Int,
+        updatedAt: Long?
+    ): RemoteLesson {
+        val body = formBody {
+            uid?.let { add("uid", it) }
+            add("jobUid", jobUid)
+            add("weekday", weekday.toString())
+            add("name", name)
+            add("color", color)
+            add("startHour", startHour.toString())
+            add("startMinute", startMinute.toString())
+            add("durationMinutes", durationMinutes.toString())
+            add("earliestWakeOffsetMinutes", earliestWakeOffsetMinutes.toString())
+            add("latestWakeupOffsetMinutes", latestWakeupOffsetMinutes.toString())
+            updatedAt?.let { add("updatedAt", it.toString()) }
+        }
+        val json = request(serverUrl, username, password, "POST", "lessons", body)
+        return parseLesson(json.getJSONObject("data"))
+    }
+
+    suspend fun deleteLesson(serverUrl: String, username: String, password: String, uid: String) {
+        request(serverUrl, username, password, "DELETE", "lessons/${encode(uid)}", null)
+    }
+
+    suspend fun upsertTask(
+        serverUrl: String,
+        username: String,
+        password: String,
+        uid: String?,
+        title: String,
+        notes: String?,
+        dueEpochDay: Long,
+        dueEpochMillis: Long?,
+        allDay: Boolean,
+        completed: Boolean,
+        color: String,
+        updatedAt: Long?
+    ): RemoteTask {
+        val body = formBody {
+            uid?.let { add("uid", it) }
+            add("title", title)
+            notes?.let { add("notes", it) }
+            add("dueEpochDay", dueEpochDay.toString())
+            dueEpochMillis?.let { add("dueEpochMillis", it.toString()) }
+            add("allDay", allDay.toString())
+            add("completed", completed.toString())
+            add("color", color)
+            updatedAt?.let { add("updatedAt", it.toString()) }
+        }
+        val json = request(serverUrl, username, password, "POST", "tasks", body)
+        return parseTask(json.getJSONObject("data"))
+    }
+
+    suspend fun deleteTask(serverUrl: String, username: String, password: String, uid: String) {
+        request(serverUrl, username, password, "DELETE", "tasks/${encode(uid)}", null)
     }
 
     suspend fun upsertJob(serverUrl: String, username: String, password: String, uid: String?, name: String, mode: String, updatedAt: Long?): RemoteJob {
@@ -264,6 +366,34 @@ class NocturnScheduleApiClient @Inject constructor() {
         rotationUid = o.getString("rotationUid"),
         dayIndex = o.getInt("dayIndex"),
         shiftUid = o.optStringOrNull("shiftUid"),
+        updatedAt = o.getLong("updatedAt"),
+        deletedAt = o.optLongOrNull("deletedAt")
+    )
+
+    private fun parseLesson(o: JSONObject) = RemoteLesson(
+        uid = o.getString("uid"),
+        jobUid = o.getString("jobUid"),
+        weekday = o.getInt("weekday"),
+        name = o.getString("name"),
+        color = o.getString("color"),
+        startHour = o.getInt("startHour"),
+        startMinute = o.getInt("startMinute"),
+        durationMinutes = o.getInt("durationMinutes"),
+        earliestWakeOffsetMinutes = o.getInt("earliestWakeOffsetMinutes"),
+        latestWakeupOffsetMinutes = o.getInt("latestWakeupOffsetMinutes"),
+        updatedAt = o.getLong("updatedAt"),
+        deletedAt = o.optLongOrNull("deletedAt")
+    )
+
+    private fun parseTask(o: JSONObject) = RemoteTask(
+        uid = o.getString("uid"),
+        title = o.getString("title"),
+        notes = o.optStringOrNull("notes"),
+        dueEpochDay = o.getLong("dueEpochDay"),
+        dueEpochMillis = o.optLongOrNull("dueEpochMillis"),
+        allDay = o.getBoolean("allDay"),
+        completed = o.getBoolean("completed"),
+        color = o.getString("color"),
         updatedAt = o.getLong("updatedAt"),
         deletedAt = o.optLongOrNull("deletedAt")
     )

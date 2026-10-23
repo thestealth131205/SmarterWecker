@@ -4,8 +4,6 @@
 -->
 
 <script setup lang="ts">
-import type NocturnJob from '@/models/nocturnJob.js'
-
 import { showError } from '@nextcloud/dialogs'
 import { t } from '@nextcloud/l10n'
 import {
@@ -25,9 +23,12 @@ import PlusIcon from 'vue-material-design-icons/Plus.vue'
 import DeleteIcon from 'vue-material-design-icons/TrashCanOutline.vue'
 import ApplyRotationModal from '@/components/NocturnScheduleModal/ApplyRotationModal.vue'
 import JobModal from '@/components/NocturnScheduleModal/JobModal.vue'
+import LessonModal from '@/components/NocturnScheduleModal/LessonModal.vue'
 import RotationModal from '@/components/NocturnScheduleModal/RotationModal.vue'
 import ShareJobModal from '@/components/NocturnScheduleModal/ShareJobModal.vue'
 import ShiftModal from '@/components/NocturnScheduleModal/ShiftModal.vue'
+import NocturnJob from '@/models/nocturnJob.js'
+import NocturnLesson from '@/models/nocturnLesson.js'
 import NocturnRotation from '@/models/nocturnRotation.js'
 import NocturnShift from '@/models/nocturnShift.js'
 import useNocturnScheduleStore, { nocturnJobVisibilityKey } from '@/store/nocturnSchedule.js'
@@ -41,8 +42,19 @@ const nocturnScheduleStore = useNocturnScheduleStore()
 
 const expanded = ref(false)
 
+const isStudentMode = computed(() => props.job.mode === NocturnJob.MODE_STUDENT)
 const shifts = computed(() => nocturnScheduleStore.shiftsForJob(props.job.uid))
 const rotations = computed(() => nocturnScheduleStore.rotationsForJob(props.job.uid))
+const lessons = computed(() => nocturnScheduleStore.lessonsForJob(props.job.uid))
+const weekdayLabels = computed(() => [
+	t('nocturnkalender', 'Mon'),
+	t('nocturnkalender', 'Tue'),
+	t('nocturnkalender', 'Wed'),
+	t('nocturnkalender', 'Thu'),
+	t('nocturnkalender', 'Fri'),
+	t('nocturnkalender', 'Sat'),
+	t('nocturnkalender', 'Sun'),
+])
 
 const visibilityKey = computed(() => nocturnJobVisibilityKey(null, props.job.uid))
 const isVisible = computed(() => nocturnScheduleStore.isJobVisible(visibilityKey.value))
@@ -60,6 +72,8 @@ const shiftModalIsNew = ref(false)
 const rotationModalTarget = ref<NocturnRotation | null>(null)
 const rotationModalIsNew = ref(false)
 const applyRotationTarget = ref<NocturnRotation | null>(null)
+const lessonModalTarget = ref<NocturnLesson | null>(null)
+const lessonModalIsNew = ref(false)
 const showShareModal = ref(false)
 
 function toggleExpanded(): void {
@@ -106,6 +120,26 @@ async function removeRotation(rotation: NocturnRotation): Promise<void> {
 	}
 }
 
+function openNewLesson(): void {
+	lessonModalTarget.value = NocturnLesson.createDefault(props.job.uid)
+	lessonModalIsNew.value = true
+	expanded.value = true
+}
+
+function openEditLesson(lesson: NocturnLesson): void {
+	lessonModalTarget.value = lesson
+	lessonModalIsNew.value = false
+}
+
+async function removeLesson(lesson: NocturnLesson): Promise<void> {
+	try {
+		await nocturnScheduleStore.deleteLesson(lesson.uid)
+	} catch (error) {
+		logger.error('Failed to delete NocTurn lesson', { error })
+		showError(t('nocturnkalender', 'Could not delete lesson'))
+	}
+}
+
 async function removeJob(): Promise<void> {
 	try {
 		await nocturnScheduleStore.deleteJob(props.job.uid)
@@ -138,18 +172,28 @@ async function removeJob(): Promise<void> {
 				<ChevronDownIcon v-else :size="16" />
 			</template>
 			<template #actions>
-				<ActionButton :closeAfterClick="true" @click="openNewShift">
-					<template #icon>
-						<ClockPlusIcon :size="20" />
-					</template>
-					{{ t('nocturnkalender', 'Add shift') }}
-				</ActionButton>
-				<ActionButton :closeAfterClick="true" @click="openNewRotation">
-					<template #icon>
-						<PlusIcon :size="20" />
-					</template>
-					{{ t('nocturnkalender', 'Add rotation') }}
-				</ActionButton>
+				<template v-if="isStudentMode">
+					<ActionButton :closeAfterClick="true" @click="openNewLesson">
+						<template #icon>
+							<ClockPlusIcon :size="20" />
+						</template>
+						{{ t('nocturnkalender', 'Add lesson') }}
+					</ActionButton>
+				</template>
+				<template v-else>
+					<ActionButton :closeAfterClick="true" @click="openNewShift">
+						<template #icon>
+							<ClockPlusIcon :size="20" />
+						</template>
+						{{ t('nocturnkalender', 'Add shift') }}
+					</ActionButton>
+					<ActionButton :closeAfterClick="true" @click="openNewRotation">
+						<template #icon>
+							<PlusIcon :size="20" />
+						</template>
+						{{ t('nocturnkalender', 'Add rotation') }}
+					</ActionButton>
+				</template>
 				<ActionButton :closeAfterClick="true" @click="showJobEditor = true">
 					<template #icon>
 						<PencilIcon :size="20" />
@@ -171,7 +215,29 @@ async function removeJob(): Promise<void> {
 			</template>
 		</AppNavigationItem>
 
-		<div v-if="expanded" class="nocturn-job-item__children">
+		<div v-if="expanded && isStudentMode" class="nocturn-job-item__children">
+			<div v-if="lessons.length === 0" class="nocturn-job-item__empty">
+				{{ t('nocturnkalender', 'No lessons yet') }}
+			</div>
+
+			<div
+				v-for="lesson in lessons"
+				:key="lesson.uid"
+				class="nocturn-job-item__child">
+				<span class="nocturn-job-item__color-dot" :style="{ 'background-color': lesson.color }" />
+				<span class="nocturn-job-item__child-weekday">{{ weekdayLabels[lesson.weekday] }}</span>
+				<span class="nocturn-job-item__child-name">{{ lesson.name }}</span>
+				<span class="nocturn-job-item__child-time">{{ lesson.startTimeLabel }}–{{ lesson.endTimeLabel }}</span>
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Edit')" @click="openEditLesson(lesson)">
+					<PencilIcon :size="16" />
+				</button>
+				<button class="nocturn-job-item__child-action" :aria-label="t('nocturnkalender', 'Delete')" @click="removeLesson(lesson)">
+					<DeleteIcon :size="16" />
+				</button>
+			</div>
+		</div>
+
+		<div v-else-if="expanded" class="nocturn-job-item__children">
 			<div v-if="shifts.length === 0 && rotations.length === 0" class="nocturn-job-item__empty">
 				{{ t('nocturnkalender', 'No shifts yet') }}
 			</div>
@@ -213,6 +279,7 @@ async function removeJob(): Promise<void> {
 		<ShiftModal v-if="shiftModalTarget" :shift="shiftModalTarget" :isNew="shiftModalIsNew" @close="shiftModalTarget = null" />
 		<RotationModal v-if="rotationModalTarget" :rotation="rotationModalTarget" :isNew="rotationModalIsNew" :shifts="shifts" @close="rotationModalTarget = null" />
 		<ApplyRotationModal v-if="applyRotationTarget" :rotation="applyRotationTarget" @close="applyRotationTarget = null" />
+		<LessonModal v-if="lessonModalTarget" :lesson="lessonModalTarget" :isNew="lessonModalIsNew" @close="lessonModalTarget = null" />
 		<ShareJobModal v-if="showShareModal" :job="job" @close="showShareModal = false" />
 	</div>
 </template>
@@ -244,6 +311,13 @@ async function removeJob(): Promise<void> {
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+
+		&-weekday {
+			color: var(--color-text-maxcontrast);
+			font-size: 0.85em;
+			flex-shrink: 0;
+			width: 28px;
 		}
 
 		&-time {

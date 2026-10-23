@@ -62,6 +62,13 @@ interface LessonDao {
     @Query("SELECT * FROM lessons WHERE jobId = :jobId ORDER BY weekday, startHour, startMinute")
     suspend fun getAllForJob(jobId: Long): List<LessonEntity>
 
+    /** Für den Nextcloud-Schedule-Sync: alle Stunden über alle Jobs hinweg, siehe [JobDao.getAllOnce]. */
+    @Query("SELECT * FROM lessons")
+    suspend fun getAllOnce(): List<LessonEntity>
+
+    @Query("SELECT * FROM lessons WHERE id = :id")
+    suspend fun getById(id: Long): LessonEntity?
+
     @Query("SELECT * FROM lessons WHERE jobId = :jobId AND weekday = :weekday ORDER BY startHour, startMinute")
     suspend fun getForJobAndWeekday(jobId: Long, weekday: Int): List<LessonEntity>
 
@@ -243,11 +250,19 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointment_attachments")
     fun observeAllAttachments(): Flow<List<AppointmentAttachmentEntity>>
 
+    /** Einmalig statt reaktiv, zum Zurücksetzen/Neuanlegen der Anhänge beim Termin-Bearbeiten. */
+    @Query("SELECT * FROM appointment_attachments WHERE appointmentId = :appointmentId")
+    suspend fun getAttachmentsOnce(appointmentId: Long): List<AppointmentAttachmentEntity>
+
     @Insert
     suspend fun insertAttachment(attachment: AppointmentAttachmentEntity): Long
 
     @Delete
     suspend fun deleteAttachment(attachment: AppointmentAttachmentEntity)
+
+    /** Für den Nextcloud-Pull: Anhänge aus einer neu gelesenen ICS-ATTACH-Liste ersetzen statt anzuhäufen. */
+    @Query("DELETE FROM appointment_attachments WHERE appointmentId = :appointmentId")
+    suspend fun deleteAllAttachmentsForAppointment(appointmentId: Long)
 
     @Query("SELECT * FROM appointment_reminders WHERE appointmentId = :appointmentId")
     fun observeReminders(appointmentId: Long): Flow<List<AppointmentReminderEntity>>
@@ -267,14 +282,52 @@ interface AppointmentDao {
     @Delete
     suspend fun deleteReminder(reminder: AppointmentReminderEntity)
 
+    /** Für den Nextcloud-Pull: Erinnerungen aus gelesenen ICS-VALARM-Blöcken ersetzen statt anzuhäufen. */
+    @Query("DELETE FROM appointment_reminders WHERE appointmentId = :appointmentId")
+    suspend fun deleteAllRemindersForAppointment(appointmentId: Long)
+
     @Delete
     suspend fun delete(appointment: AppointmentEntity)
+
+    /**
+     * Für die "Erinnerungen"-Sektion der Tagesansicht: alle Erinnerungen, deren Auslöse-
+     * Zeitpunkt (Termin-Beginn minus Vorlaufzeit) in den gegebenen Tag fällt — unabhängig
+     * davon, an welchem Tag der zugehörige Termin selbst liegt.
+     */
+    @Query(
+        """
+        SELECT r.id as reminderId, r.appointmentId as appointmentId, a.title as appointmentTitle,
+               a.colorArgb as appointmentColorArgb, r.minutesBefore as minutesBefore, r.channel as channel,
+               (a.startEpochMillis - r.minutesBefore * 60000) as triggerEpochMillis
+        FROM appointment_reminders r
+        JOIN appointments a ON a.id = r.appointmentId
+        WHERE (a.startEpochMillis - r.minutesBefore * 60000) >= :dayStartMillis
+            AND (a.startEpochMillis - r.minutesBefore * 60000) < :dayEndMillis
+        ORDER BY triggerEpochMillis
+        """
+    )
+    fun observeRemindersTriggeringInRange(dayStartMillis: Long, dayEndMillis: Long): Flow<List<ReminderAgendaRow>>
 }
+
+/** Projektion für [AppointmentDao.observeRemindersTriggeringInRange]. */
+data class ReminderAgendaRow(
+    val reminderId: Long,
+    val appointmentId: Long,
+    val appointmentTitle: String,
+    val appointmentColorArgb: Int,
+    val minutesBefore: Int,
+    val channel: String,
+    val triggerEpochMillis: Long
+)
 
 @Dao
 interface TaskDao {
     @Query("SELECT * FROM tasks WHERE dueEpochDay BETWEEN :fromEpochDay AND :toEpochDay ORDER BY completed, dueEpochMillis")
     fun observeRange(fromEpochDay: Long, toEpochDay: Long): Flow<List<TaskEntity>>
+
+    /** Für den Nextcloud-Schedule-Sync: alle Aufgaben, unabhängig vom Fälligkeitstag. */
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllOnce(): List<TaskEntity>
 
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getById(id: Long): TaskEntity?

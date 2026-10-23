@@ -602,14 +602,27 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   (`CalDavAccountEntity.syncNocturnSchedule`, Default aus), nutzt dasselbe bereits verbundene
   Nextcloud-Konto (kein zweiter Login). `NocturnSyncMappingEntity` hält pro Datensatz die
   lokal<->Server-uid-Zuordnung samt Last-Write-Wins-Zeitstempel und Inhalts-Hash (kein Re-Push
-  unveränderter Datensätze). **Bekannte Einschränkungen** (siehe Doc-Kommentar der Klasse):
-  die Server-API kennt pro Rotationstag nur eine Schicht (NocTurns neuere Mehrfachbelegung eines
-  Tages wird beim Push auf die erste Schicht reduziert), der automatische "Nächste Schicht"-
-  Wecker (`ShiftEntity.latestWakeupHour`) hat kein Server-Gegenstück, und Tageseinträge werden
-  nur in einem rollenden Fenster (-14/+180 Tage) abgeglichen statt der vollen, ggf.
-  mehrjährigen lokalen Historie — ein anderer Nextcloud-Nutzer kann die Rotation nach dem
-  Abgleich von Job/Schichten/Muster aber selbst über die Vue-Seitenleiste für einen beliebigen
-  eigenen Zeitraum anwenden.
+  unveränderter Datensätze). Seit Migration `Version6070Date20261023000000` synchronisieren
+  dieselben Mechanismen zusätzlich den **Wochenstundenplan** (Schüler/Student-Modus,
+  `calendar_noct_lessons`/`NocturnLesson`, pro Unterrichtsstunde Wochentag/Name/Farbe/Zeit/
+  Weckzeit-Abstand wie bei Schichten) sowie die **Aufgaben (Tasks)** (`calendar_noct_tasks`/
+  `NocturnTask`, Titel/Notiz/Fälligkeitstag/-uhrzeit/Ganztägig/Erledigt-Status) — beide laufen
+  nach demselben Push/Pull-Muster wie Jobs/Schichten (eigene `NocturnSyncLocalType`-Werte
+  `LESSON`/`TASK`, kein Schema-Zusatz auf Android-Seite nötig, da `LessonEntity`/`TaskEntity`
+  schon die nötigen Felder haben und die Server-uid-Zuordnung komplett über
+  `NocturnSyncMappingEntity` läuft). In der Vue-Seitenleiste zeigt `NocturnJobItem.vue` bei
+  einem Schüler/Student-Job statt Schichten/Rotationen die Unterrichtsstunden gruppiert nach
+  Wochentag (`LessonModal.vue`), `NocturnScheduleList.vue` bekommt dafür einen eigenen
+  "NocTurn tasks"-Abschnitt mit abhakbarer Liste (`TaskModal.vue`). **Bekannte Einschränkungen**
+  (siehe Doc-Kommentar der Klasse): die Server-API kennt pro Rotationstag nur eine Schicht
+  (NocTurns neuere Mehrfachbelegung eines Tages wird beim Push auf die erste Schicht reduziert),
+  der automatische "Nächste Schicht"-Wecker (`ShiftEntity.latestWakeupHour`) hat kein
+  Server-Gegenstück, und Tageseinträge werden nur in einem rollenden Fenster (-14/+180 Tage)
+  abgeglichen statt der vollen, ggf. mehrjährigen lokalen Historie — ein anderer Nextcloud-Nutzer
+  kann die Rotation nach dem Abgleich von Job/Schichten/Muster aber selbst über die
+  Vue-Seitenleiste für einen beliebigen eigenen Zeitraum anwenden. Der Wochenstundenplan erscheint
+  bisher nur verwaltbar in der Seitenleiste, nicht als eigene wiederkehrende Einträge im
+  FullCalendar-Raster der Nextcloud-App selbst (offener Folgeschritt, analog zum Job-Sharing).
 - **Job-Sharing in der geforkten Nextcloud-Calendar-App** (`calendar_noct_job_shares`,
   `NocturnJobShareMapper`/`NocturnJobShare`, Migration `Version6070Date20261016000000`): ein
   Job-Besitzer kann über ein "Teilen"-Icon in der Vue-Seitenleiste (`ShareJobModal.vue`, Nutzer-

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
@@ -77,6 +78,8 @@ fun AddAppointmentScreen(
     initialEndMillis: Long,
     initialAllDay: Boolean,
     initialPriority: AppointmentPriority = AppointmentPriority.NORMAL,
+    /** Ungleich null: Bearbeiten-Modus statt Neuanlage, siehe [AddAppointmentViewModel.loadForEdit]. */
+    appointmentId: Long? = null,
     onSaved: () -> Unit,
     onCancelled: () -> Unit,
     viewModel: AddAppointmentViewModel = hiltViewModel()
@@ -94,8 +97,26 @@ fun AddAppointmentScreen(
     var editingBegin by remember { mutableStateOf(false) }
     var editingEnd by remember { mutableStateOf(false) }
     var editingDate by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val attachments = remember { mutableStateListOf<PendingAttachment>() }
     val context = LocalContext.current
+
+    LaunchedEffect(appointmentId) {
+        val id = appointmentId ?: return@LaunchedEffect
+        val data = viewModel.loadForEdit(id) ?: return@LaunchedEffect
+        title = data.appointment.title
+        location = data.appointment.location
+        description = data.appointment.description
+        allDay = data.appointment.allDay
+        priority = AppointmentPriority.valueOf(data.appointment.priority)
+        showAsBusy = data.appointment.showAsBusy
+        beginMillis = data.appointment.startEpochMillis
+        endMillis = data.appointment.endEpochMillis
+        reminders.clear()
+        reminders.addAll(data.reminders)
+        attachments.clear()
+        attachments.addAll(data.attachments)
+    }
 
     val attachmentPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
@@ -112,7 +133,16 @@ fun AddAppointmentScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Termin speichern") })
+            TopAppBar(
+                title = { Text(if (appointmentId != null) "Termin bearbeiten" else "Termin speichern") },
+                actions = {
+                    if (appointmentId != null) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Termin löschen")
+                        }
+                    }
+                }
+            )
         },
         bottomBar = {
             Row(
@@ -121,19 +151,36 @@ fun AddAppointmentScreen(
             ) {
                 TextButton(onClick = onCancelled) { Text("Abbrechen") }
                 TextButton(onClick = {
-                    viewModel.save(
-                        title = title,
-                        location = location,
-                        description = description,
-                        startEpochMillis = beginMillis,
-                        endEpochMillis = endMillis,
-                        allDay = allDay,
-                        priority = priority,
-                        reminders = reminders.toList(),
-                        showAsBusy = showAsBusy,
-                        attachments = attachments.toList(),
-                        onSaved = onSaved
-                    )
+                    if (appointmentId != null) {
+                        viewModel.update(
+                            appointmentId = appointmentId,
+                            title = title,
+                            location = location,
+                            description = description,
+                            startEpochMillis = beginMillis,
+                            endEpochMillis = endMillis,
+                            allDay = allDay,
+                            priority = priority,
+                            reminders = reminders.toList(),
+                            showAsBusy = showAsBusy,
+                            attachments = attachments.toList(),
+                            onSaved = onSaved
+                        )
+                    } else {
+                        viewModel.save(
+                            title = title,
+                            location = location,
+                            description = description,
+                            startEpochMillis = beginMillis,
+                            endEpochMillis = endMillis,
+                            allDay = allDay,
+                            priority = priority,
+                            reminders = reminders.toList(),
+                            showAsBusy = showAsBusy,
+                            attachments = attachments.toList(),
+                            onSaved = onSaved
+                        )
+                    }
                 }) { Text("Speichern") }
             }
         }
@@ -342,6 +389,23 @@ fun AddAppointmentScreen(
                 showAddReminderDialog = false
             },
             onDismiss = { showAddReminderDialog = false }
+        )
+    }
+
+    if (showDeleteConfirm && appointmentId != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Termin löschen?") },
+            text = { Text("„$title“ wird endgültig gelöscht.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    viewModel.delete(appointmentId, onDeleted = onCancelled)
+                }) { Text("Löschen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Abbrechen") }
+            }
         )
     }
 }

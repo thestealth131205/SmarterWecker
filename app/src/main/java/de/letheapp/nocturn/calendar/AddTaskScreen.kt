@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -16,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +45,8 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AddTaskScreen(
     initialEpochDay: Long,
+    /** Ungleich null: Bearbeiten-Modus statt Neuanlage. */
+    taskId: Long? = null,
     onSaved: () -> Unit,
     onCancelled: () -> Unit,
     viewModel: AddTaskViewModel = hiltViewModel()
@@ -50,9 +58,31 @@ fun AddTaskScreen(
     var dueTimeMillis by remember { mutableStateOf<Long?>(null) }
     var editingDate by remember { mutableStateOf(false) }
     var editingTime by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(taskId) {
+        val id = taskId ?: return@LaunchedEffect
+        val task = viewModel.loadForEdit(id) ?: return@LaunchedEffect
+        title = task.title
+        notes = task.notes
+        allDay = task.allDay
+        date = LocalDate.ofEpochDay(task.dueEpochDay)
+        dueTimeMillis = task.dueEpochMillis
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Aufgabe speichern") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(if (taskId != null) "Aufgabe bearbeiten" else "Aufgabe speichern") },
+                actions = {
+                    if (taskId != null) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Aufgabe löschen")
+                        }
+                    }
+                }
+            )
+        },
         bottomBar = {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -60,14 +90,26 @@ fun AddTaskScreen(
             ) {
                 TextButton(onClick = onCancelled) { Text("Abbrechen") }
                 TextButton(onClick = {
-                    viewModel.save(
-                        title = title,
-                        notes = notes,
-                        dueEpochDay = date.toEpochDay(),
-                        dueEpochMillis = dueTimeMillis,
-                        allDay = allDay,
-                        onSaved = onSaved
-                    )
+                    if (taskId != null) {
+                        viewModel.update(
+                            taskId = taskId,
+                            title = title,
+                            notes = notes,
+                            dueEpochDay = date.toEpochDay(),
+                            dueEpochMillis = dueTimeMillis,
+                            allDay = allDay,
+                            onSaved = onSaved
+                        )
+                    } else {
+                        viewModel.save(
+                            title = title,
+                            notes = notes,
+                            dueEpochDay = date.toEpochDay(),
+                            dueEpochMillis = dueTimeMillis,
+                            allDay = allDay,
+                            onSaved = onSaved
+                        )
+                    }
                 }) { Text("Speichern") }
             }
         }
@@ -143,6 +185,23 @@ fun AddTaskScreen(
                 editingTime = false
             },
             onDismiss = { editingTime = false }
+        )
+    }
+
+    if (showDeleteConfirm && taskId != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Aufgabe löschen?") },
+            text = { Text("„$title“ wird endgültig gelöscht.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    viewModel.delete(taskId, onDeleted = onCancelled)
+                }) { Text("Löschen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Abbrechen") }
+            }
         )
     }
 }

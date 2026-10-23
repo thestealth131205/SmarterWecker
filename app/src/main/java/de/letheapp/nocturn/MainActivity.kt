@@ -55,13 +55,15 @@ private const val ROUTE_ALARM_LIST = "alarmList"
 private const val ROUTE_ALARM_EDIT = "alarmEdit/{alarmId}"
 private const val ROUTE_SOUND_PICKER = "soundPicker/{currentUri}"
 private const val ROUTE_JOB_LIST = "jobList"
-private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}"
+/** Letztes Segment ist optional (0 = kein bestimmter Schicht-Eintrag zum Direkt-Öffnen), siehe Tagesansicht-"bearbeiten". */
+private const val ROUTE_JOB_DETAIL = "jobDetail/{jobId}/{jobName}/{openShiftId}"
 private const val ROUTE_ROTATION_EDITOR = "rotationEditor/{jobId}/{rotationId}/{fromWizard}"
 private const val ROUTE_SHIFT_SETUP = "shiftSetup/{jobId}"
 private const val ROUTE_CALENDAR_MONTH = "calendarMonth"
 private const val ROUTE_CALENDAR_DAY = "calendarDay/{epochDay}"
-private const val ROUTE_CALENDAR_ADD_APPOINTMENT = "calendarAddAppointment/{epochDay}"
-private const val ROUTE_CALENDAR_ADD_TASK = "calendarAddTask/{epochDay}"
+/** Letztes Segment ist optional (0 = Neuanlage statt Bearbeiten), siehe Tagesansicht-"bearbeiten". */
+private const val ROUTE_CALENDAR_ADD_APPOINTMENT = "calendarAddAppointment/{epochDay}/{appointmentId}"
+private const val ROUTE_CALENDAR_ADD_TASK = "calendarAddTask/{epochDay}/{taskId}"
 private const val ROUTE_CALENDAR_ADD_SHIFT = "calendarAddShift/{epochDay}"
 private const val ROUTE_HOLIDAY_SETTINGS = "holidaySettings"
 private const val ROUTE_PERMISSIONS = "permissions/{firstRun}"
@@ -256,8 +258,8 @@ private fun NocturnNavHost(
         composable(ROUTE_CALENDAR_MONTH) {
             CalendarMonthScreen(
                 onBack = { navController.popBackStack() },
-                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
-                onAddTask = { date -> navController.navigate("calendarAddTask/${date.toEpochDay()}") },
+                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}/0") },
+                onAddTask = { date -> navController.navigate("calendarAddTask/${date.toEpochDay()}/0") },
                 onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
                 onOpenDay = { date -> navController.navigate("calendarDay/${date.toEpochDay()}") },
                 onOpenExport = { navController.navigate(ROUTE_CALENDAR_EXPORT) },
@@ -269,7 +271,7 @@ private fun NocturnNavHost(
                 onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
-                    navController.navigate("jobDetail/$jobId/$encodedName")
+                    navController.navigate("jobDetail/$jobId/$encodedName/0")
                 },
                 onSelectTab = onSelectTab
             )
@@ -279,22 +281,30 @@ private fun NocturnNavHost(
             CalendarExportScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(ROUTE_CALENDAR_DAY) {
+        composable(ROUTE_CALENDAR_DAY) { backStackEntry ->
+            val dayEpochDay = backStackEntry.arguments?.getString("epochDay")?.toLongOrNull() ?: LocalDate.now().toEpochDay()
             CalendarDayScreen(
                 onBack = { navController.popBackStack() },
-                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}") },
-                onAddTask = { date -> navController.navigate("calendarAddTask/${date.toEpochDay()}") },
+                onAddAppointment = { date -> navController.navigate("calendarAddAppointment/${date.toEpochDay()}/0") },
+                onAddTask = { date -> navController.navigate("calendarAddTask/${date.toEpochDay()}/0") },
                 onAddShift = { date -> navController.navigate("calendarAddShift/${date.toEpochDay()}") },
+                onEditAppointment = { appointmentId -> navController.navigate("calendarAddAppointment/$dayEpochDay/$appointmentId") },
+                onEditTask = { taskId -> navController.navigate("calendarAddTask/$dayEpochDay/$taskId") },
+                onEditShift = { jobId, jobName, shiftId ->
+                    val encodedName = URLEncoder.encode(jobName, "UTF-8")
+                    navController.navigate("jobDetail/$jobId/$encodedName/$shiftId")
+                },
                 onOpenRotationEditor = { jobId -> navController.navigate("shiftSetup/$jobId") },
                 onOpenJobTimetable = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
-                    navController.navigate("jobDetail/$jobId/$encodedName")
+                    navController.navigate("jobDetail/$jobId/$encodedName/0")
                 }
             )
         }
 
         composable(ROUTE_CALENDAR_ADD_APPOINTMENT) { backStackEntry ->
             val epochDay = backStackEntry.arguments?.getString("epochDay")?.toLongOrNull() ?: LocalDate.now().toEpochDay()
+            val appointmentId = backStackEntry.arguments?.getString("appointmentId")?.toLongOrNull()?.takeIf { it > 0 }
             val date = LocalDate.ofEpochDay(epochDay)
             val zone = ZoneId.systemDefault()
             val beginMillis = date.atTime(8, 0).atZone(zone).toInstant().toEpochMilli()
@@ -307,6 +317,7 @@ private fun NocturnNavHost(
                 initialBeginMillis = beginMillis,
                 initialEndMillis = endMillis,
                 initialAllDay = false,
+                appointmentId = appointmentId,
                 onSaved = { navController.popBackStack() },
                 onCancelled = { navController.popBackStack() }
             )
@@ -314,8 +325,10 @@ private fun NocturnNavHost(
 
         composable(ROUTE_CALENDAR_ADD_TASK) { backStackEntry ->
             val epochDay = backStackEntry.arguments?.getString("epochDay")?.toLongOrNull() ?: LocalDate.now().toEpochDay()
+            val taskId = backStackEntry.arguments?.getString("taskId")?.toLongOrNull()?.takeIf { it > 0 }
             AddTaskScreen(
                 initialEpochDay = epochDay,
+                taskId = taskId,
                 onSaved = { navController.popBackStack() },
                 onCancelled = { navController.popBackStack() }
             )
@@ -334,7 +347,7 @@ private fun NocturnNavHost(
             JobListScreen(
                 onOpenJob = { jobId, jobName ->
                     val encodedName = URLEncoder.encode(jobName, "UTF-8")
-                    navController.navigate("jobDetail/$jobId/$encodedName")
+                    navController.navigate("jobDetail/$jobId/$encodedName/0")
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -344,9 +357,11 @@ private fun NocturnNavHost(
             val jobId = backStackEntry.arguments?.getString("jobId")?.toLongOrNull() ?: return@composable
             val encodedName = backStackEntry.arguments?.getString("jobName").orEmpty()
             val jobName = URLDecoder.decode(encodedName, "UTF-8")
+            val openShiftId = backStackEntry.arguments?.getString("openShiftId")?.toLongOrNull()?.takeIf { it > 0 }
 
             JobDetailScreen(
                 jobName = jobName,
+                openShiftId = openShiftId,
                 onOpenRotationEditor = { rotationId ->
                     navController.navigate("rotationEditor/$jobId/${rotationId ?: -1L}/false")
                 },

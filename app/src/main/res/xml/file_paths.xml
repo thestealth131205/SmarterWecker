@@ -3,4 +3,5 @@
     <cache-path name="ocr_captures" path="ocr_captures/" />
     <cache-path name="calendar_export" path="calendar_export/" />
     <cache-path name="calendar_share" path="calendar_share/" />
+    <files-path name="synced_attachments" path="synced_attachments/" />
 </paths>

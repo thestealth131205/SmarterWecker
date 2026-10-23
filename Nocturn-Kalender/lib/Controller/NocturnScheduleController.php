@@ -258,6 +258,125 @@ class NocturnScheduleController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 *
+	 * Creates or edits a single weekly timetable period of a student-mode
+	 * job, e.g. "Mathe" every Monday 07:45-08:30.
+	 */
+	public function upsertLesson(
+		?string $uid,
+		string $jobUid,
+		int $weekday,
+		string $name,
+		string $color,
+		int $startHour,
+		int $startMinute,
+		int $durationMinutes,
+		int $earliestWakeOffsetMinutes = 0,
+		int $latestWakeupOffsetMinutes = 0,
+		?int $updatedAt = null,
+	): JsonResponse {
+		if (($response = $this->requireUser()) !== null) {
+			return $response;
+		}
+
+		try {
+			$lesson = $this->service->upsertLesson(
+				$this->userId,
+				$uid,
+				$jobUid,
+				$weekday,
+				$name,
+				$color,
+				$startHour,
+				$startMinute,
+				$durationMinutes,
+				$earliestWakeOffsetMinutes,
+				$latestWakeupOffsetMinutes,
+				$updatedAt,
+			);
+			return JsonResponse::success($lesson);
+		} catch (ServiceException $e) {
+			$this->logger->error('Could not save NocTurn lesson', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function deleteLesson(string $uid): JsonResponse {
+		if (($response = $this->requireUser()) !== null) {
+			return $response;
+		}
+
+		try {
+			$this->service->deleteLesson($this->userId, $uid);
+			return JsonResponse::success();
+		} catch (ServiceException $e) {
+			$this->logger->error('Could not delete NocTurn lesson', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 *
+	 * Creates or edits a to-do item.
+	 */
+	public function upsertTask(
+		?string $uid,
+		string $title,
+		?string $notes,
+		int $dueEpochDay,
+		?int $dueEpochMillis = null,
+		bool $allDay = true,
+		bool $completed = false,
+		string $color = '#4CAF50',
+		?int $updatedAt = null,
+	): JsonResponse {
+		if (($response = $this->requireUser()) !== null) {
+			return $response;
+		}
+
+		try {
+			$task = $this->service->upsertTask(
+				$this->userId,
+				$uid,
+				$title,
+				$notes,
+				$dueEpochDay,
+				$dueEpochMillis,
+				$allDay,
+				$completed,
+				$color,
+				$updatedAt,
+			);
+			return JsonResponse::success($task);
+		} catch (ServiceException $e) {
+			$this->logger->error('Could not save NocTurn task', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function deleteTask(string $uid): JsonResponse {
+		if (($response = $this->requireUser()) !== null) {
+			return $response;
+		}
+
+		try {
+			$this->service->deleteTask($this->userId, $uid);
+			return JsonResponse::success();
+		} catch (ServiceException $e) {
+			$this->logger->error('Could not delete NocTurn task', ['exception' => $e]);
+			return JsonResponse::fail($e->getMessage(), Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 *
 	 * Occurrences of one of the caller's own jobs within a date range - feeds
 	 * the calendar grid's NocTurn event source.
 	 */

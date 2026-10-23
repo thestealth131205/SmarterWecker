@@ -499,8 +499,61 @@ class CalendarRepository @Inject constructor(
         appointmentDao.delete(appointment)
     }
 
+    suspend fun getAppointment(id: Long): AppointmentEntity? = appointmentDao.getById(id)
+
+    /**
+     * Aktualisiert die Stammdaten eines bestehenden Termins (Tagesansicht-Bearbeiten-Screen,
+     * wiederverwendet [de.letheapp.nocturn.calendar.AddAppointmentScreen]). Erinnerungen/
+     * Anhänge werden separat über [removeAppointmentReminder]/[addAppointmentReminder] bzw.
+     * [removeAppointmentAttachment]/[addAppointmentAttachment] abgeglichen.
+     */
+    suspend fun updateAppointmentFull(
+        id: Long,
+        title: String,
+        location: String,
+        description: String,
+        startEpochMillis: Long,
+        endEpochMillis: Long,
+        allDay: Boolean,
+        priority: AppointmentPriority,
+        showAsBusy: Boolean
+    ) {
+        val existing = appointmentDao.getById(id) ?: return
+        val zone = java.time.ZoneId.systemDefault()
+        val startDay = java.time.Instant.ofEpochMilli(startEpochMillis).atZone(zone).toLocalDate().toEpochDay()
+        val endDay = java.time.Instant.ofEpochMilli(endEpochMillis).atZone(zone).toLocalDate().toEpochDay()
+        appointmentDao.update(
+            existing.copy(
+                title = title,
+                location = location,
+                description = description,
+                startEpochMillis = startEpochMillis,
+                endEpochMillis = endEpochMillis,
+                startEpochDay = startDay,
+                endEpochDay = maxOf(startDay, endDay),
+                allDay = allDay,
+                priority = priority.name,
+                showAsBusy = showAsBusy,
+                dirty = true
+            )
+        )
+    }
+
     fun observeAppointmentReminders(appointmentId: Long): Flow<List<AppointmentReminderEntity>> =
         appointmentDao.observeReminders(appointmentId)
+
+    suspend fun getAppointmentRemindersOnce(appointmentId: Long): List<AppointmentReminderEntity> =
+        appointmentDao.getRemindersForAppointment(appointmentId)
+
+    /** "Erinnerungen"-Sektion der Tagesansicht, siehe [de.letheapp.nocturn.calendar.CalendarDayViewModel]. */
+    fun observeRemindersTriggeringInRange(dayStartMillis: Long, dayEndMillis: Long) =
+        appointmentDao.observeRemindersTriggeringInRange(dayStartMillis, dayEndMillis)
+
+    suspend fun removeAppointmentReminderById(reminderId: Long) {
+        val reminder = appointmentDao.getReminderById(reminderId) ?: return
+        appointmentReminderScheduler.cancel(reminder.id)
+        appointmentDao.deleteReminder(reminder)
+    }
 
     /**
      * Legt eine zusätzliche Erinnerung für einen Termin an (per "+" im Termin-Formular, siehe
@@ -539,6 +592,9 @@ class CalendarRepository @Inject constructor(
     fun observeAllAppointmentAttachments(): Flow<List<AppointmentAttachmentEntity>> =
         appointmentDao.observeAllAttachments()
 
+    suspend fun getAppointmentAttachmentsOnce(appointmentId: Long): List<AppointmentAttachmentEntity> =
+        appointmentDao.getAttachmentsOnce(appointmentId)
+
     suspend fun addAppointmentAttachment(appointmentId: Long, uri: String, fileName: String, mimeType: String?): Long =
         appointmentDao.insertAttachment(
             AppointmentAttachmentEntity(appointmentId = appointmentId, uri = uri, fileName = fileName, mimeType = mimeType)
@@ -575,6 +631,28 @@ class CalendarRepository @Inject constructor(
         taskDao.update(task.copy(completed = completed))
     }
 
+    suspend fun getTask(id: Long): TaskEntity? = taskDao.getById(id)
+
+    suspend fun updateTaskFull(
+        id: Long,
+        title: String,
+        notes: String,
+        dueEpochDay: Long,
+        dueEpochMillis: Long?,
+        allDay: Boolean
+    ) {
+        val existing = taskDao.getById(id) ?: return
+        taskDao.update(
+            existing.copy(
+                title = title,
+                notes = notes,
+                dueEpochDay = dueEpochDay,
+                dueEpochMillis = if (allDay) null else dueEpochMillis,
+                allDay = allDay
+            )
+        )
+    }
+
     suspend fun deleteTask(task: TaskEntity) = taskDao.delete(task)
 
     // Manuell eingetragene Einzel-Schichten (siehe CalendarMonthScreen-FAB, Option "Schicht")
@@ -586,6 +664,16 @@ class CalendarRepository @Inject constructor(
         manualShiftEntryDao.insert(ManualShiftEntryEntity(jobId = jobId, shiftId = shiftId, dateEpochDay = dateEpochDay))
 
     suspend fun deleteManualShiftEntry(entry: ManualShiftEntryEntity) = manualShiftEntryDao.delete(entry)
+
+    /** Löscht nur diesen einen Tageseintrag einer Schicht (Tagesansicht-Papierkorb), nicht die Schicht-Vorlage selbst. */
+    suspend fun deleteManualShiftEntryById(id: Long) {
+        manualShiftEntryDao.getById(id)?.let { manualShiftEntryDao.delete(it) }
+    }
+
+    /** Löscht nur diesen einen aus einer Rotation fortgeschriebenen Tageseintrag, nicht die Rotation selbst. */
+    suspend fun deleteCalendarEntryById(id: Long) {
+        calendarEntryDao.getById(id)?.let { calendarEntryDao.delete(it) }
+    }
 
     /**
      * Löscht alle Einträge (Schichten aus Rotationen, manuelle Schichten, Termine, Aufgaben) an

@@ -57,6 +57,11 @@ return [
 		['name' => 'nocturnSchedule#upsertOccurrence', 'url' => '/v1/nocturn/occurrences', 'verb' => 'POST'],
 		['name' => 'nocturnSchedule#deleteOccurrence', 'url' => '/v1/nocturn/occurrences/{uid}', 'verb' => 'DELETE'],
 		['name' => 'nocturnSchedule#ownOccurrences', 'url' => '/v1/nocturn/jobs/{jobUid}/occurrences', 'verb' => 'GET'],
+		// NocTurn weekly timetable (student-mode jobs) + task list
+		['name' => 'nocturnSchedule#upsertLesson', 'url' => '/v1/nocturn/lessons', 'verb' => 'POST'],
+		['name' => 'nocturnSchedule#deleteLesson', 'url' => '/v1/nocturn/lessons/{uid}', 'verb' => 'DELETE'],
+		['name' => 'nocturnSchedule#upsertTask', 'url' => '/v1/nocturn/tasks', 'verb' => 'POST'],
+		['name' => 'nocturnSchedule#deleteTask', 'url' => '/v1/nocturn/tasks/{uid}', 'verb' => 'DELETE'],
 		// NocTurn job sharing (share a job's full schedule with another Nextcloud user)
 		['name' => 'nocturnSchedule#shareJob', 'url' => '/v1/nocturn/jobs/{uid}/share', 'verb' => 'POST'],
 		['name' => 'nocturnSchedule#unshareJob', 'url' => '/v1/nocturn/jobs/{uid}/share/{sharedWithUserId}', 'verb' => 'DELETE'],

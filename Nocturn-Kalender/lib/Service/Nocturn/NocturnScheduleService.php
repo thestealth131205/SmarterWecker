@@ -16,6 +16,8 @@ use OCA\NocturnKalender\Db\NocturnJob;
 use OCA\NocturnKalender\Db\NocturnJobMapper;
 use OCA\NocturnKalender\Db\NocturnJobShare;
 use OCA\NocturnKalender\Db\NocturnJobShareMapper;
+use OCA\NocturnKalender\Db\NocturnLesson;
+use OCA\NocturnKalender\Db\NocturnLessonMapper;
 use OCA\NocturnKalender\Db\NocturnOccurrence;
 use OCA\NocturnKalender\Db\NocturnOccurrenceMapper;
 use OCA\NocturnKalender\Db\NocturnRotation;
@@ -24,6 +26,8 @@ use OCA\NocturnKalender\Db\NocturnRotationDayMapper;
 use OCA\NocturnKalender\Db\NocturnRotationMapper;
 use OCA\NocturnKalender\Db\NocturnShift;
 use OCA\NocturnKalender\Db\NocturnShiftMapper;
+use OCA\NocturnKalender\Db\NocturnTask;
+use OCA\NocturnKalender\Db\NocturnTaskMapper;
 use OCA\NocturnKalender\Exception\ClientException;
 use OCA\NocturnKalender\Exception\ServiceException;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -56,6 +60,8 @@ class NocturnScheduleService {
 		private NocturnRotationDayMapper $rotationDayMapper,
 		private NocturnOccurrenceMapper $occurrenceMapper,
 		private NocturnJobShareMapper $jobShareMapper,
+		private NocturnLessonMapper $lessonMapper,
+		private NocturnTaskMapper $taskMapper,
 		private IDBConnection $db,
 		private ISecureRandom $random,
 		private IUserManager $userManager,
@@ -71,7 +77,7 @@ class NocturnScheduleService {
 	}
 
 	/**
-	 * @return array{jobs: NocturnJob[], shifts: NocturnShift[], rotations: NocturnRotation[], rotationDays: NocturnRotationDay[], occurrences: NocturnOccurrence[], serverTime: int}
+	 * @return array{jobs: NocturnJob[], shifts: NocturnShift[], rotations: NocturnRotation[], rotationDays: NocturnRotationDay[], occurrences: NocturnOccurrence[], lessons: NocturnLesson[], tasks: NocturnTask[], serverTime: int}
 	 * @throws ServiceException
 	 */
 	public function getChangesSince(string $userId, int $since): array {
@@ -82,6 +88,8 @@ class NocturnScheduleService {
 				'rotations' => $this->rotationMapper->findChangedSince($userId, $since),
 				'rotationDays' => $this->rotationDayMapper->findChangedSince($userId, $since),
 				'occurrences' => $this->occurrenceMapper->findChangedSince($userId, $since),
+				'lessons' => $this->lessonMapper->findChangedSince($userId, $since),
+				'tasks' => $this->taskMapper->findChangedSince($userId, $since),
 				// Use as the `since` value of the next call.
 				'serverTime' => $this->now(),
 			];
@@ -583,8 +591,140 @@ class NocturnScheduleService {
 	}
 
 	/**
-	 * @template T of NocturnJob|NocturnShift|NocturnRotation|NocturnOccurrence
-	 * @param NocturnJobMapper|NocturnShiftMapper|NocturnRotationMapper|NocturnOccurrenceMapper $mapper
+	 * A single weekly timetable period of a student-mode job, e.g. "Mathe"
+	 * every Monday 07:45-08:30.
+	 *
+	 * @throws ServiceException
+	 */
+	public function upsertLesson(
+		string $userId,
+		?string $uid,
+		string $jobUid,
+		int $weekday,
+		string $name,
+		string $color,
+		int $startHour,
+		int $startMinute,
+		int $durationMinutes,
+		int $earliestWakeOffsetMinutes,
+		int $latestWakeupOffsetMinutes,
+		?int $clientUpdatedAt,
+	): NocturnLesson {
+		try {
+			$existing = $uid !== null ? $this->findLessonOrNull($uid, $userId) : null;
+
+			if ($existing !== null) {
+				if ($clientUpdatedAt !== null && $clientUpdatedAt < $existing->getUpdatedAt()) {
+					return $existing;
+				}
+				$existing->setJobUid($jobUid);
+				$existing->setWeekday($weekday);
+				$existing->setName($name);
+				$existing->setColor($color);
+				$existing->setStartHour($startHour);
+				$existing->setStartMinute($startMinute);
+				$existing->setDurationMinutes($durationMinutes);
+				$existing->setEarliestWakeOffsetMinutes($earliestWakeOffsetMinutes);
+				$existing->setLatestWakeupOffsetMinutes($latestWakeupOffsetMinutes);
+				$existing->setDeletedAt(null);
+				$existing->setUpdatedAt($clientUpdatedAt ?? $this->now());
+				return $this->lessonMapper->update($existing);
+			}
+
+			$lesson = new NocturnLesson();
+			$lesson->setUid($uid ?? $this->newUid());
+			$lesson->setUserId($userId);
+			$lesson->setJobUid($jobUid);
+			$lesson->setWeekday($weekday);
+			$lesson->setName($name);
+			$lesson->setColor($color);
+			$lesson->setStartHour($startHour);
+			$lesson->setStartMinute($startMinute);
+			$lesson->setDurationMinutes($durationMinutes);
+			$lesson->setEarliestWakeOffsetMinutes($earliestWakeOffsetMinutes);
+			$lesson->setLatestWakeupOffsetMinutes($latestWakeupOffsetMinutes);
+			$now = $this->now();
+			$lesson->setCreatedAt($now);
+			$lesson->setUpdatedAt($clientUpdatedAt ?? $now);
+			return $this->lessonMapper->insert($lesson);
+		} catch (DbException|MultipleObjectsReturnedException $e) {
+			throw new ServiceException('Could not save lesson', 0, $e);
+		}
+	}
+
+	/**
+	 * @throws ServiceException
+	 */
+	public function deleteLesson(string $userId, string $uid): void {
+		$this->softDelete($this->lessonMapper, $this->findLessonOrNull($uid, $userId), 'lesson');
+	}
+
+	/**
+	 * A to-do item, independent of any job - unlike an appointment it has no
+	 * fixed time range, just a due day and optionally a due time.
+	 *
+	 * @throws ServiceException
+	 */
+	public function upsertTask(
+		string $userId,
+		?string $uid,
+		string $title,
+		?string $notes,
+		int $dueEpochDay,
+		?int $dueEpochMillis,
+		bool $allDay,
+		bool $completed,
+		string $color,
+		?int $clientUpdatedAt,
+	): NocturnTask {
+		try {
+			$existing = $uid !== null ? $this->findTaskOrNull($uid, $userId) : null;
+
+			if ($existing !== null) {
+				if ($clientUpdatedAt !== null && $clientUpdatedAt < $existing->getUpdatedAt()) {
+					return $existing;
+				}
+				$existing->setTitle($title);
+				$existing->setNotes($notes);
+				$existing->setDueEpochDay($dueEpochDay);
+				$existing->setDueEpochMillis($dueEpochMillis);
+				$existing->setAllDay($allDay);
+				$existing->setCompleted($completed);
+				$existing->setColor($color);
+				$existing->setDeletedAt(null);
+				$existing->setUpdatedAt($clientUpdatedAt ?? $this->now());
+				return $this->taskMapper->update($existing);
+			}
+
+			$task = new NocturnTask();
+			$task->setUid($uid ?? $this->newUid());
+			$task->setUserId($userId);
+			$task->setTitle($title);
+			$task->setNotes($notes);
+			$task->setDueEpochDay($dueEpochDay);
+			$task->setDueEpochMillis($dueEpochMillis);
+			$task->setAllDay($allDay);
+			$task->setCompleted($completed);
+			$task->setColor($color);
+			$now = $this->now();
+			$task->setCreatedAt($now);
+			$task->setUpdatedAt($clientUpdatedAt ?? $now);
+			return $this->taskMapper->insert($task);
+		} catch (DbException|MultipleObjectsReturnedException $e) {
+			throw new ServiceException('Could not save task', 0, $e);
+		}
+	}
+
+	/**
+	 * @throws ServiceException
+	 */
+	public function deleteTask(string $userId, string $uid): void {
+		$this->softDelete($this->taskMapper, $this->findTaskOrNull($uid, $userId), 'task');
+	}
+
+	/**
+	 * @template T of NocturnJob|NocturnShift|NocturnRotation|NocturnOccurrence|NocturnLesson|NocturnTask
+	 * @param NocturnJobMapper|NocturnShiftMapper|NocturnRotationMapper|NocturnOccurrenceMapper|NocturnLessonMapper|NocturnTaskMapper $mapper
 	 * @param T|null $entity
 	 * @throws ServiceException
 	 */
@@ -641,6 +781,26 @@ class NocturnScheduleService {
 			return null;
 		} catch (MultipleObjectsReturnedException $e) {
 			throw new ServiceException('Ambiguous day entry uid', 0, $e);
+		}
+	}
+
+	private function findLessonOrNull(string $uid, string $userId): ?NocturnLesson {
+		try {
+			return $this->lessonMapper->findByUidForUser($uid, $userId);
+		} catch (DoesNotExistException) {
+			return null;
+		} catch (MultipleObjectsReturnedException $e) {
+			throw new ServiceException('Ambiguous lesson uid', 0, $e);
+		}
+	}
+
+	private function findTaskOrNull(string $uid, string $userId): ?NocturnTask {
+		try {
+			return $this->taskMapper->findByUidForUser($uid, $userId);
+		} catch (DoesNotExistException) {
+			return null;
+		} catch (MultipleObjectsReturnedException $e) {
+			throw new ServiceException('Ambiguous task uid', 0, $e);
 		}
 	}
 }

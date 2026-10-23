@@ -36,6 +36,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,6 +66,9 @@ private const val MAX_LESSONS_PER_DAY = 12
 @Composable
 fun JobDetailScreen(
     jobName: String,
+    /** Ungleich null: öffnet beim Laden direkt den Schicht-Bearbeiten-Screen für diese Schicht
+     *  (Tagesansicht → Schicht-Kachel → bearbeiten, siehe CalendarDayScreen). */
+    openShiftId: Long? = null,
     onOpenRotationEditor: (rotationId: Long?) -> Unit,
     onOpenPhotoImport: () -> Unit,
     onBack: () -> Unit,
@@ -114,7 +118,7 @@ fun JobDetailScreen(
                 }
 
                 when (selectedTab) {
-                    0 -> ShiftsTab(viewModel)
+                    0 -> ShiftsTab(viewModel, openShiftId)
                     else -> RotationsTab(viewModel, onOpenRotationEditor)
                 }
             }
@@ -210,10 +214,21 @@ private fun LessonCard(lesson: LessonEntity, onClick: () -> Unit, onDelete: () -
 }
 
 @Composable
-private fun ShiftsTab(viewModel: JobDetailViewModel) {
+private fun ShiftsTab(viewModel: JobDetailViewModel, openShiftId: Long? = null) {
     val shifts by viewModel.shifts.collectAsState()
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var autoOpenedFor by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(openShiftId, shifts) {
+        if (openShiftId != null && autoOpenedFor != openShiftId) {
+            shifts.find { it.id == openShiftId }?.let { shift ->
+                editingShift = shift
+                showDialog = true
+                autoOpenedFor = openShiftId
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (shifts.isEmpty()) {

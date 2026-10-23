@@ -5,19 +5,25 @@
 
 import { defineStore } from 'pinia'
 import NocturnJob from '@/models/nocturnJob.js'
+import NocturnLesson from '@/models/nocturnLesson.js'
 import NocturnRotation from '@/models/nocturnRotation.js'
 import NocturnShift from '@/models/nocturnShift.js'
+import NocturnTask from '@/models/nocturnTask.js'
 import {
 	applyRotation as applyRotationApi,
 	deleteJob as deleteJobApi,
+	deleteLesson as deleteLessonApi,
 	deleteRotation as deleteRotationApi,
 	deleteShift as deleteShiftApi,
+	deleteTask as deleteTaskApi,
 	fetchChanges,
 	fetchJobShares,
 	fetchSharedWithMe,
 	saveJob as saveJobApi,
+	saveLesson as saveLessonApi,
 	saveRotation as saveRotationApi,
 	saveShift as saveShiftApi,
+	saveTask as saveTaskApi,
 	shareJob as shareJobApi,
 	unshareJob as unshareJobApi,
 } from '@/services/nocturnScheduleService.js'
@@ -58,6 +64,10 @@ export default defineStore('nocturnSchedule', {
 			shifts: {},
 			// rotationUid -> NocturnRotation, days already merged in from rotationDays
 			rotations: {},
+			// lessonUid -> NocturnLesson (weekly timetable periods, student-mode jobs)
+			lessons: {},
+			// taskUid -> NocturnTask
+			tasks: {},
 			loaded: false,
 			lastServerTime: 0,
 			// Jobs other Nextcloud users shared with the current user:
@@ -80,6 +90,15 @@ export default defineStore('nocturnSchedule', {
 			return Object.values(state.rotations)
 				.filter((rotation) => rotation.jobUid === jobUid)
 				.sort((a, b) => a.name.localeCompare(b.name))
+		},
+		lessonsForJob: (state) => (jobUid) => {
+			return Object.values(state.lessons)
+				.filter((lesson) => lesson.jobUid === jobUid)
+				.sort((a, b) => (a.weekday * 1440 + a.startHour * 60 + a.startMinute) - (b.weekday * 1440 + b.startHour * 60 + b.startMinute))
+		},
+		allTasks: (state) => {
+			return Object.values(state.tasks)
+				.sort((a, b) => (a.completed === b.completed ? a.dueEpochDay - b.dueEpochDay : a.completed ? 1 : -1))
 		},
 		isJobVisible: (state) => (key) => !state.hiddenJobKeys.includes(key),
 		/**
@@ -181,6 +200,22 @@ export default defineStore('nocturnSchedule', {
 				}
 			}
 
+			for (const lesson of changes.lessons ?? []) {
+				if (lesson.deletedAt) {
+					delete this.lessons[lesson.uid]
+				} else {
+					this.lessons[lesson.uid] = new NocturnLesson(lesson)
+				}
+			}
+
+			for (const task of changes.tasks ?? []) {
+				if (task.deletedAt) {
+					delete this.tasks[task.uid]
+				} else {
+					this.tasks[task.uid] = new NocturnTask(task)
+				}
+			}
+
 			this.lastServerTime = changes.serverTime ?? this.lastServerTime
 		},
 		async saveJob(job) {
@@ -220,6 +255,55 @@ export default defineStore('nocturnSchedule', {
 				logger.error('Failed to delete NocTurn shift', { error, uid })
 				throw error
 			}
+		},
+		async saveLesson(lesson) {
+			try {
+				const saved = await saveLessonApi(lesson)
+				this.lessons[saved.uid] = new NocturnLesson(saved)
+				return this.lessons[saved.uid]
+			} catch (error) {
+				logger.error('Failed to save NocTurn lesson', { error, lesson })
+				throw error
+			}
+		},
+		async deleteLesson(uid) {
+			try {
+				await deleteLessonApi(uid)
+				delete this.lessons[uid]
+			} catch (error) {
+				logger.error('Failed to delete NocTurn lesson', { error, uid })
+				throw error
+			}
+		},
+		async saveTask(task) {
+			try {
+				const saved = await saveTaskApi(task)
+				this.tasks[saved.uid] = new NocturnTask(saved)
+				return this.tasks[saved.uid]
+			} catch (error) {
+				logger.error('Failed to save NocTurn task', { error, task })
+				throw error
+			}
+		},
+		async deleteTask(uid) {
+			try {
+				await deleteTaskApi(uid)
+				delete this.tasks[uid]
+			} catch (error) {
+				logger.error('Failed to delete NocTurn task', { error, uid })
+				throw error
+			}
+		},
+		/**
+		 * Toggles a task's completed flag - a dedicated action instead of
+		 * making callers clone+saveTask themselves for this very common case.
+		 *
+		 * @param {import('@/models/nocturnTask.js').default} task
+		 */
+		async toggleTaskCompleted(task) {
+			const updated = task.clone()
+			updated.completed = !task.completed
+			await this.saveTask(updated)
 		},
 		async saveRotation(rotation) {
 			try {

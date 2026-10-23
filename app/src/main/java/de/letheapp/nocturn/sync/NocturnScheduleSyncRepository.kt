@@ -6,6 +6,8 @@ import de.letheapp.nocturn.data.db.CalendarEntryDao
 import de.letheapp.nocturn.data.db.CalendarEntryEntity
 import de.letheapp.nocturn.data.db.JobDao
 import de.letheapp.nocturn.data.db.JobEntity
+import de.letheapp.nocturn.data.db.LessonDao
+import de.letheapp.nocturn.data.db.LessonEntity
 import de.letheapp.nocturn.data.db.ManualShiftEntryDao
 import de.letheapp.nocturn.data.db.ManualShiftEntryEntity
 import de.letheapp.nocturn.data.db.NocturnSyncLocalType
@@ -16,6 +18,8 @@ import de.letheapp.nocturn.data.db.RotationDayEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftDao
 import de.letheapp.nocturn.data.db.ShiftEntity
+import de.letheapp.nocturn.data.db.TaskDao
+import de.letheapp.nocturn.data.db.TaskEntity
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -59,6 +63,8 @@ class NocturnScheduleSyncRepository @Inject constructor(
     private val rotationDao: RotationDao,
     private val calendarEntryDao: CalendarEntryDao,
     private val manualShiftEntryDao: ManualShiftEntryDao,
+    private val lessonDao: LessonDao,
+    private val taskDao: TaskDao,
     private val accountDao: CalDavAccountDao
 ) {
     suspend fun runSync(account: CalDavAccountEntity, password: String) {
@@ -66,6 +72,8 @@ class NocturnScheduleSyncRepository @Inject constructor(
         pushShifts(account, password)
         pushRotations(account, password)
         pushOccurrences(account, password)
+        pushLessons(account, password)
+        pushTasks(account, password)
         pull(account, password)
     }
 
@@ -246,6 +254,75 @@ class NocturnScheduleSyncRepository @Inject constructor(
         }
     }
 
+    private suspend fun pushLessons(account: CalDavAccountEntity, password: String) {
+        val lessons = lessonDao.getAllOnce()
+        val existingIds = lessons.map { it.id }.toHashSet()
+        for (mapping in mappingDao.getAllForType(NocturnSyncLocalType.LESSON.name)) {
+            if (mapping.localId !in existingIds) {
+                runCatching { apiClient.deleteLesson(account.serverUrl, account.username, password, mapping.remoteUid) }
+                mappingDao.delete(mapping)
+            }
+        }
+        for (lesson in lessons) {
+            val jobUid = remoteUidFor(NocturnSyncLocalType.JOB, lesson.jobId) ?: continue
+            val hash = lessonHash(
+                lesson.weekday, lesson.name, lesson.colorArgb, lesson.startHour, lesson.startMinute,
+                lesson.durationMinutes, lesson.earliestWakeOffsetMinutes, lesson.latestWakeupOffsetMinutes
+            )
+            val mapping = mappingDao.getByLocal(NocturnSyncLocalType.LESSON.name, lesson.id)
+            if (mapping != null && mapping.contentHash == hash) continue
+            val remote = apiClient.upsertLesson(
+                account.serverUrl, account.username, password,
+                uid = mapping?.remoteUid, jobUid = jobUid, weekday = lesson.weekday, name = lesson.name,
+                color = colorToHex(lesson.colorArgb), startHour = lesson.startHour, startMinute = lesson.startMinute,
+                durationMinutes = lesson.durationMinutes, earliestWakeOffsetMinutes = lesson.earliestWakeOffsetMinutes,
+                latestWakeupOffsetMinutes = lesson.latestWakeupOffsetMinutes, updatedAt = System.currentTimeMillis()
+            )
+            mappingDao.upsert(
+                NocturnSyncMappingEntity(
+                    id = mapping?.id ?: 0,
+                    localType = NocturnSyncLocalType.LESSON.name,
+                    localId = lesson.id,
+                    remoteUid = remote.uid,
+                    remoteUpdatedAt = remote.updatedAt,
+                    contentHash = hash
+                )
+            )
+        }
+    }
+
+    private suspend fun pushTasks(account: CalDavAccountEntity, password: String) {
+        val tasks = taskDao.getAllOnce()
+        val existingIds = tasks.map { it.id }.toHashSet()
+        for (mapping in mappingDao.getAllForType(NocturnSyncLocalType.TASK.name)) {
+            if (mapping.localId !in existingIds) {
+                runCatching { apiClient.deleteTask(account.serverUrl, account.username, password, mapping.remoteUid) }
+                mappingDao.delete(mapping)
+            }
+        }
+        for (task in tasks) {
+            val hash = taskHash(task.title, task.notes, task.dueEpochDay, task.dueEpochMillis, task.allDay, task.completed, task.colorArgb)
+            val mapping = mappingDao.getByLocal(NocturnSyncLocalType.TASK.name, task.id)
+            if (mapping != null && mapping.contentHash == hash) continue
+            val remote = apiClient.upsertTask(
+                account.serverUrl, account.username, password,
+                uid = mapping?.remoteUid, title = task.title, notes = task.notes.takeIf { it.isNotBlank() },
+                dueEpochDay = task.dueEpochDay, dueEpochMillis = task.dueEpochMillis, allDay = task.allDay,
+                completed = task.completed, color = colorToHex(task.colorArgb), updatedAt = System.currentTimeMillis()
+            )
+            mappingDao.upsert(
+                NocturnSyncMappingEntity(
+                    id = mapping?.id ?: 0,
+                    localType = NocturnSyncLocalType.TASK.name,
+                    localId = task.id,
+                    remoteUid = remote.uid,
+                    remoteUpdatedAt = remote.updatedAt,
+                    contentHash = hash
+                )
+            )
+        }
+    }
+
     // ---------------------------------------------------------------- Pull
 
     private suspend fun pull(account: CalDavAccountEntity, password: String) {
@@ -256,6 +333,8 @@ class NocturnScheduleSyncRepository @Inject constructor(
         for (remote in changes.rotations) applyRemoteRotation(remote)
         rebuildRotationDays(changes.rotationDays)
         for (remote in changes.occurrences) applyRemoteOccurrence(remote)
+        for (remote in changes.lessons) applyRemoteLesson(remote)
+        for (remote in changes.tasks) applyRemoteTask(remote)
 
         accountDao.update(account.copy(nocturnScheduleSyncToken = changes.serverTime))
     }
@@ -450,6 +529,101 @@ class NocturnScheduleSyncRepository @Inject constructor(
         )
     }
 
+    private suspend fun applyRemoteLesson(remote: RemoteLesson) {
+        val mapping = mappingDao.getByRemoteUid(remote.uid)
+        if (remote.deletedAt != null) {
+            if (mapping != null) {
+                lessonDao.getById(mapping.localId)?.let { lessonDao.delete(it) }
+                mappingDao.delete(mapping)
+            }
+            return
+        }
+        if (mapping != null && mapping.remoteUpdatedAt >= remote.updatedAt) return
+        val jobId = remoteUidFor(NocturnSyncLocalType.JOB, remote.jobUid, byRemoteUid = true) ?: return
+        val colorArgb = hexToColorArgb(remote.color)
+        val localId = if (mapping != null) {
+            lessonDao.getById(mapping.localId)?.let {
+                lessonDao.update(
+                    it.copy(
+                        jobId = jobId, weekday = remote.weekday, name = remote.name, colorArgb = colorArgb,
+                        startHour = remote.startHour, startMinute = remote.startMinute,
+                        durationMinutes = remote.durationMinutes,
+                        earliestWakeOffsetMinutes = remote.earliestWakeOffsetMinutes,
+                        latestWakeupOffsetMinutes = remote.latestWakeupOffsetMinutes
+                    )
+                )
+            }
+            mapping.localId
+        } else {
+            lessonDao.insert(
+                LessonEntity(
+                    jobId = jobId, weekday = remote.weekday, name = remote.name, colorArgb = colorArgb,
+                    startHour = remote.startHour, startMinute = remote.startMinute,
+                    durationMinutes = remote.durationMinutes,
+                    earliestWakeOffsetMinutes = remote.earliestWakeOffsetMinutes,
+                    latestWakeupOffsetMinutes = remote.latestWakeupOffsetMinutes
+                )
+            )
+        }
+        mappingDao.upsert(
+            NocturnSyncMappingEntity(
+                id = mapping?.id ?: 0,
+                localType = NocturnSyncLocalType.LESSON.name,
+                localId = localId,
+                remoteUid = remote.uid,
+                remoteUpdatedAt = remote.updatedAt,
+                contentHash = lessonHash(
+                    remote.weekday, remote.name, colorArgb, remote.startHour, remote.startMinute,
+                    remote.durationMinutes, remote.earliestWakeOffsetMinutes, remote.latestWakeupOffsetMinutes
+                )
+            )
+        )
+    }
+
+    private suspend fun applyRemoteTask(remote: RemoteTask) {
+        val mapping = mappingDao.getByRemoteUid(remote.uid)
+        if (remote.deletedAt != null) {
+            if (mapping != null) {
+                taskDao.getById(mapping.localId)?.let { taskDao.delete(it) }
+                mappingDao.delete(mapping)
+            }
+            return
+        }
+        if (mapping != null && mapping.remoteUpdatedAt >= remote.updatedAt) return
+        val colorArgb = hexToColorArgb(remote.color)
+        val notes = remote.notes.orEmpty()
+        val localId = if (mapping != null) {
+            taskDao.getById(mapping.localId)?.let {
+                taskDao.update(
+                    it.copy(
+                        title = remote.title, notes = notes, dueEpochDay = remote.dueEpochDay,
+                        dueEpochMillis = remote.dueEpochMillis, allDay = remote.allDay,
+                        completed = remote.completed, colorArgb = colorArgb
+                    )
+                )
+            }
+            mapping.localId
+        } else {
+            taskDao.insert(
+                TaskEntity(
+                    title = remote.title, notes = notes, dueEpochDay = remote.dueEpochDay,
+                    dueEpochMillis = remote.dueEpochMillis, allDay = remote.allDay,
+                    completed = remote.completed, colorArgb = colorArgb
+                )
+            )
+        }
+        mappingDao.upsert(
+            NocturnSyncMappingEntity(
+                id = mapping?.id ?: 0,
+                localType = NocturnSyncLocalType.TASK.name,
+                localId = localId,
+                remoteUid = remote.uid,
+                remoteUpdatedAt = remote.updatedAt,
+                contentHash = taskHash(remote.title, notes, remote.dueEpochDay, remote.dueEpochMillis, remote.allDay, remote.completed, colorArgb)
+            )
+        )
+    }
+
     // -------------------------------------------------------------- Helfer
 
     private suspend fun remoteUidFor(type: NocturnSyncLocalType, localId: Long): String? =
@@ -469,6 +643,15 @@ class NocturnScheduleSyncRepository @Inject constructor(
     private fun rotationHash(name: String, pattern: List<String?>): Int = "$name|${pattern.joinToString(",")}".hashCode()
 
     private fun occurrenceHash(jobUid: String, epochDay: Long, shiftUid: String): Int = "$jobUid|$epochDay|$shiftUid".hashCode()
+
+    private fun lessonHash(
+        weekday: Int, name: String, colorArgb: Int, startHour: Int, startMinute: Int,
+        durationMinutes: Int, earliestWakeOffsetMinutes: Int, latestWakeupOffsetMinutes: Int
+    ): Int = "$weekday|$name|$colorArgb|$startHour|$startMinute|$durationMinutes|$earliestWakeOffsetMinutes|$latestWakeupOffsetMinutes".hashCode()
+
+    private fun taskHash(
+        title: String, notes: String, dueEpochDay: Long, dueEpochMillis: Long?, allDay: Boolean, completed: Boolean, colorArgb: Int
+    ): Int = "$title|$notes|$dueEpochDay|$dueEpochMillis|$allDay|$completed|$colorArgb".hashCode()
 
     private fun colorToHex(argb: Int): String = String.format("#%06X", argb and 0xFFFFFF)
 

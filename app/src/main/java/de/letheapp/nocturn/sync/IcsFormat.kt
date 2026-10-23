@@ -23,8 +23,18 @@ object IcsFormat {
         val startEpochMillis: Long,
         val endEpochMillis: Long,
         val allDay: Boolean,
-        val showAsBusy: Boolean = true
+        val showAsBusy: Boolean = true,
+        /** Aus VALARM-Blöcken gelesene Erinnerungs-Vorlaufzeiten (Minuten vor DTSTART). */
+        val reminderMinutesBefore: List<Int> = emptyList(),
+        /** Aus ATTACH-Properties gelesene, Base64-kodierte Anhänge. */
+        val attachments: List<ParsedAttachment> = emptyList()
     )
+
+    /** Ein Anhang, wie er als Base64-Rohdaten in einer ATTACH-Property steht (siehe RFC 5545 3.8.1.1). */
+    data class ParsedAttachment(val fileName: String, val mimeType: String?, val base64Data: String)
+
+    /** Eingabe für [buildEvent], um einen Anhang als eingebettete ATTACH-Property zu schreiben. */
+    data class IcsAttachment(val fileName: String, val mimeType: String?, val base64Data: String)
 
     fun buildEvent(
         uid: String,
@@ -34,7 +44,9 @@ object IcsFormat {
         startEpochMillis: Long,
         endEpochMillis: Long,
         allDay: Boolean,
-        showAsBusy: Boolean = true
+        showAsBusy: Boolean = true,
+        reminderMinutesBefore: List<Int> = emptyList(),
+        attachments: List<IcsAttachment> = emptyList()
     ): String {
         val lines = mutableListOf(
             "BEGIN:VCALENDAR",
@@ -57,6 +69,19 @@ object IcsFormat {
         if (location.isNotBlank()) lines += "LOCATION:${escape(location)}"
         if (description.isNotBlank()) lines += "DESCRIPTION:${escape(description)}"
         lines += "TRANSP:${if (showAsBusy) "OPAQUE" else "TRANSPARENT"}"
+        for (minutes in reminderMinutesBefore) {
+            lines += "BEGIN:VALARM"
+            lines += "ACTION:DISPLAY"
+            lines += "DESCRIPTION:${escape(summary)}"
+            lines += "TRIGGER:-PT${minutes}M"
+            lines += "END:VALARM"
+        }
+        for (attachment in attachments) {
+            val fmtType = attachment.mimeType?.takeIf { it.isNotBlank() } ?: "application/octet-stream"
+            lines += foldLine(
+                "ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=$fmtType;X-FILENAME=${escape(attachment.fileName)}:${attachment.base64Data}"
+            )
+        }
         lines += "END:VEVENT"
         lines += "END:VCALENDAR"
         return lines.joinToString("\r\n") + "\r\n"
@@ -88,18 +113,47 @@ object IcsFormat {
 
     fun parseEvent(ics: String): ParsedEvent? {
         val properties = linkedMapOf<String, Pair<String, String>>() // Name -> (Parameter, Wert)
+        val reminders = mutableListOf<Int>()
+        val attachments = mutableListOf<ParsedAttachment>()
+        var insideAlarm = false
+        var alarmTriggerMinutes: Int? = null
+
         for (line in unfold(ics)) {
-            if (line.isBlank() || !line.contains(':')) continue
-            val colonIndex = line.indexOf(':')
-            val namePart = line.substring(0, colonIndex)
-            val value = line.substring(colonIndex + 1)
-            val semiIndex = namePart.indexOf(';')
-            val name = if (semiIndex >= 0) namePart.substring(0, semiIndex) else namePart
-            val params = if (semiIndex >= 0) namePart.substring(semiIndex + 1) else ""
-            if (name == "UID" || name == "SUMMARY" || name == "LOCATION" || name == "DESCRIPTION" ||
-                name == "DTSTART" || name == "DTEND" || name == "TRANSP"
-            ) {
-                properties[name] = params to value
+            when {
+                line == "BEGIN:VALARM" -> {
+                    insideAlarm = true
+                    alarmTriggerMinutes = null
+                }
+                line == "END:VALARM" -> {
+                    insideAlarm = false
+                    alarmTriggerMinutes?.let { reminders += it }
+                }
+                insideAlarm -> {
+                    if (line.startsWith("TRIGGER")) {
+                        val value = line.substringAfter(':', "")
+                        alarmTriggerMinutes = parseTriggerMinutesBefore(value)
+                    }
+                }
+                line.isBlank() || !line.contains(':') -> Unit
+                else -> {
+                    val colonIndex = line.indexOf(':')
+                    val namePart = line.substring(0, colonIndex)
+                    val value = line.substring(colonIndex + 1)
+                    val semiIndex = namePart.indexOf(';')
+                    val name = if (semiIndex >= 0) namePart.substring(0, semiIndex) else namePart
+                    val params = if (semiIndex >= 0) namePart.substring(semiIndex + 1) else ""
+                    if (name == "ATTACH") {
+                        attachments += ParsedAttachment(
+                            fileName = extractParam(params, "X-FILENAME")?.let(::unescape) ?: "Anhang",
+                            mimeType = extractParam(params, "FMTTYPE"),
+                            base64Data = value
+                        )
+                    } else if (name == "UID" || name == "SUMMARY" || name == "LOCATION" || name == "DESCRIPTION" ||
+                        name == "DTSTART" || name == "DTEND" || name == "TRANSP"
+                    ) {
+                        properties[name] = params to value
+                    }
+                }
             }
         }
 
@@ -128,8 +182,52 @@ object IcsFormat {
             startEpochMillis = startMillis,
             endEpochMillis = endMillis,
             allDay = allDay,
-            showAsBusy = properties["TRANSP"]?.second != "TRANSPARENT"
+            showAsBusy = properties["TRANSP"]?.second != "TRANSPARENT",
+            reminderMinutesBefore = reminders,
+            attachments = attachments
         )
+    }
+
+    /** Liest nur Vorher-Trigger (`-PT15M`, `-P1D`, `-PT1H30M`, ...) — ein Nachher-Trigger passt nicht
+     *  zum NocTurn-Konzept "Minuten vor dem Termin" und wird ignoriert. */
+    private fun parseTriggerMinutesBefore(raw: String): Int? {
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("-P")) return null
+        val duration = trimmed.removePrefix("-")
+        val match = Regex("^P(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?)?$").matchEntire(duration) ?: return null
+        val days = match.groupValues[1].toIntOrNull() ?: 0
+        val hours = match.groupValues[2].toIntOrNull() ?: 0
+        val minutes = match.groupValues[3].toIntOrNull() ?: 0
+        val total = days * 24 * 60 + hours * 60 + minutes
+        return total.takeIf { it > 0 }
+    }
+
+    private fun extractParam(params: String, key: String): String? {
+        for (part in params.split(";")) {
+            val eq = part.indexOf('=')
+            if (eq < 0) continue
+            val k = part.substring(0, eq)
+            if (!k.equals(key, ignoreCase = true)) continue
+            return part.substring(eq + 1).trim('"')
+        }
+        return null
+    }
+
+    /** Faltet eine Zeile nach RFC 5545 (max. 75 Octets, Fortsetzung mit einem führenden Leerzeichen). */
+    private fun foldLine(line: String): String {
+        if (line.length <= 75) return line
+        val sb = StringBuilder()
+        var index = 0
+        var first = true
+        while (index < line.length) {
+            val width = if (first) 75 else 74
+            val end = minOf(index + width, line.length)
+            if (!first) sb.append("\r\n ")
+            sb.append(line, index, end)
+            index = end
+            first = false
+        }
+        return sb.toString()
     }
 
     private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd")

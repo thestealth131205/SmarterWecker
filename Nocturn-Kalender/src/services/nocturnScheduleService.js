@@ -149,6 +149,74 @@ export async function fetchOwnOccurrences(jobUid, fromEpochDay, toEpochDayExclus
 }
 
 /**
+ * @param {import('@/models/nocturnLesson.js').default} lesson
+ * @return {Promise<object>} Saved lesson as returned by the server
+ */
+export async function saveLesson(lesson) {
+	logger.debug('Saving NocTurn lesson', { lesson })
+	const url = generateUrl('/apps/nocturnkalender/v1/nocturn/lessons')
+
+	const response = await axios.post(url, {
+		uid: lesson.uid,
+		jobUid: lesson.jobUid,
+		weekday: lesson.weekday,
+		name: lesson.name,
+		color: lesson.color,
+		startHour: lesson.startHour,
+		startMinute: lesson.startMinute,
+		durationMinutes: lesson.durationMinutes,
+		earliestWakeOffsetMinutes: lesson.earliestWakeOffsetMinutes,
+		latestWakeupOffsetMinutes: lesson.latestWakeupOffsetMinutes,
+		updatedAt: lesson.updatedAt,
+	})
+	return response.data.data
+}
+
+/**
+ * @param {string} uid
+ * @return {Promise<void>}
+ */
+export async function deleteLesson(uid) {
+	logger.debug('Deleting NocTurn lesson', { uid })
+	const url = generateUrl('/apps/nocturnkalender/v1/nocturn/lessons/{uid}', { uid })
+
+	await axios.delete(url)
+}
+
+/**
+ * @param {import('@/models/nocturnTask.js').default} task
+ * @return {Promise<object>} Saved task as returned by the server
+ */
+export async function saveTask(task) {
+	logger.debug('Saving NocTurn task', { task })
+	const url = generateUrl('/apps/nocturnkalender/v1/nocturn/tasks')
+
+	const response = await axios.post(url, {
+		uid: task.uid,
+		title: task.title,
+		notes: task.notes,
+		dueEpochDay: task.dueEpochDay,
+		dueEpochMillis: task.dueEpochMillis,
+		allDay: task.allDay,
+		completed: task.completed,
+		color: task.color,
+		updatedAt: task.updatedAt,
+	})
+	return response.data.data
+}
+
+/**
+ * @param {string} uid
+ * @return {Promise<void>}
+ */
+export async function deleteTask(uid) {
+	logger.debug('Deleting NocTurn task', { uid })
+	const url = generateUrl('/apps/nocturnkalender/v1/nocturn/tasks/{uid}', { uid })
+
+	await axios.delete(url)
+}
+
+/**
  * Grants (or updates) another Nextcloud user read or read/write access to a
  * job's full schedule - the NocTurn equivalent of sharing a calendar.
  *

@@ -492,7 +492,9 @@ enum class NocturnSyncLocalType {
     SHIFT,
     ROTATION,
     CALENDAR_ENTRY,
-    MANUAL_ENTRY
+    MANUAL_ENTRY,
+    LESSON,
+    TASK
 }
 
 /**
