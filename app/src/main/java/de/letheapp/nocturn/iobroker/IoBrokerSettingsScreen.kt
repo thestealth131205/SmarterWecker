@@ -71,22 +71,23 @@ private fun ConnectForm(
     onConnect: (host: String, port: Int, useHttps: Boolean, username: String, password: String) -> Unit
 ) {
     var host by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("7443") }
-    var useHttps by remember { mutableStateOf(true) }
+    var port by remember { mutableStateOf("345") }
+    var useHttps by remember { mutableStateOf(false) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Text(
-        "Verbinde NocTurn mit dem \"iosync\"-ioBroker-Adapter (Standardport 7443, HTTPS mit " +
-            "selbstsigniertem Zertifikat) deines Smart-Homes. Beim Auslösen des Notfall-Alarms kann dann " +
-            "pro Wecker eine Lampe oder Steckdose automatisch eingeschaltet werden."
+        "Verbinde NocTurn mit deinem \"iosync\"-ioBroker-Adapter — demselben, den auch die Iosync-App " +
+            "nutzt (dort unter Einstellungen → ioBroker Adapter Verbindung einsehbar: vollständiger " +
+            "Host inkl. Subdomain, Port, HTTP/HTTPS, Zugangsdaten). Beim Auslösen des Notfall-Alarms kann " +
+            "dann pro Wecker eine Lampe oder Steckdose automatisch eingeschaltet werden."
     )
     Spacer(modifier = Modifier.padding(top = 12.dp))
 
     OutlinedTextField(
         value = host,
         onValueChange = { host = it },
-        label = { Text("Host/IP (z. B. 192.168.1.10)") },
+        label = { Text("Host/IP (z. B. iosync.thestealth.de)") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth()
     )
@@ -136,14 +137,14 @@ private fun ConnectForm(
                 modifier = Modifier.padding(top = 12.dp)
             )
             Button(
-                onClick = { onConnect(host, port.toIntOrNull() ?: 7443, useHttps, username, password) },
+                onClick = { onConnect(host, port.toIntOrNull() ?: 345, useHttps, username, password) },
                 enabled = host.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) { Text("Erneut versuchen") }
         }
         is IoBrokerConnectState.Idle -> {
             Button(
-                onClick = { onConnect(host, port.toIntOrNull() ?: 7443, useHttps, username, password) },
+                onClick = { onConnect(host, port.toIntOrNull() ?: 345, useHttps, username, password) },
                 enabled = host.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
             ) { Text("Verbinden") }
