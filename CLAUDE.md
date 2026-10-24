@@ -67,6 +67,24 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      - Ziel: über mehrere Weckungen hinweg soll sich weder das visuelle Motiv noch die
        exakte Aufgabengröße wiederholen, damit die Lösung jedes Mal echtes Hinschauen
        statt Mustererkennung/Auswendiglernen erfordert.
+   - **Smart-Home-Kopplung (ioBroker, optional)**: Sowohl ein manuell angelegter Alarm
+     (Alarm-Bearbeiten-Screen) als auch eine Schicht (Schicht-Bearbeiten-Screen, siehe
+     Kernfunktion 5 — wichtig z. B. weil bei Nachtschicht Dunkelheit herrscht und ein
+     anderer Weck-Ablauf sinnvoll ist als bei der ohnehin schon hellen Spätschicht) können
+     bis zu drei beim Notfall-Alarm ausgelöste ioBroker-Aktionen hinterlegen: zwei frei
+     wählbare Datenpunkte (z. B. Lampe, Rollo) sowie ein dritter, eigens für einen
+     Skript-Auslöser gedachter Datenpunkt (z. B. für Radio). Nach Auswahl eines
+     Datenpunkts (`IoBrokerActionPickerDialog`) erkennt die App anhand des zuletzt
+     gelesenen Werts automatisch, ob Ein/Aus (Boolean-Datenpunkt, Nutzer wählt
+     "Einschalten"/"Ausschalten") oder "Stufenweise erhöhen" (numerischer Datenpunkt wie
+     Helligkeit, Nutzer gibt "pro Schritt erhöhen um" und "Endwert" an) sinnvoller ist —
+     per Chip manuell übersteuerbar, falls die Erkennung danebenliegt. Ein automatischer
+     Schicht-Wecker (`ShiftWakeupAlarmSyncer`) übernimmt die an der Schicht hinterlegten
+     Aktionen in den generierten Alarm. Ausgeführt in `EmergencyAlarmService` beim Start
+     des Notfall-Alarms: Ein/Aus setzt den Datenpunkt einmalig, "Stufenweise erhöhen"
+     (`IoBrokerRepository.runRamp`) erhöht ihn alle 8 Sekunden um den angegebenen Schritt,
+     bis der Endwert erreicht ist oder der Notfall-Alarm endet (sanftes Aufdimmen statt
+     eines abrupten Sprungs).
 
 5. **Schichtplan-Rotation / Stundenplan:**
    - Nutzer kann eigene Schichten definieren: Name der Schicht (z. B. "Frühschicht",

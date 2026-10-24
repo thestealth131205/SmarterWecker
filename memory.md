@@ -956,3 +956,62 @@ meine vorherigen Aufgaben um" — alle sieben wurden umgesetzt, nicht committet/
   fehlerfrei, `node --check` über alle geänderten/neuen JS-Dateien fehlerfrei, Klammernbalance aller
   geänderten `.vue`-Dateien geprüft. Kein `npm run build` lokal möglich (kein `node_modules`) — läuft
   wie beim Rest dieses Teilprojekts über die GitHub Action beim nächsten Push.
+
+## Session: ioBroker-Aktionen erweitert (3 Slots, Ein/Aus + Stufenweise), auch pro Schicht (2026-10-25)
+
+- Bisher gab es pro Alarm nur eine einzelne, fest auf "Einschalten" fixierte ioBroker-Lampen-
+  Verknüpfung (`AlarmEntity.lampDataPointId`/`lampDataPointLabel`), ausgelöst nur beim Notfall-Alarm
+  (`EmergencyAlarmService.turnOnLampIfConfigured`). Nutzer wollte zusätzlich: Ein/Aus-Wahl statt immer
+  "Ein", eine "Stufenweise erhöhen"-Option für numerische Datenpunkte (Helligkeit: Schrittweite +
+  Endwert, sanftes Aufdimmen statt Sprung), zwei statt einem frei wählbaren Datenpunkt (z. B.
+  Lampe + Rollo) plus einen dritten für einen Skript-Auslöser (z. B. Radio), UND dieselbe
+  Konfigurierbarkeit pro Schicht (nicht nur pro manuellem Alarm) — Begründung: bei Spätschicht ist es
+  nachmittags noch hell draußen, bei Nachtschicht dunkel, braucht also unterschiedliche Weck-Abläufe.
+- **Neues Domain-Modell** `iobroker/IoBrokerAction.kt`: `IoBrokerActionConfig` (dataPointId/Label,
+  `IoBrokerActionMode` ON_OFF/RAMP, turnOn, rampStep, rampTarget) + Extension-Funktionen
+  `ioBrokerAction1()`/`ioBrokerAction2()`/`ioBrokerScriptAction()` (Getter) und
+  `withIoBrokerAction1()`/... (Setter, liefern eine Kopie) für sowohl `AlarmEntity` als auch
+  `ShiftEntity` — **bewusst flache Spalten statt `@Embedded`**: `@Embedded` wird im Projekt bisher
+  nirgends verwendet, und da lokal wegen des aapt2-Problems auf diesem Pi kein `assembleDebug`
+  möglich ist, wurde das risikoärmere, bereits überall bewährte Flat-Column-Muster gewählt statt
+  eines neuen, ungetesteten Room-Features.
+- **18 neue Spalten** pro Tabelle (6 Felder × 3 Slots: `ioBrokerAction1`/`ioBrokerAction2`/
+  `ioBrokerScript` + `DataPointId`/`DataPointLabel`/`Mode`/`TurnOn`/`RampStep`/`RampTarget`) auf
+  sowohl `AlarmEntity` als auch `ShiftEntity`. DB-Version 20→21, `MIGRATION_20_21` in
+  `DatabaseModule.kt`: reine `ALTER TABLE ... ADD COLUMN`-Schleife über beide Tabellen × 3 Slots,
+  plus ein `UPDATE alarms SET ioBrokerAction1... WHERE lampDataPointId IS NOT NULL` zur
+  Einmal-Übernahme der alten Einzel-Lampen-Verknüpfung in Slot 1 (als "Einschalten"). Die alten
+  Spalten `lampDataPointId`/`lampDataPointLabel` bleiben als deprecated, ungenutzte Felder in
+  `AlarmEntity` stehen (SQLite auf Android 13 kennt kein `DROP COLUMN`, <3.35.0) — nur noch als
+  Migrations-Quelle gelesen, nirgends mehr im App-Code referenziert.
+- **`IoBrokerActionPickerDialog`** (neu, `iobroker`-Package, wiederverwendet in beiden Screens):
+  zweistufig — erst Datenpunkt aus der Liste wählen (wie bisher), danach je nach zuletzt gelesenem
+  Wert automatisch Ein/Aus- oder Stufenweise-Ansicht vorausgewählt (Heuristik: `"true"`/`"false"` →
+  Ein/Aus, sonst parsebare Zahl → Stufenweise, sonst Fallback Ein/Aus) — per Chip jederzeit manuell
+  übersteuerbar, falls die Erkennung danebenliegt.
+- **`IoBrokerRepository`**: `turnOn(dataPointId)` ersetzt durch `turnOnOrOff(id, Boolean)` +
+  `executeAction(config)` (dispatcht je nach Modus) + `runRamp(config)` (liest den aktuellen Wert
+  einmalig über `fetchDataPoints()`, erhöht/verringert ihn danach alle 8 Sekunden
+  (`RAMP_STEP_INTERVAL_MILLIS`) um die Schrittweite, bis der Endwert erreicht ist oder die
+  aufrufende Coroutine abbricht).
+- **`EmergencyAlarmService`**: `turnOnLampIfConfigured()` → `runConfiguredIoBrokerActions()`, liest
+  alle bis zu drei konfigurierten Aktionen (`alarm.allIoBrokerActions()`) und startet jede in einer
+  eigenen `scope.launch`-Coroutine (damit eine mehrminütige Rampe die anderen zwei Aktionen nicht
+  blockiert) — alle hängen am Service-`scope` und brechen automatisch ab, wenn der Notfall-Alarm
+  endet (`onDestroy` → `scope.cancel()`).
+- **`ShiftWakeupAlarmSyncer`**: kopiert beim Erzeugen/Aktualisieren des automatisch verwalteten
+  Schicht-Weckers jetzt zusätzlich alle 18 ioBroker-Felder von der `ShiftEntity` in den generierten
+  `AlarmEntity` — ein automatischer Schicht-Wecker hat sonst keinen eigenen Bearbeiten-Screen, in dem
+  sich das nachträglich setzen ließe.
+- **UI**: `AlarmEditScreen` zeigt jetzt drei Zeilen (Lightbulb/Blinds/SettingsInputAntenna-Icon)
+  statt der bisherigen einen Lampen-Zeile. `ShiftEditDialog` bekam eine neue Karte "Smart-Home bei
+  Notfall-Alarm (optional)" mit denselben drei Zeilen — dafür musste `JobDetailViewModel` (geteilt
+  zwischen `ShiftSetupScreen` und `JobDetailScreen`, beide rufen `ShiftEditDialog` auf) um dieselbe
+  `ioBrokerConnected`/`ioBrokerDataPoints`/`refreshIoBrokerDataPoints()`-Wiring wie `AlarmListViewModel`
+  ergänzt werden.
+- CLAUDE.md: neuer Unterpunkt "Smart-Home-Kopplung (ioBroker, optional)" unter Kernfunktion 4
+  ergänzt — war bisher trotz mehrfacher Code-Kommentar-Verweise ("siehe CLAUDE.md 'Smart-Home-
+  Kopplung (ioBroker)'") nie tatsächlich dort dokumentiert, nachgeholt.
+- Lokale Verifikation weiterhin durch das bekannte aapt2-Problem auf diesem Pi blockiert; alle
+  geänderten/neuen Dateien auf Klammern-/Parenthesen-Balance geprüft (alle 0-Differenz). Nicht
+  committet/gepusht, wie vereinbart.

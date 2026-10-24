@@ -10,8 +10,12 @@ import de.letheapp.nocturn.data.db.LessonEntity
 import de.letheapp.nocturn.data.db.RotationEntity
 import de.letheapp.nocturn.data.db.ShiftEntity
 import de.letheapp.nocturn.data.repository.CalendarRepository
+import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
+import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,6 +24,7 @@ import javax.inject.Inject
 class JobDetailViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val shiftWakeupAlarmSyncer: ShiftWakeupAlarmSyncer,
+    private val ioBrokerRepository: IoBrokerRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -36,6 +41,21 @@ class JobDetailViewModel @Inject constructor(
 
     val lessons: StateFlow<List<LessonEntity>> = calendarRepository.observeLessonsForJob(jobId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _ioBrokerDataPoints = MutableStateFlow<List<IoBrokerDataPoint>>(emptyList())
+    val ioBrokerDataPoints: StateFlow<List<IoBrokerDataPoint>> = _ioBrokerDataPoints
+
+    /** Lädt die verfügbaren ioBroker-Datenpunkte neu (z. B. beim Öffnen eines Aktions-Auswahl-Dialogs im Schicht-Editor). */
+    fun refreshIoBrokerDataPoints() {
+        viewModelScope.launch {
+            ioBrokerRepository.fetchDataPoints()
+                .onSuccess { _ioBrokerDataPoints.value = it }
+        }
+    }
 
     fun setMode(mode: JobMode) {
         viewModelScope.launch { calendarRepository.setJobMode(jobId, mode) }

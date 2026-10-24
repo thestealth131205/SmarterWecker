@@ -47,6 +47,8 @@ fun ShiftSetupScreen(
 ) {
     val job by viewModel.job.collectAsState()
     val shifts by viewModel.shifts.collectAsState()
+    val ioBrokerConnected by viewModel.ioBrokerConnected.collectAsState()
+    val ioBrokerDataPoints by viewModel.ioBrokerDataPoints.collectAsState()
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var showDialog by remember { mutableStateOf(false) }
 
@@ -105,6 +107,9 @@ fun ShiftSetupScreen(
         ShiftEditDialog(
             jobId = viewModel.jobId,
             existing = editingShift,
+            ioBrokerConnected = ioBrokerConnected,
+            ioBrokerDataPoints = ioBrokerDataPoints,
+            onRefreshIoBrokerDataPoints = { viewModel.refreshIoBrokerDataPoints() },
             onConfirm = { shift -> viewModel.saveShift(shift); showDialog = false },
             onDismiss = { showDialog = false }
         )

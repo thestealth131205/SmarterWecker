@@ -4,22 +4,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Blinds
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -40,7 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.data.db.ShiftEntity
-import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
+import de.letheapp.nocturn.iobroker.IoBrokerActionPickerDialog
+import de.letheapp.nocturn.iobroker.ioBrokerAction1
+import de.letheapp.nocturn.iobroker.ioBrokerAction2
+import de.letheapp.nocturn.iobroker.ioBrokerScriptAction
+import de.letheapp.nocturn.iobroker.summaryLabel
+import de.letheapp.nocturn.iobroker.withIoBrokerAction1
+import de.letheapp.nocturn.iobroker.withIoBrokerAction2
+import de.letheapp.nocturn.iobroker.withIoBrokerScriptAction
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 
@@ -65,7 +70,7 @@ fun AlarmEditScreen(
     var alarm by remember { mutableStateOf<AlarmEntity?>(null) }
     var showRotationDialog by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-    var showLampDialog by remember { mutableStateOf(false) }
+    var showIoBrokerDialog by remember { mutableStateOf<Int?>(null) }
     var showShiftNarrowDialog by remember { mutableStateOf(false) }
     var showWeekdayNarrowDialog by remember { mutableStateOf(false) }
     var pendingRotationId by remember { mutableStateOf<Long?>(null) }
@@ -201,14 +206,50 @@ fun AlarmEditScreen(
                     .padding(top = 16.dp)
                     .clickable {
                         viewModel.refreshIoBrokerDataPoints()
-                        showLampDialog = true
+                        showIoBrokerDialog = 1
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Filled.Lightbulb, contentDescription = null)
                 Text(
-                    text = current.lampDataPointLabel?.let { "Lampe bei Notfall-Alarm: $it" }
-                        ?: "Keine Lampe/Steckdose bei Notfall-Alarm",
+                    text = current.ioBrokerAction1()?.summaryLabel()?.let { "ioBroker-Datenpunkt 1 bei Notfall-Alarm: $it" }
+                        ?: "ioBroker-Datenpunkt 1 bei Notfall-Alarm (z. B. Lampe)",
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clickable {
+                        viewModel.refreshIoBrokerDataPoints()
+                        showIoBrokerDialog = 2
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Blinds, contentDescription = null)
+                Text(
+                    text = current.ioBrokerAction2()?.summaryLabel()?.let { "ioBroker-Datenpunkt 2 bei Notfall-Alarm: $it" }
+                        ?: "ioBroker-Datenpunkt 2 bei Notfall-Alarm (z. B. Rollo)",
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clickable {
+                        viewModel.refreshIoBrokerDataPoints()
+                        showIoBrokerDialog = 3
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.SettingsInputAntenna, contentDescription = null)
+                Text(
+                    text = current.ioBrokerScriptAction()?.summaryLabel()?.let { "Skript bei Notfall-Alarm: $it" }
+                        ?: "Skript bei Notfall-Alarm auslösen (z. B. Radio)",
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
@@ -307,76 +348,32 @@ fun AlarmEditScreen(
         )
     }
 
-    if (showLampDialog) {
-        LampDataPointDialog(
+    if (showIoBrokerDialog != null) {
+        val slot = showIoBrokerDialog
+        IoBrokerActionPickerDialog(
+            title = when (slot) {
+                1 -> "ioBroker-Datenpunkt 1 bei Notfall-Alarm (z. B. Lampe)"
+                2 -> "ioBroker-Datenpunkt 2 bei Notfall-Alarm (z. B. Rollo)"
+                else -> "Skript bei Notfall-Alarm auslösen (z. B. Radio)"
+            },
             connected = ioBrokerConnected,
             dataPoints = ioBrokerDataPoints,
-            selectedId = current.lampDataPointId,
-            onSelect = { dataPoint ->
-                alarm = current.copy(lampDataPointId = dataPoint?.id, lampDataPointLabel = dataPoint?.name)
-                showLampDialog = false
+            current = when (slot) {
+                1 -> current.ioBrokerAction1()
+                2 -> current.ioBrokerAction2()
+                else -> current.ioBrokerScriptAction()
             },
-            onDismiss = { showLampDialog = false }
+            onConfirm = { config ->
+                alarm = when (slot) {
+                    1 -> current.withIoBrokerAction1(config)
+                    2 -> current.withIoBrokerAction2(config)
+                    else -> current.withIoBrokerScriptAction(config)
+                }
+                showIoBrokerDialog = null
+            },
+            onDismiss = { showIoBrokerDialog = null }
         )
     }
-}
-
-@Composable
-private fun LampDataPointDialog(
-    connected: Boolean,
-    dataPoints: List<IoBrokerDataPoint>,
-    selectedId: String?,
-    onSelect: (IoBrokerDataPoint?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var search by remember { mutableStateOf("") }
-    val filtered = if (search.isBlank()) dataPoints else dataPoints.filter {
-        it.name.contains(search, ignoreCase = true) || it.id.contains(search, ignoreCase = true)
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Lampe/Steckdose bei Notfall-Alarm") },
-        text = {
-            Column {
-                if (!connected) {
-                    Text(
-                        "Noch kein ioBroker-Server verbunden. Unter dem 3-Punkte-Menü \"Smart-Home " +
-                            "(ioBroker)\" zuerst eine Verbindung einrichten."
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = search,
-                        onValueChange = { search = it },
-                        label = { Text("Suche") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                    )
-                    TextButton(onClick = { onSelect(null) }) {
-                        Text(if (selectedId == null) "✓ Keine Verknüpfung" else "Keine Verknüpfung")
-                    }
-                    if (filtered.isEmpty()) {
-                        Text("Keine Datenpunkte gefunden", style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
-                            items(filtered) { dataPoint ->
-                                ListItem(
-                                    headlineContent = {
-                                        Text(if (dataPoint.id == selectedId) "✓ ${dataPoint.name}" else dataPoint.name)
-                                    },
-                                    supportingContent = { Text(dataPoint.id, style = MaterialTheme.typography.labelSmall) },
-                                    modifier = Modifier.fillMaxWidth().clickable { onSelect(dataPoint) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Fertig") }
-        }
-    )
 }
 
 /**

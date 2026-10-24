@@ -216,6 +216,8 @@ private fun LessonCard(lesson: LessonEntity, onClick: () -> Unit, onDelete: () -
 @Composable
 private fun ShiftsTab(viewModel: JobDetailViewModel, openShiftId: Long? = null) {
     val shifts by viewModel.shifts.collectAsState()
+    val ioBrokerConnected by viewModel.ioBrokerConnected.collectAsState()
+    val ioBrokerDataPoints by viewModel.ioBrokerDataPoints.collectAsState()
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var showDialog by remember { mutableStateOf(false) }
     var autoOpenedFor by remember { mutableStateOf<Long?>(null) }
@@ -267,6 +269,9 @@ private fun ShiftsTab(viewModel: JobDetailViewModel, openShiftId: Long? = null) 
         ShiftEditDialog(
             jobId = viewModel.jobId,
             existing = editingShift,
+            ioBrokerConnected = ioBrokerConnected,
+            ioBrokerDataPoints = ioBrokerDataPoints,
+            onRefreshIoBrokerDataPoints = { viewModel.refreshIoBrokerDataPoints() },
             onConfirm = { shift -> viewModel.saveShift(shift); showDialog = false },
             onDismiss = { showDialog = false }
         )

@@ -239,13 +239,48 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Ergänzt die bis zu drei konfigurierbaren ioBroker-Aktionen pro Alarm/Schicht (siehe
+     * [de.letheapp.nocturn.data.db.AlarmEntity]/[de.letheapp.nocturn.data.db.ShiftEntity] sowie
+     * `IoBrokerAction.kt`) — reine Spalten-Erweiterung, bestehende Zeilen bekommen NULL.
+     * Die bisher einzelne Lampen-Verknüpfung ([de.letheapp.nocturn.data.db.AlarmEntity.lampDataPointId]/
+     * `lampDataPointLabel`) wird dabei einmalig in den ersten der drei neuen Aktions-Slots
+     * übernommen (als "Einschalten"), die alten Spalten bleiben unverändert in der Tabelle stehen
+     * (SQLite auf Android 13 unterstützt kein `DROP COLUMN`) und werden vom App-Code nicht mehr
+     * gelesen.
+     */
+    private val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (table in listOf("alarms", "shifts")) {
+                for (prefix in listOf("ioBrokerAction1", "ioBrokerAction2", "ioBrokerScript")) {
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}DataPointId TEXT")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}DataPointLabel TEXT")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}Mode TEXT")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}TurnOn INTEGER")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}RampStep REAL")
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}RampTarget REAL")
+                }
+            }
+            db.execSQL(
+                """
+                UPDATE alarms SET
+                    ioBrokerAction1DataPointId = lampDataPointId,
+                    ioBrokerAction1DataPointLabel = lampDataPointLabel,
+                    ioBrokerAction1Mode = 'ON_OFF',
+                    ioBrokerAction1TurnOn = 1
+                WHERE lampDataPointId IS NOT NULL
+                """.trimIndent()
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
             .addMigrations(
                 MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
-                MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20
+                MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21
             )
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem

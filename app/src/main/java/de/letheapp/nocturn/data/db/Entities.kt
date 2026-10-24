@@ -51,7 +51,39 @@ data class AlarmEntity(
      * [timetableJobId] gesetzt ist. Null = jeder Unterrichtstag löst den Alarm aus (erste Stunde
      * des Tages, bisheriges Verhalten).
      */
-    val linkedTimetableWeekday: Int? = null
+    val linkedTimetableWeekday: Int? = null,
+    /**
+     * Bis zu drei beim Notfall-Alarm ausgelöste ioBroker-Aktionen (siehe
+     * [de.letheapp.nocturn.iobroker.IoBrokerActionConfig], ausgewertet über die
+     * `ioBrokerAction1()`/`ioBrokerAction2()`/`ioBrokerScriptAction()`-Erweiterungsfunktionen in
+     * `IoBrokerAction.kt`, ausgeführt in [de.letheapp.nocturn.emergency.EmergencyAlarmService]):
+     * zwei frei wählbare Datenpunkte (z. B. Lampe/Rollo) plus ein dritter, eigens für einen
+     * Skript-Auslöser gedachter Datenpunkt (z. B. Radio). Jede Aktion setzt ihren Datenpunkt
+     * entweder einmalig auf "true"/"false" ([ioBrokerAction1TurnOn] etc.) oder erhöht ihn
+     * stufenweise ([ioBrokerAction1RampStep] pro Schritt bis [ioBrokerAction1RampTarget]) —
+     * [ioBrokerAction1Mode] hält dafür den Namen von [de.letheapp.nocturn.iobroker.IoBrokerActionMode]
+     * (null = [de.letheapp.nocturn.iobroker.IoBrokerActionMode.ON_OFF]). Lösen die alten Felder
+     * [lampDataPointId]/[lampDataPointLabel] ab — die bleiben nur für die einmalige Migrations-
+     * Übernahme nach [ioBrokerAction1DataPointId] deklariert, werden sonst nicht mehr gelesen.
+     */
+    val ioBrokerAction1DataPointId: String? = null,
+    val ioBrokerAction1DataPointLabel: String? = null,
+    val ioBrokerAction1Mode: String? = null,
+    val ioBrokerAction1TurnOn: Boolean? = null,
+    val ioBrokerAction1RampStep: Double? = null,
+    val ioBrokerAction1RampTarget: Double? = null,
+    val ioBrokerAction2DataPointId: String? = null,
+    val ioBrokerAction2DataPointLabel: String? = null,
+    val ioBrokerAction2Mode: String? = null,
+    val ioBrokerAction2TurnOn: Boolean? = null,
+    val ioBrokerAction2RampStep: Double? = null,
+    val ioBrokerAction2RampTarget: Double? = null,
+    val ioBrokerScriptDataPointId: String? = null,
+    val ioBrokerScriptDataPointLabel: String? = null,
+    val ioBrokerScriptMode: String? = null,
+    val ioBrokerScriptTurnOn: Boolean? = null,
+    val ioBrokerScriptRampStep: Double? = null,
+    val ioBrokerScriptRampTarget: Double? = null
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */
@@ -101,7 +133,32 @@ data class ShiftEntity(
      */
     val latestWakeupHour: Int? = null,
     /** Minute zu [latestWakeupHour], nur relevant wenn dieser gesetzt ist. */
-    val latestWakeupMinute: Int? = null
+    val latestWakeupMinute: Int? = null,
+    /**
+     * Dieselben bis zu drei ioBroker-Aktionen wie bei [AlarmEntity] (siehe dort), nur pro Schicht
+     * statt pro Alarm hinterlegt — ermöglicht z. B. bei Nachtschicht einen anderen/helleren
+     * Weck-Ablauf als bei Spätschicht (am Nachmittag ist es ohnehin schon hell draußen). Werden
+     * von [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer] in den jeweils automatisch
+     * verwalteten [AlarmEntity] übernommen, sobald [latestWakeupHour] gesetzt ist.
+     */
+    val ioBrokerAction1DataPointId: String? = null,
+    val ioBrokerAction1DataPointLabel: String? = null,
+    val ioBrokerAction1Mode: String? = null,
+    val ioBrokerAction1TurnOn: Boolean? = null,
+    val ioBrokerAction1RampStep: Double? = null,
+    val ioBrokerAction1RampTarget: Double? = null,
+    val ioBrokerAction2DataPointId: String? = null,
+    val ioBrokerAction2DataPointLabel: String? = null,
+    val ioBrokerAction2Mode: String? = null,
+    val ioBrokerAction2TurnOn: Boolean? = null,
+    val ioBrokerAction2RampStep: Double? = null,
+    val ioBrokerAction2RampTarget: Double? = null,
+    val ioBrokerScriptDataPointId: String? = null,
+    val ioBrokerScriptDataPointLabel: String? = null,
+    val ioBrokerScriptMode: String? = null,
+    val ioBrokerScriptTurnOn: Boolean? = null,
+    val ioBrokerScriptRampStep: Double? = null,
+    val ioBrokerScriptRampTarget: Double? = null
 )
 
 /**

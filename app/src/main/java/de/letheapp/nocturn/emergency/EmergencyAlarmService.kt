@@ -18,6 +18,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.repository.AlarmRepository
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
+import de.letheapp.nocturn.iobroker.allIoBrokerActions
 import de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler
 import de.letheapp.nocturn.sound.LoudnessBooster
 import de.letheapp.nocturn.sound.SoundRepository
@@ -100,16 +101,25 @@ class EmergencyAlarmService : Service() {
             acquireWakeLock()
             playSound()
             startEscalation()
-            turnOnLampIfConfigured()
+            runConfiguredIoBrokerActions()
         }
         return START_STICKY
     }
 
-    /** Schaltet die diesem Alarm zugeordnete ioBroker-Lampe/Steckdose ein (siehe CLAUDE.md "Smart-Home-Kopplung"). */
-    private fun turnOnLampIfConfigured() {
+    /**
+     * Führt die diesem Alarm zugeordneten ioBroker-Aktionen aus (siehe CLAUDE.md "Smart-Home-
+     * Kopplung") — bis zu drei Stück (zwei frei wählbare Datenpunkte, z. B. Lampe/Rollo, plus ein
+     * Skript-Auslöser), jede in einer eigenen Coroutine, damit eine evtl. mehrminütig laufende
+     * Stufenweise-Erhöhung ([de.letheapp.nocturn.iobroker.IoBrokerRepository.runRamp]) die anderen
+     * Aktionen nicht blockiert. Alle Coroutinen hängen an [scope] und werden damit automatisch
+     * abgebrochen, sobald der Notfall-Alarm endet (siehe [onDestroy]).
+     */
+    private fun runConfiguredIoBrokerActions() {
         scope.launch {
-            val dataPointId = alarmRepository.getById(alarmId)?.lampDataPointId ?: return@launch
-            ioBrokerRepository.turnOn(dataPointId)
+            val alarm = alarmRepository.getById(alarmId) ?: return@launch
+            alarm.allIoBrokerActions().forEach { action ->
+                scope.launch { ioBrokerRepository.executeAction(action) }
+            }
         }
     }
 

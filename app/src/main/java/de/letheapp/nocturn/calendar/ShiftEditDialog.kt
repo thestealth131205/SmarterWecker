@@ -48,6 +48,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import de.letheapp.nocturn.alarm.NocturnTimePickerDialog
 import de.letheapp.nocturn.data.db.ShiftEntity
+import de.letheapp.nocturn.iobroker.IoBrokerActionPickerDialog
+import de.letheapp.nocturn.iobroker.IoBrokerDataPoint
+import de.letheapp.nocturn.iobroker.ioBrokerAction1
+import de.letheapp.nocturn.iobroker.ioBrokerAction2
+import de.letheapp.nocturn.iobroker.ioBrokerScriptAction
+import de.letheapp.nocturn.iobroker.summaryLabel
+import de.letheapp.nocturn.iobroker.withIoBrokerAction1
+import de.letheapp.nocturn.iobroker.withIoBrokerAction2
+import de.letheapp.nocturn.iobroker.withIoBrokerScriptAction
 
 // "Freischicht" statt "Frei", da ein Tag ohne zugewiesene Schicht in der Rotation bereits
 // "Frei" heißt – eine gleichnamige Schicht würde beides verwechselbar machen.
@@ -70,6 +79,9 @@ private val SHIFT_DEFAULT_TIMES: Map<String, IntArray> = mapOf(
 fun ShiftEditDialog(
     jobId: Long,
     existing: ShiftEntity?,
+    ioBrokerConnected: Boolean = false,
+    ioBrokerDataPoints: List<IoBrokerDataPoint> = emptyList(),
+    onRefreshIoBrokerDataPoints: () -> Unit = {},
     onConfirm: (ShiftEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -92,6 +104,10 @@ fun ShiftEditDialog(
     var wakeupAlarmMinute by remember { mutableStateOf(existing?.latestWakeupMinute ?: 0) }
     var wakeupAlarmCustomized by remember { mutableStateOf(existing?.latestWakeupHour != null) }
     var showWakeupAlarmPicker by remember { mutableStateOf(false) }
+    var ioBrokerAction1Config by remember { mutableStateOf(existing?.ioBrokerAction1()) }
+    var ioBrokerAction2Config by remember { mutableStateOf(existing?.ioBrokerAction2()) }
+    var ioBrokerScriptActionConfig by remember { mutableStateOf(existing?.ioBrokerScriptAction()) }
+    var showIoBrokerDialog by remember { mutableStateOf<Int?>(null) }
 
     // Solange der Nutzer die Weckzeit nicht selbst über den Zeit-Dialog festgelegt hat, folgt sie
     // der Start-Zeit (auch wenn diese erst später über einen Schnellauswahl-Chip wie "Spät" gesetzt
@@ -110,8 +126,7 @@ fun ShiftEditDialog(
         val earliestWakeOffset = earliestWakeOffsetText.toIntOrNull() ?: 0
         // "Spätestens aufstehen" darf nicht nach dem Wecker-Klingeln selbst liegen.
         val latestWakeupOffset = (latestWakeupOffsetText.toIntOrNull() ?: 0).coerceAtMost(earliestWakeOffset)
-        onConfirm(
-            ShiftEntity(
+        var result = ShiftEntity(
                 id = existing?.id ?: 0,
                 jobId = jobId,
                 name = name.trim(),
@@ -124,7 +139,10 @@ fun ShiftEditDialog(
                 latestWakeupHour = if (wakeupAlarmEnabled) wakeupAlarmHour else null,
                 latestWakeupMinute = if (wakeupAlarmEnabled) wakeupAlarmMinute else null
             )
-        )
+        result = result.withIoBrokerAction1(ioBrokerAction1Config)
+        result = result.withIoBrokerAction2(ioBrokerAction2Config)
+        result = result.withIoBrokerScriptAction(ioBrokerScriptActionConfig)
+        onConfirm(result)
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -275,6 +293,43 @@ fun ShiftEditDialog(
                     }
                 }
 
+                Text(
+                    text = "Smart-Home bei Notfall-Alarm (optional)",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp)
+                )
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column {
+                        ShiftFormRow(
+                            label = "ioBroker-Datenpunkt 1 (z. B. Lampe)",
+                            value = ioBrokerAction1Config?.summaryLabel(),
+                            onClick = {
+                                onRefreshIoBrokerDataPoints()
+                                showIoBrokerDialog = 1
+                            },
+                            showChevron = false
+                        )
+                        ShiftFormRow(
+                            label = "ioBroker-Datenpunkt 2 (z. B. Rollo)",
+                            value = ioBrokerAction2Config?.summaryLabel(),
+                            onClick = {
+                                onRefreshIoBrokerDataPoints()
+                                showIoBrokerDialog = 2
+                            },
+                            showChevron = false
+                        )
+                        ShiftFormRow(
+                            label = "Skript auslösen (z. B. Radio)",
+                            value = ioBrokerScriptActionConfig?.summaryLabel(),
+                            onClick = {
+                                onRefreshIoBrokerDataPoints()
+                                showIoBrokerDialog = 3
+                            },
+                            showChevron = false
+                        )
+                    }
+                }
+
                 // Bodenabschluss statt eines zweiten Speichern-Buttons: der in der Topbar
                 // war am unteren Rand des Dialog-Fensters (hinter der System-Navigationsleiste)
                 // nicht sichtbar/erreichbar.
@@ -307,6 +362,33 @@ fun ShiftEditDialog(
             initialMinute = wakeupAlarmMinute,
             onConfirm = { h, m -> wakeupAlarmHour = h; wakeupAlarmMinute = m; wakeupAlarmCustomized = true; showWakeupAlarmPicker = false },
             onDismiss = { showWakeupAlarmPicker = false }
+        )
+    }
+
+    if (showIoBrokerDialog != null) {
+        val slot = showIoBrokerDialog
+        IoBrokerActionPickerDialog(
+            title = when (slot) {
+                1 -> "ioBroker-Datenpunkt 1 (z. B. Lampe)"
+                2 -> "ioBroker-Datenpunkt 2 (z. B. Rollo)"
+                else -> "Skript auslösen (z. B. Radio)"
+            },
+            connected = ioBrokerConnected,
+            dataPoints = ioBrokerDataPoints,
+            current = when (slot) {
+                1 -> ioBrokerAction1Config
+                2 -> ioBrokerAction2Config
+                else -> ioBrokerScriptActionConfig
+            },
+            onConfirm = { config ->
+                when (slot) {
+                    1 -> ioBrokerAction1Config = config
+                    2 -> ioBrokerAction2Config = config
+                    else -> ioBrokerScriptActionConfig = config
+                }
+                showIoBrokerDialog = null
+            },
+            onDismiss = { showIoBrokerDialog = null }
         )
     }
 }

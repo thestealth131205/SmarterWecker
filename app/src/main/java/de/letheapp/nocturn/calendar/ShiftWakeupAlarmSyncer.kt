@@ -89,7 +89,29 @@ class ShiftWakeupAlarmSyncer @Inject constructor(
             rotationId = null,
             timetableJobId = null,
             autoShiftWakeupEpochDay = dateEpochDay,
-            autoShiftWakeupShiftId = shift.id
+            autoShiftWakeupShiftId = shift.id,
+            // Dieselben bis zu drei ioBroker-Aktionen wie an der Schicht hinterlegt übernehmen
+            // (z. B. bei Nachtschicht einen anderen/helleren Weck-Ablauf als bei Spätschicht,
+            // siehe ShiftEntity-Doc-Kommentar) — ein automatischer Schicht-Wecker hat sonst keinen
+            // eigenen Bearbeiten-Screen, in dem sich das nachträglich setzen ließe.
+            ioBrokerAction1DataPointId = shift.ioBrokerAction1DataPointId,
+            ioBrokerAction1DataPointLabel = shift.ioBrokerAction1DataPointLabel,
+            ioBrokerAction1Mode = shift.ioBrokerAction1Mode,
+            ioBrokerAction1TurnOn = shift.ioBrokerAction1TurnOn,
+            ioBrokerAction1RampStep = shift.ioBrokerAction1RampStep,
+            ioBrokerAction1RampTarget = shift.ioBrokerAction1RampTarget,
+            ioBrokerAction2DataPointId = shift.ioBrokerAction2DataPointId,
+            ioBrokerAction2DataPointLabel = shift.ioBrokerAction2DataPointLabel,
+            ioBrokerAction2Mode = shift.ioBrokerAction2Mode,
+            ioBrokerAction2TurnOn = shift.ioBrokerAction2TurnOn,
+            ioBrokerAction2RampStep = shift.ioBrokerAction2RampStep,
+            ioBrokerAction2RampTarget = shift.ioBrokerAction2RampTarget,
+            ioBrokerScriptDataPointId = shift.ioBrokerScriptDataPointId,
+            ioBrokerScriptDataPointLabel = shift.ioBrokerScriptDataPointLabel,
+            ioBrokerScriptMode = shift.ioBrokerScriptMode,
+            ioBrokerScriptTurnOn = shift.ioBrokerScriptTurnOn,
+            ioBrokerScriptRampStep = shift.ioBrokerScriptRampStep,
+            ioBrokerScriptRampTarget = shift.ioBrokerScriptRampTarget
         )
         val id = alarmRepository.save(alarm)
         alarmScheduler.schedule(alarm.copy(id = id))
