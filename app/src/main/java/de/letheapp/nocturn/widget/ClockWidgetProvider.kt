@@ -2,6 +2,8 @@ package de.letheapp.nocturn.widget
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.app.WallpaperManager
+import android.app.WallpaperColors
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
@@ -42,6 +44,13 @@ private val DATE_FORMATTER = DateTimeFormatter.ofPattern("EEE, d. MMM", Locale.G
 private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 private val NEXT_ALARM_FORMATTER = DateTimeFormatter.ofPattern("EEE, HH:mm", Locale.GERMAN)
 private val AGENDA_WEEKDAY_FORMATTER = DateTimeFormatter.ofPattern("EEE", Locale.GERMAN)
+
+// Weißer Text (Default) für dunkle/dunkel wirkende Wallpaper, dunkler Text, sobald
+// WallpaperColors.HINT_SUPPORTS_DARK_TEXT meldet, dass der Hintergrund hell genug dafür ist.
+private const val TEXT_PRIMARY_ON_DARK = 0xFFFFFFFF.toInt()
+private const val TEXT_SECONDARY_ON_DARK = 0xCCFFFFFF.toInt()
+private const val TEXT_PRIMARY_ON_LIGHT = 0xE6101010.toInt()
+private const val TEXT_SECONDARY_ON_LIGHT = 0xB3101010.toInt()
 
 private data class ClockAgendaRowIds(val rowId: Int, val dotId: Int, val textId: Int)
 
@@ -109,10 +118,12 @@ class ClockWidgetProvider : AppWidgetProvider() {
     }
 
     private fun refreshClockOnly(context: Context, appWidgetManager: AppWidgetManager, widgetId: Int) {
-        val views = RemoteViews(context.packageName, R.layout.widget_clock)
+        val alignment = ClockWidgetConfigureActivity.alignmentFor(context, widgetId)
+        val views = RemoteViews(context.packageName, layoutResIdFor(alignment))
         val now = LocalDateTime.now()
         views.setTextViewText(R.id.widget_clock_date, DATE_FORMATTER.format(now))
         views.setTextViewText(R.id.widget_clock_time, TIME_FORMATTER.format(now))
+        applyTextColors(context, views)
         appWidgetManager.partiallyUpdateAppWidget(widgetId, views)
     }
 
@@ -121,10 +132,11 @@ class ClockWidgetProvider : AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val locationId = ClockWidgetConfigureActivity.locationIdFor(context, widgetId)
+                val alignment = ClockWidgetConfigureActivity.alignmentFor(context, widgetId)
                 val weather = runCatching { weatherRepository.currentWeather(locationId) }.getOrNull()
                 val agenda = runCatching { calendarRepository.getUpcomingAgendaForWidget(AGENDA_SHOWN_COUNT) }
                     .getOrNull() ?: WidgetAgenda(emptyList(), 0)
-                updateWidget(context, appWidgetManager, widgetId, weather?.let { "${it.emoji} ${it.temperatureCelsius}°" }, agenda)
+                updateWidget(context, appWidgetManager, widgetId, alignment, weather?.let { "${it.emoji} ${it.temperatureCelsius}°" }, agenda)
             } finally {
                 pendingResult.finish()
             }
@@ -135,10 +147,11 @@ class ClockWidgetProvider : AppWidgetProvider() {
         context: Context,
         appWidgetManager: AppWidgetManager,
         widgetId: Int,
+        alignment: WidgetAlignment,
         weatherLabel: String?,
         agenda: WidgetAgenda
     ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_clock)
+        val views = RemoteViews(context.packageName, layoutResIdFor(alignment))
         val now = LocalDateTime.now()
 
         views.setTextViewText(R.id.widget_clock_date, DATE_FORMATTER.format(now))
@@ -162,6 +175,7 @@ class ClockWidgetProvider : AppWidgetProvider() {
         }
 
         applyAgenda(views, agenda)
+        applyTextColors(context, views)
 
         // Drei getrennte Tap-Zonen: Uhrzeit/Datum/nächster Alarm -> Wecker, Wetter -> Wetter-Screen,
         // Termin-Agenda -> Kalender. PendingIntent-Gleichheit wird über Action/Component/Daten
@@ -188,6 +202,7 @@ class ClockWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_clock_next_alarm_row, openWeckerPendingIntent)
         views.setOnClickPendingIntent(R.id.widget_clock_root, openWeckerPendingIntent)
         views.setOnClickPendingIntent(R.id.widget_clock_weather, openWeatherPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_clock_shift_dots_row, openCalendarPendingIntent)
         views.setOnClickPendingIntent(R.id.widget_clock_agenda_row1, openCalendarPendingIntent)
         views.setOnClickPendingIntent(R.id.widget_clock_agenda_row2, openCalendarPendingIntent)
 
@@ -205,10 +220,37 @@ class ClockWidgetProvider : AppWidgetProvider() {
         )
     }
 
+    private fun layoutResIdFor(alignment: WidgetAlignment): Int = when (alignment) {
+        WidgetAlignment.LEFT -> R.layout.widget_clock_left
+        WidgetAlignment.RIGHT -> R.layout.widget_clock_right
+        WidgetAlignment.CENTER -> R.layout.widget_clock
+    }
+
+    /**
+     * Sind die beiden gezeigten Einträge BEIDE Schichten (z. B. mehrere Schichten am selben Tag,
+     * siehe CLAUDE.md Kernfunktion 6), werden sie nebeneinander in einer gemeinsamen Punkte-Zeile
+     * dargestellt statt wie zuvor als zwei separate, untereinander gestapelte Zeilen - sonst
+     * nähmen zwei reine Hintergrund-Punkte unnötig doppelt so viel vertikalen Platz ein wie ein
+     * einzelner Termin mit Titel/Uhrzeit.
+     */
     private fun applyAgenda(views: RemoteViews, agenda: WidgetAgenda) {
         val today = LocalDate.now()
+        val entries = agenda.entries
+        val bothShift = entries.size >= 2 &&
+            entries[0].type == AgendaEntryType.SHIFT &&
+            entries[1].type == AgendaEntryType.SHIFT
+
+        if (bothShift) {
+            views.setViewVisibility(R.id.widget_clock_shift_dots_row, View.VISIBLE)
+            views.setInt(R.id.widget_clock_shift_dot_1, "setColorFilter", entries[0].colorArgb)
+            views.setInt(R.id.widget_clock_shift_dot_2, "setColorFilter", entries[1].colorArgb)
+            AGENDA_ROW_SPECS.forEach { spec -> views.setViewVisibility(spec.rowId, View.GONE) }
+            return
+        }
+
+        views.setViewVisibility(R.id.widget_clock_shift_dots_row, View.GONE)
         AGENDA_ROW_SPECS.forEachIndexed { index, spec ->
-            val entry = agenda.entries.getOrNull(index)
+            val entry = entries.getOrNull(index)
             if (entry == null) {
                 views.setViewVisibility(spec.rowId, View.GONE)
                 return@forEachIndexed
@@ -223,7 +265,7 @@ class ClockWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(spec.textId, View.GONE)
             } else {
                 views.setViewVisibility(spec.textId, View.VISIBLE)
-                val isLastShown = index == agenda.entries.lastIndex
+                val isLastShown = index == entries.lastIndex
                 val extraSuffix = if (isLastShown && agenda.extraCountForLastDay > 0) {
                     " (+${agenda.extraCountForLastDay})"
                 } else {
@@ -231,6 +273,36 @@ class ClockWidgetProvider : AppWidgetProvider() {
                 }
                 views.setTextViewText(spec.textId, formatAgendaText(entry, today) + extraSuffix)
             }
+        }
+    }
+
+    /**
+     * Passt die Textfarbe des (transparent über dem Homescreen-Hintergrund liegenden) Uhr-Widgets
+     * an die tatsächliche Wallpaper-Helligkeit an, statt stur Weiß zu nutzen - bei einem hellen
+     * Hintergrundbild wäre weißer Text sonst kaum lesbar. [WallpaperManager.getWallpaperColors]
+     * liefert dafür ohne zusätzliche Berechtigung einen [WallpaperColors.HINT_SUPPORTS_DARK_TEXT]-
+     * Hinweis (dieselbe API, über die z. B. Launcher die Lesbarkeit von App-Labels auf dem
+     * Homescreen entscheiden).
+     */
+    private fun applyTextColors(context: Context, views: RemoteViews) {
+        val lightBackground = isLightWallpaper(context)
+        val primary = if (lightBackground) TEXT_PRIMARY_ON_LIGHT else TEXT_PRIMARY_ON_DARK
+        val secondary = if (lightBackground) TEXT_SECONDARY_ON_LIGHT else TEXT_SECONDARY_ON_DARK
+        views.setTextColor(R.id.widget_clock_date, secondary)
+        views.setTextColor(R.id.widget_clock_time, primary)
+        views.setTextColor(R.id.widget_clock_weather, secondary)
+        views.setTextColor(R.id.widget_clock_next_alarm, secondary)
+        views.setTextColor(R.id.widget_clock_agenda_text1, secondary)
+        views.setTextColor(R.id.widget_clock_agenda_text2, secondary)
+        views.setInt(R.id.widget_clock_next_alarm_icon, "setColorFilter", secondary)
+    }
+
+    private fun isLightWallpaper(context: Context): Boolean {
+        return try {
+            val colors = WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+            colors != null && (colors.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0
+        } catch (e: Exception) {
+            false
         }
     }
 
