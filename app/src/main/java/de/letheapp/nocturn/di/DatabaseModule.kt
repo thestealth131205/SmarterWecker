@@ -274,13 +274,29 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Ergänzt pro ioBroker-Aktions-Slot ein "automatisch ausschalten"-Flag: nur bei Ein/Aus-Modus
+     * mit "Einschalten" relevant, schaltet den Datenpunkt automatisch wieder aus, sobald der
+     * Notfall-Alarm endet, statt dauerhaft eingeschaltet zu bleiben (siehe
+     * [de.letheapp.nocturn.emergency.EmergencyAlarmService]).
+     */
+    private val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (table in listOf("alarms", "shifts")) {
+                for (prefix in listOf("ioBrokerAction1", "ioBrokerAction2", "ioBrokerScript")) {
+                    db.execSQL("ALTER TABLE $table ADD COLUMN ${prefix}AutoTurnOff INTEGER NOT NULL DEFAULT 0")
+                }
+            }
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): NocturnDatabase =
         Room.databaseBuilder(context, NocturnDatabase::class.java, "nocturn.db")
             .addMigrations(
                 MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
-                MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21
+                MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22
             )
             // Es gibt jetzt reale Nutzdaten auf installierten Geräten (Alarme, Jobs, Schichten,
             // Rotationen, Kalendereinträge, ...) — ein destruktiver Neuaufbau bei jedem

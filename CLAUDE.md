@@ -78,13 +78,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      gelesenen Werts automatisch, ob Ein/Aus (Boolean-Datenpunkt, Nutzer wählt
      "Einschalten"/"Ausschalten") oder "Stufenweise erhöhen" (numerischer Datenpunkt wie
      Helligkeit, Nutzer gibt "pro Schritt erhöhen um" und "Endwert" an) sinnvoller ist —
-     per Chip manuell übersteuerbar, falls die Erkennung danebenliegt. Ein automatischer
-     Schicht-Wecker (`ShiftWakeupAlarmSyncer`) übernimmt die an der Schicht hinterlegten
-     Aktionen in den generierten Alarm. Ausgeführt in `EmergencyAlarmService` beim Start
-     des Notfall-Alarms: Ein/Aus setzt den Datenpunkt einmalig, "Stufenweise erhöhen"
-     (`IoBrokerRepository.runRamp`) erhöht ihn alle 8 Sekunden um den angegebenen Schritt,
-     bis der Endwert erreicht ist oder der Notfall-Alarm endet (sanftes Aufdimmen statt
-     eines abrupten Sprungs).
+     per Chip manuell übersteuerbar, falls die Erkennung danebenliegt. Bei Ein/Aus mit
+     "Einschalten" lässt sich zusätzlich **"Automatisch ausschalten"** (Ja/Nein, Default
+     Nein) wählen — schaltet den Datenpunkt wieder aus, sobald der Notfall-Alarm endet
+     (Puzzle gelöst oder Bewegung erkannt), statt dauerhaft eingeschaltet zu bleiben. Ein
+     automatischer Schicht-Wecker (`ShiftWakeupAlarmSyncer`) übernimmt die an der Schicht
+     hinterlegten Aktionen in den generierten Alarm. Ausgeführt in `EmergencyAlarmService`
+     beim Start des Notfall-Alarms: Ein/Aus setzt den Datenpunkt einmalig, "Stufenweise
+     erhöhen" (`IoBrokerRepository.runRamp`) erhöht ihn alle 8 Sekunden um den angegebenen
+     Schritt, bis der Endwert erreicht ist oder der Notfall-Alarm endet (sanftes Aufdimmen
+     statt eines abrupten Sprungs); endet der Notfall-Alarm, schaltet
+     `turnOffAutoTurnOffActions` passend konfigurierte Ein/Aus-Aktionen automatisch wieder aus.
 
 5. **Schichtplan-Rotation / Stundenplan:**
    - Nutzer kann eigene Schichten definieren: Name der Schicht (z. B. "Frühschicht",

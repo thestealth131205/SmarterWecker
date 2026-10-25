@@ -24,12 +24,23 @@ data class IoBrokerActionConfig(
     val mode: IoBrokerActionMode = IoBrokerActionMode.ON_OFF,
     val turnOn: Boolean = true,
     val rampStep: Double? = null,
-    val rampTarget: Double? = null
+    val rampTarget: Double? = null,
+    /**
+     * Nur bei [mode] == [IoBrokerActionMode.ON_OFF] und [turnOn] == true relevant: schaltet den
+     * Datenpunkt automatisch wieder aus, sobald der Notfall-Alarm endet (siehe
+     * [de.letheapp.nocturn.emergency.EmergencyAlarmService]), statt dauerhaft eingeschaltet zu
+     * bleiben.
+     */
+    val autoTurnOff: Boolean = false
 )
 
 /** Kurze Anzeige-Zusammenfassung für eine Zeile im Alarm-/Schicht-Bearbeiten-Screen. */
 fun IoBrokerActionConfig.summaryLabel(): String = when (mode) {
-    IoBrokerActionMode.ON_OFF -> "$dataPointLabel (${if (turnOn) "Ein" else "Aus"})"
+    IoBrokerActionMode.ON_OFF -> {
+        val state = if (turnOn) "Ein" else "Aus"
+        val autoOffSuffix = if (turnOn && autoTurnOff) ", auto. aus" else ""
+        "$dataPointLabel ($state$autoOffSuffix)"
+    }
     IoBrokerActionMode.RAMP -> "$dataPointLabel (bis ${formatIoBrokerNumber(rampTarget)})"
 }
 
@@ -45,7 +56,8 @@ private fun buildConfig(
     mode: String?,
     turnOn: Boolean?,
     rampStep: Double?,
-    rampTarget: Double?
+    rampTarget: Double?,
+    autoTurnOff: Boolean = false
 ): IoBrokerActionConfig? {
     val id = dataPointId ?: return null
     return IoBrokerActionConfig(
@@ -54,7 +66,8 @@ private fun buildConfig(
         mode = if (mode == IoBrokerActionMode.RAMP.name) IoBrokerActionMode.RAMP else IoBrokerActionMode.ON_OFF,
         turnOn = turnOn ?: true,
         rampStep = rampStep,
-        rampTarget = rampTarget
+        rampTarget = rampTarget,
+        autoTurnOff = autoTurnOff
     )
 }
 
@@ -62,7 +75,7 @@ private fun buildConfig(
 
 fun AlarmEntity.ioBrokerAction1(): IoBrokerActionConfig? = buildConfig(
     ioBrokerAction1DataPointId, ioBrokerAction1DataPointLabel, ioBrokerAction1Mode,
-    ioBrokerAction1TurnOn, ioBrokerAction1RampStep, ioBrokerAction1RampTarget
+    ioBrokerAction1TurnOn, ioBrokerAction1RampStep, ioBrokerAction1RampTarget, ioBrokerAction1AutoTurnOff
 )
 
 fun AlarmEntity.withIoBrokerAction1(config: IoBrokerActionConfig?): AlarmEntity = copy(
@@ -71,12 +84,13 @@ fun AlarmEntity.withIoBrokerAction1(config: IoBrokerActionConfig?): AlarmEntity 
     ioBrokerAction1Mode = config?.mode?.name,
     ioBrokerAction1TurnOn = config?.turnOn,
     ioBrokerAction1RampStep = config?.rampStep,
-    ioBrokerAction1RampTarget = config?.rampTarget
+    ioBrokerAction1RampTarget = config?.rampTarget,
+    ioBrokerAction1AutoTurnOff = config?.autoTurnOff ?: false
 )
 
 fun AlarmEntity.ioBrokerAction2(): IoBrokerActionConfig? = buildConfig(
     ioBrokerAction2DataPointId, ioBrokerAction2DataPointLabel, ioBrokerAction2Mode,
-    ioBrokerAction2TurnOn, ioBrokerAction2RampStep, ioBrokerAction2RampTarget
+    ioBrokerAction2TurnOn, ioBrokerAction2RampStep, ioBrokerAction2RampTarget, ioBrokerAction2AutoTurnOff
 )
 
 fun AlarmEntity.withIoBrokerAction2(config: IoBrokerActionConfig?): AlarmEntity = copy(
@@ -85,12 +99,13 @@ fun AlarmEntity.withIoBrokerAction2(config: IoBrokerActionConfig?): AlarmEntity 
     ioBrokerAction2Mode = config?.mode?.name,
     ioBrokerAction2TurnOn = config?.turnOn,
     ioBrokerAction2RampStep = config?.rampStep,
-    ioBrokerAction2RampTarget = config?.rampTarget
+    ioBrokerAction2RampTarget = config?.rampTarget,
+    ioBrokerAction2AutoTurnOff = config?.autoTurnOff ?: false
 )
 
 fun AlarmEntity.ioBrokerScriptAction(): IoBrokerActionConfig? = buildConfig(
     ioBrokerScriptDataPointId, ioBrokerScriptDataPointLabel, ioBrokerScriptMode,
-    ioBrokerScriptTurnOn, ioBrokerScriptRampStep, ioBrokerScriptRampTarget
+    ioBrokerScriptTurnOn, ioBrokerScriptRampStep, ioBrokerScriptRampTarget, ioBrokerScriptAutoTurnOff
 )
 
 fun AlarmEntity.withIoBrokerScriptAction(config: IoBrokerActionConfig?): AlarmEntity = copy(
@@ -99,7 +114,8 @@ fun AlarmEntity.withIoBrokerScriptAction(config: IoBrokerActionConfig?): AlarmEn
     ioBrokerScriptMode = config?.mode?.name,
     ioBrokerScriptTurnOn = config?.turnOn,
     ioBrokerScriptRampStep = config?.rampStep,
-    ioBrokerScriptRampTarget = config?.rampTarget
+    ioBrokerScriptRampTarget = config?.rampTarget,
+    ioBrokerScriptAutoTurnOff = config?.autoTurnOff ?: false
 )
 
 /** Alle bis zu drei konfigurierten Aktionen dieses Alarms, siehe [de.letheapp.nocturn.emergency.EmergencyAlarmService]. */
@@ -110,7 +126,7 @@ fun AlarmEntity.allIoBrokerActions(): List<IoBrokerActionConfig> =
 
 fun ShiftEntity.ioBrokerAction1(): IoBrokerActionConfig? = buildConfig(
     ioBrokerAction1DataPointId, ioBrokerAction1DataPointLabel, ioBrokerAction1Mode,
-    ioBrokerAction1TurnOn, ioBrokerAction1RampStep, ioBrokerAction1RampTarget
+    ioBrokerAction1TurnOn, ioBrokerAction1RampStep, ioBrokerAction1RampTarget, ioBrokerAction1AutoTurnOff
 )
 
 fun ShiftEntity.withIoBrokerAction1(config: IoBrokerActionConfig?): ShiftEntity = copy(
@@ -119,12 +135,13 @@ fun ShiftEntity.withIoBrokerAction1(config: IoBrokerActionConfig?): ShiftEntity 
     ioBrokerAction1Mode = config?.mode?.name,
     ioBrokerAction1TurnOn = config?.turnOn,
     ioBrokerAction1RampStep = config?.rampStep,
-    ioBrokerAction1RampTarget = config?.rampTarget
+    ioBrokerAction1RampTarget = config?.rampTarget,
+    ioBrokerAction1AutoTurnOff = config?.autoTurnOff ?: false
 )
 
 fun ShiftEntity.ioBrokerAction2(): IoBrokerActionConfig? = buildConfig(
     ioBrokerAction2DataPointId, ioBrokerAction2DataPointLabel, ioBrokerAction2Mode,
-    ioBrokerAction2TurnOn, ioBrokerAction2RampStep, ioBrokerAction2RampTarget
+    ioBrokerAction2TurnOn, ioBrokerAction2RampStep, ioBrokerAction2RampTarget, ioBrokerAction2AutoTurnOff
 )
 
 fun ShiftEntity.withIoBrokerAction2(config: IoBrokerActionConfig?): ShiftEntity = copy(
@@ -133,12 +150,13 @@ fun ShiftEntity.withIoBrokerAction2(config: IoBrokerActionConfig?): ShiftEntity 
     ioBrokerAction2Mode = config?.mode?.name,
     ioBrokerAction2TurnOn = config?.turnOn,
     ioBrokerAction2RampStep = config?.rampStep,
-    ioBrokerAction2RampTarget = config?.rampTarget
+    ioBrokerAction2RampTarget = config?.rampTarget,
+    ioBrokerAction2AutoTurnOff = config?.autoTurnOff ?: false
 )
 
 fun ShiftEntity.ioBrokerScriptAction(): IoBrokerActionConfig? = buildConfig(
     ioBrokerScriptDataPointId, ioBrokerScriptDataPointLabel, ioBrokerScriptMode,
-    ioBrokerScriptTurnOn, ioBrokerScriptRampStep, ioBrokerScriptRampTarget
+    ioBrokerScriptTurnOn, ioBrokerScriptRampStep, ioBrokerScriptRampTarget, ioBrokerScriptAutoTurnOff
 )
 
 fun ShiftEntity.withIoBrokerScriptAction(config: IoBrokerActionConfig?): ShiftEntity = copy(
@@ -147,5 +165,6 @@ fun ShiftEntity.withIoBrokerScriptAction(config: IoBrokerActionConfig?): ShiftEn
     ioBrokerScriptMode = config?.mode?.name,
     ioBrokerScriptTurnOn = config?.turnOn,
     ioBrokerScriptRampStep = config?.rampStep,
-    ioBrokerScriptRampTarget = config?.rampTarget
+    ioBrokerScriptRampTarget = config?.rampTarget,
+    ioBrokerScriptAutoTurnOff = config?.autoTurnOff ?: false
 )

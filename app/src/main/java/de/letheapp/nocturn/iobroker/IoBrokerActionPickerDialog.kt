@@ -43,6 +43,7 @@ fun IoBrokerActionPickerDialog(
     var selected by remember { mutableStateOf(dataPoints.find { it.id == current?.dataPointId }) }
     var mode by remember { mutableStateOf(current?.mode ?: IoBrokerActionMode.ON_OFF) }
     var turnOn by remember { mutableStateOf(current?.turnOn ?: true) }
+    var autoTurnOff by remember { mutableStateOf(current?.autoTurnOff ?: false) }
     var rampStepText by remember { mutableStateOf(current?.rampStep?.let { formatIoBrokerNumber(it) } ?: "") }
     var rampTargetText by remember { mutableStateOf(current?.rampTarget?.let { formatIoBrokerNumber(it) } ?: "") }
 
@@ -87,6 +88,7 @@ fun IoBrokerActionPickerDialog(
                                             !dataPoint.value.equals("false", ignoreCase = true)
                                         mode = if (looksNumeric) IoBrokerActionMode.RAMP else IoBrokerActionMode.ON_OFF
                                         turnOn = true
+                                        autoTurnOff = false
                                         rampStepText = ""
                                         rampTargetText = ""
                                     }
@@ -135,6 +137,26 @@ fun IoBrokerActionPickerDialog(
                                 label = { Text("Ausschalten") }
                             )
                         }
+                        if (turnOn) {
+                            Text(
+                                "Automatisch wieder ausschalten, sobald der Notfall-Alarm endet",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                            )
+                            Row {
+                                FilterChip(
+                                    selected = autoTurnOff,
+                                    onClick = { autoTurnOff = true },
+                                    label = { Text("Ja") },
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                FilterChip(
+                                    selected = !autoTurnOff,
+                                    onClick = { autoTurnOff = false },
+                                    label = { Text("Nein") }
+                                )
+                            }
+                        }
                     } else {
                         OutlinedTextField(
                             value = rampStepText,
@@ -169,7 +191,8 @@ fun IoBrokerActionPickerDialog(
                                 mode = mode,
                                 turnOn = turnOn,
                                 rampStep = if (mode == IoBrokerActionMode.RAMP) rampStepText.replace(',', '.').toDoubleOrNull() else null,
-                                rampTarget = if (mode == IoBrokerActionMode.RAMP) rampTargetText.replace(',', '.').toDoubleOrNull() else null
+                                rampTarget = if (mode == IoBrokerActionMode.RAMP) rampTargetText.replace(',', '.').toDoubleOrNull() else null,
+                                autoTurnOff = mode == IoBrokerActionMode.ON_OFF && turnOn && autoTurnOff
                             )
                         )
                     }

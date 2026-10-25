@@ -72,18 +72,27 @@ data class AlarmEntity(
     val ioBrokerAction1TurnOn: Boolean? = null,
     val ioBrokerAction1RampStep: Double? = null,
     val ioBrokerAction1RampTarget: Double? = null,
+    /**
+     * Nur bei [ioBrokerAction1Mode] == ON_OFF und [ioBrokerAction1TurnOn] == true relevant: schaltet
+     * den Datenpunkt automatisch wieder aus, sobald der Notfall-Alarm endet (Puzzle gelöst oder
+     * Bewegung erkannt, siehe [de.letheapp.nocturn.emergency.EmergencyAlarmService]), statt
+     * dauerhaft eingeschaltet zu bleiben.
+     */
+    val ioBrokerAction1AutoTurnOff: Boolean = false,
     val ioBrokerAction2DataPointId: String? = null,
     val ioBrokerAction2DataPointLabel: String? = null,
     val ioBrokerAction2Mode: String? = null,
     val ioBrokerAction2TurnOn: Boolean? = null,
     val ioBrokerAction2RampStep: Double? = null,
     val ioBrokerAction2RampTarget: Double? = null,
+    val ioBrokerAction2AutoTurnOff: Boolean = false,
     val ioBrokerScriptDataPointId: String? = null,
     val ioBrokerScriptDataPointLabel: String? = null,
     val ioBrokerScriptMode: String? = null,
     val ioBrokerScriptTurnOn: Boolean? = null,
     val ioBrokerScriptRampStep: Double? = null,
-    val ioBrokerScriptRampTarget: Double? = null
+    val ioBrokerScriptRampTarget: Double? = null,
+    val ioBrokerScriptAutoTurnOff: Boolean = false
 )
 
 /** Ob ein Job als klassische Schichtarbeit (Rotation) oder als Wochenstundenplan geführt wird. */
@@ -147,18 +156,21 @@ data class ShiftEntity(
     val ioBrokerAction1TurnOn: Boolean? = null,
     val ioBrokerAction1RampStep: Double? = null,
     val ioBrokerAction1RampTarget: Double? = null,
+    val ioBrokerAction1AutoTurnOff: Boolean = false,
     val ioBrokerAction2DataPointId: String? = null,
     val ioBrokerAction2DataPointLabel: String? = null,
     val ioBrokerAction2Mode: String? = null,
     val ioBrokerAction2TurnOn: Boolean? = null,
     val ioBrokerAction2RampStep: Double? = null,
     val ioBrokerAction2RampTarget: Double? = null,
+    val ioBrokerAction2AutoTurnOff: Boolean = false,
     val ioBrokerScriptDataPointId: String? = null,
     val ioBrokerScriptDataPointLabel: String? = null,
     val ioBrokerScriptMode: String? = null,
     val ioBrokerScriptTurnOn: Boolean? = null,
     val ioBrokerScriptRampStep: Double? = null,
-    val ioBrokerScriptRampTarget: Double? = null
+    val ioBrokerScriptRampTarget: Double? = null,
+    val ioBrokerScriptAutoTurnOff: Boolean = false
 )
 
 /**

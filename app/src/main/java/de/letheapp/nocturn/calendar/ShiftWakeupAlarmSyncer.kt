@@ -100,18 +100,21 @@ class ShiftWakeupAlarmSyncer @Inject constructor(
             ioBrokerAction1TurnOn = shift.ioBrokerAction1TurnOn,
             ioBrokerAction1RampStep = shift.ioBrokerAction1RampStep,
             ioBrokerAction1RampTarget = shift.ioBrokerAction1RampTarget,
+            ioBrokerAction1AutoTurnOff = shift.ioBrokerAction1AutoTurnOff,
             ioBrokerAction2DataPointId = shift.ioBrokerAction2DataPointId,
             ioBrokerAction2DataPointLabel = shift.ioBrokerAction2DataPointLabel,
             ioBrokerAction2Mode = shift.ioBrokerAction2Mode,
             ioBrokerAction2TurnOn = shift.ioBrokerAction2TurnOn,
             ioBrokerAction2RampStep = shift.ioBrokerAction2RampStep,
             ioBrokerAction2RampTarget = shift.ioBrokerAction2RampTarget,
+            ioBrokerAction2AutoTurnOff = shift.ioBrokerAction2AutoTurnOff,
             ioBrokerScriptDataPointId = shift.ioBrokerScriptDataPointId,
             ioBrokerScriptDataPointLabel = shift.ioBrokerScriptDataPointLabel,
             ioBrokerScriptMode = shift.ioBrokerScriptMode,
             ioBrokerScriptTurnOn = shift.ioBrokerScriptTurnOn,
             ioBrokerScriptRampStep = shift.ioBrokerScriptRampStep,
-            ioBrokerScriptRampTarget = shift.ioBrokerScriptRampTarget
+            ioBrokerScriptRampTarget = shift.ioBrokerScriptRampTarget,
+            ioBrokerScriptAutoTurnOff = shift.ioBrokerScriptAutoTurnOff
         )
         val id = alarmRepository.save(alarm)
         alarmScheduler.schedule(alarm.copy(id = id))

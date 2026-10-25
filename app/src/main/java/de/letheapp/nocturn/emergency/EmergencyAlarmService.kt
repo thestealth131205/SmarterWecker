@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.repository.AlarmRepository
+import de.letheapp.nocturn.iobroker.IoBrokerActionMode
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
 import de.letheapp.nocturn.iobroker.allIoBrokerActions
 import de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler
@@ -82,6 +83,7 @@ class EmergencyAlarmService : Service() {
                 if (!resolvedViaMovement) {
                     automaticShiftRetryScheduler.scheduleRetryIfApplicable(solvedAlarmId)
                 }
+                turnOffAutoTurnOffActions(solvedAlarmId)
                 stopRinging()
             }
             return START_NOT_STICKY
@@ -121,6 +123,19 @@ class EmergencyAlarmService : Service() {
                 scope.launch { ioBrokerRepository.executeAction(action) }
             }
         }
+    }
+
+    /**
+     * Schaltet jede diesem Alarm zugeordnete ioBroker-Aktion wieder aus, die mit "Einschalten" +
+     * "Automatisch ausschalten" konfiguriert ist (siehe [de.letheapp.nocturn.iobroker.IoBrokerActionConfig.autoTurnOff])
+     * — läuft, sobald der Notfall-Alarm endet (Puzzle gelöst oder Bewegung erkannt), statt die
+     * Lampe/Steckdose dauerhaft eingeschaltet zu lassen.
+     */
+    private suspend fun turnOffAutoTurnOffActions(forAlarmId: Long) {
+        val alarm = alarmRepository.getById(forAlarmId) ?: return
+        alarm.allIoBrokerActions()
+            .filter { it.mode == IoBrokerActionMode.ON_OFF && it.turnOn && it.autoTurnOff }
+            .forEach { action -> ioBrokerRepository.turnOnOrOff(action.dataPointId, turnOn = false) }
     }
 
     /**
