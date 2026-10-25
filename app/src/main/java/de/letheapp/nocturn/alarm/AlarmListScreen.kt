@@ -13,21 +13,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AvTimer
+import androidx.compose.material.icons.filled.Blinds
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
@@ -61,6 +65,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import de.letheapp.nocturn.data.db.AlarmEntity
+import de.letheapp.nocturn.iobroker.ioBrokerAction1
+import de.letheapp.nocturn.iobroker.ioBrokerAction2
+import de.letheapp.nocturn.iobroker.ioBrokerScriptAction
 import de.letheapp.nocturn.ui.NocturnBottomBar
 import de.letheapp.nocturn.ui.NocturnTab
 import java.time.DayOfWeek
@@ -350,11 +357,15 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
                     .background(accentColor, RoundedCornerShape(4.dp))
             )
             Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
-                Text(
-                    text = "%02d:%02d".format(alarm.hour, alarm.minute),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "%02d:%02d".format(alarm.hour, alarm.minute),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    IoBrokerActionStatusIcons(alarm = alarm, contentAlpha = contentAlpha)
+                }
                 Text(
                     text = when {
                         autoShiftWakeupEpochDay != null -> {
@@ -373,6 +384,39 @@ private fun AlarmCard(alarm: AlarmEntity, onToggle: (Boolean) -> Unit, onClick: 
             }
             Switch(checked = alarm.enabled, onCheckedChange = onToggle)
         }
+    }
+}
+
+/**
+ * Drei kleine Symbole neben der Uhrzeit, die zeigen, ob für diesen Alarm die beiden frei
+ * wählbaren ioBroker-Datenpunkte (z. B. Lampe/Rollo) und der Skript-Datenpunkt (z. B. Radio)
+ * konfiguriert sind: Akzentfarbe wenn gesetzt, grau wenn nicht.
+ */
+@Composable
+private fun IoBrokerActionStatusIcons(alarm: AlarmEntity, contentAlpha: Float) {
+    val setColor = MaterialTheme.colorScheme.primary.copy(alpha = contentAlpha)
+    val unsetColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = contentAlpha)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Filled.Lightbulb,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = if (alarm.ioBrokerAction1() != null) setColor else unsetColor
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            Icons.Filled.Blinds,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = if (alarm.ioBrokerAction2() != null) setColor else unsetColor
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Icon(
+            Icons.Filled.SettingsInputAntenna,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = if (alarm.ioBrokerScriptAction() != null) setColor else unsetColor
+        )
     }
 }
 
