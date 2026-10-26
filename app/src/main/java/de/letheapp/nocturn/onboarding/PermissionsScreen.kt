@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HourglassDisabled
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
@@ -242,6 +243,32 @@ fun PermissionsScreen(
                         }
                     )
                 }
+                item {
+                    // Separat von der Akku-Optimierung: Android pausiert ab Werk Apps, die eine
+                    // Weile nicht geöffnet wurden ("App bei Nichtnutzung pausieren"/Auto-Revoke),
+                    // entzieht dabei Berechtigungen und stoppt Benachrichtigungen — genau das legt
+                    // dann einen Wecker oder eine Termin-Erinnerung lahm. Es gibt keine öffentliche
+                    // API, um den aktuellen Zustand dieses Schalters auszulesen, daher zeigt diese
+                    // Zeile immer den Button statt eines "Erteilt"-Status.
+                    PermissionRow(
+                        icon = Icons.Filled.HourglassDisabled,
+                        title = "\"App bei Nichtnutzung pausieren\" deaktivieren",
+                        explanation = "Android entzieht Berechtigungen und stoppt Benachrichtigungen bei " +
+                            "Apps, die länger nicht geöffnet wurden. Dadurch können Wecker und Termin-" +
+                            "Erinnerungen ausbleiben. Bitte im sich öffnenden Bildschirm den Schalter " +
+                            "\"App bei Nichtnutzung pausieren\" ausschalten.",
+                        granted = false,
+                        showGrantedState = false,
+                        onRequest = {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_AUTO_REVOKE_PERMISSIONS,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                            )
+                        }
+                    )
+                }
             }
 
             Button(
@@ -260,7 +287,8 @@ private fun PermissionRow(
     title: String,
     explanation: String,
     granted: Boolean,
-    onRequest: () -> Unit
+    onRequest: () -> Unit,
+    showGrantedState: Boolean = true
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -271,14 +299,14 @@ private fun PermissionRow(
             }
         }
         Row(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-            if (granted) {
+            if (showGrantedState && granted) {
                 Text(
                     "Erteilt",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
             } else {
-                TextButton(onClick = onRequest) { Text("Erlauben") }
+                TextButton(onClick = onRequest) { Text(if (showGrantedState) "Erlauben" else "Einstellung öffnen") }
             }
         }
     }

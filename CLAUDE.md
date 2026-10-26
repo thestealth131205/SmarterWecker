@@ -529,6 +529,13 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
         (Kernfunktion 7); nur die letzte bekannte, ungefähre Position wird genutzt.
       - Ignorieren von Akku-Optimierungen — damit die Überwachung nach dem Klingeln
         nicht durch Doze/Battery-Optimizations unterbrochen wird.
+      - **"App bei Nichtnutzung pausieren" deaktivieren** — separat von der Akku-Optimierung:
+        Android pausiert ab Werk Apps, die eine Weile nicht geöffnet wurden (Auto-Revoke der
+        Laufzeit-Berechtigungen, Benachrichtigungen werden gestoppt), was Wecker und Termin-
+        Erinnerungen lahmlegt. Eigene Zeile im Onboarding-Screen öffnet dafür direkt
+        `Intent.ACTION_AUTO_REVOKE_PERMISSIONS` (öffentliche API seit Android 11/API 30) —
+        zeigt immer den "Einstellung öffnen"-Button statt eines "Erteilt"-Status, da es keine
+        öffentliche API gibt, um den aktuellen Zustand dieses Schalters auszulesen.
     - **Health-Connect-Berechtigung zuverlässig auch auf Android 14+**: neben dem
       `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`-Intent-Filter (für Android 13)
       ist zusätzlich eine `activity-alias` `ViewPermissionUsageActivity` mit
