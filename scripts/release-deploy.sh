@@ -486,12 +486,25 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
     # zum Abbruch -- live auf thestealth.de beobachtet und bereinigt.
     NK_BACKUP_DIR="/var/www/nocturnkalender-backups"
     NK_DEPLOYED_VERSION="${NK_VERSION:-$(grep -oP '(?<=<version>)[^<]+' "$NK_DIR/appinfo/info.xml")}"
-    # "occ nocturnkalender:migrate" fuehrt zwar die Tabellen-Migrationen aus, aktualisiert aber
-    # NICHT den "installed_version"-Eintrag in oc_appconfig (das macht normalerweise nur
-    # "occ upgrade"/"occ app:update"). Ohne den folgenden "config:app:set" blieb dort dauerhaft
-    # die alte Version stehen -- Nextcloud erkannte das bei jedem Aufruf als "App braucht
-    # Upgrade" und ging deshalb staendig in den Wartungsmodus, obwohl das Schema laengst aktuell
-    # war (live auf thestealth.de beobachtet und behoben).
+    # Reihenfolge ist hier bewusst nicht die naheliegende (migrate, dann Version setzen,
+    # dann Wartungsmodus aus) -- das fuehrt live zuverlaessig in einen haengenden
+    # Wartungsmodus. Grund: Sobald die neuen Dateien kopiert sind, weicht die Version in
+    # appinfo/info.xml von "installed_version" in oc_appconfig ab, und Nextcloud stuft die
+    # App dadurch sofort als "braucht Upgrade" ein -- in diesem Zustand laedt es GAR KEINE
+    # app-eigenen occ-Befehle mehr (auch waehrend des separat aktiven Wartungsmodus laedt es
+    # ebenfalls keine App-Befehle: "Nextcloud is in maintenance mode, no apps are loaded").
+    # "nocturnkalender:migrate" ist aber genau so ein app-eigener Befehl und faellt damit in
+    # beiden Zustaenden komplett weg ("There are no commands defined in the
+    # "nocturnkalender" namespace") -- das brachte den vorherigen Ablauf per "set -e" vor dem
+    # abschliessenden "maintenance:mode --off" zum Abbruch, der Server blieb dauerhaft im
+    # Wartungsmodus haengen (live auf thestealth.de wiederholt beobachtet und behoben).
+    # "config:app:set"/"maintenance:mode" sind dagegen Nextcloud-Kernbefehle und bleiben in
+    # jedem Zustand nutzbar. Deshalb jetzt: Version-Mismatch per "config:app:set" sofort
+    # beheben (behebt "needsDbUpgrade", noch waehrend Wartungsmodus an), erst danach
+    # Wartungsmodus aus (die App gilt ab hier wieder als aktuell und laedt normal), und erst
+    # jetzt den eigentlichen Migrations-Befehl ausfuehren (setzt "installed_version" intern
+    # ohnehin nochmal, siehe Migrate.php -- hier nur, um das kurze Fenster zwischen
+    # Dateikopie und Versions-Abgleich so kurz wie moeglich zu halten).
     NK_DEPLOY_CMD="set -e; sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --on; \
         sudo mkdir -p '${NK_BACKUP_DIR}'; \
         sudo rm -rf '${NK_BACKUP_DIR}/nocturnkalender.old' && sudo cp -a '${NEXTCLOUD_APP_DIR}' '${NK_BACKUP_DIR}/nocturnkalender.old' 2>/dev/null || true; \
@@ -499,9 +512,9 @@ if [[ -n "${NEXTCLOUD_SERVER_IP:-}" && -n "${NEXTCLOUD_SERVER_USER:-}" && -n "${
         sudo tar xzf '${NK_REMOTE_TMP}' -C '${NEXTCLOUD_APP_DIR}'; \
         sudo rm -f '${NK_REMOTE_TMP}'; \
         sudo chown -R www-data:www-data '${NEXTCLOUD_APP_DIR}'; \
-        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' nocturnkalender:migrate; \
         sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' config:app:set nocturnkalender installed_version --value='${NK_DEPLOYED_VERSION}'; \
-        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --off"
+        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' maintenance:mode --off; \
+        sudo -u www-data php '${NEXTCLOUD_OCC_PATH}' nocturnkalender:migrate"
     retry 3 15 -- ssh_nc "$NK_DEPLOY_CMD" \
         || die "Deploy der Nocturn-Kalender-App auf dem Nextcloud-Server fehlgeschlagen (Wartungsmodus ggf. manuell prüfen/ausschalten: occ maintenance:mode --off)"
     set_phase "nextcloud_app_deployed"

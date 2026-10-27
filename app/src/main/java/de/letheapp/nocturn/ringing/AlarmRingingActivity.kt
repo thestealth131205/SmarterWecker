@@ -55,6 +55,19 @@ class AlarmRingingActivity : ComponentActivity() {
         startService(intent)
     }
 
+    /**
+     * `singleInstance` liefert einen neu klingelnden Alarm sonst per [onNewIntent] an eine noch
+     * hängende alte Instanz zurück (z. B. nach einem Schlummer-Zyklus oder falls die vorherige
+     * Instanz nie über Snooze/Stop beendet wurde) — ohne diesen Override bliebe die alte Uhrzeit/
+     * Label-Anzeige stehen, während im Hintergrund schon der neue Klingel-Zyklus läuft. Ein
+     * `recreate()` nach [setIntent] erzwingt einen frischen [onCreate]-Durchlauf mit den neuen Extras.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
+
     private fun showOverLockScreen() {
         setShowWhenLocked(true)
         setTurnScreenOn(true)

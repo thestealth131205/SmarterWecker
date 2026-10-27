@@ -284,6 +284,7 @@ class AlarmRingingService : Service() {
         )
 
         val fullScreenIntent = Intent(this, AlarmRingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_ALARM_ID, alarmId)
         }
         val fullScreenPendingIntent = PendingIntent.getActivity(
@@ -321,6 +322,7 @@ class AlarmRingingService : Service() {
         val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.GERMAN).format(triggerAtMillis)
 
         val fullScreenIntent = Intent(this, AlarmRingingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_ALARM_ID, currentAlarmId)
         }
         val contentPendingIntent = PendingIntent.getActivity(

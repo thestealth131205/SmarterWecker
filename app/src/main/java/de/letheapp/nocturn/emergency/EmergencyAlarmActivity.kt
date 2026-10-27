@@ -72,6 +72,19 @@ class EmergencyAlarmActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * `singleInstance` liefert einen neuen Weck-/Notfall-Zyklus sonst per [onNewIntent] an eine
+     * ggf. noch hängende alte Instanz zurück (z. B. wenn die vorherige über "Home" verlassen statt
+     * über das Puzzle beendet wurde) — ohne diesen Override bliebe dabei die alte Puzzle-UI mit der
+     * alten `alarmId` stehen, während im Hintergrund schon der neue Notfall-Alarm läuft. Ein
+     * `recreate()` nach [setIntent] erzwingt einen frischen [onCreate]-Durchlauf mit den neuen Extras.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(autoResolvedReceiver)
