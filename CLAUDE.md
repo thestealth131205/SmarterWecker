@@ -134,6 +134,19 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Prüffenster selbst nur 3 s lang ist). Wird Bewegung bestätigt, sagt er den eigentlichen Alarm
      ab (`AlarmScheduler.cancel`) und zeigt statt des Klingelns eine "Wecken geskippt"-
      Benachrichtigung; bleibt es bis zur Weckzeit ohne Bewegung, klingelt der Alarm normal.
+   - **Zusätzliche Standort-Vorprüfung**: Parallel zur sensorbasierten Vorprüfung oben plant
+     `AlarmScheduler` für einen solchen automatischen Schicht-Wecker zusätzlich 10 Minuten vor der
+     Weckzeit einen `PreAlarmLocationCheckService` (eigener Foreground Service, gestartet über
+     `PreAlarmLocationCheckReceiver`), der über das 10-Minuten-Fenster verteilt 3–4 grobe
+     Standort-Messungen nimmt (`ACCESS_COARSE_LOCATION`, dieselbe Berechtigung wie für die
+     Wetteranzeige, keine zusätzliche Berechtigungsabfrage nötig) und sie paarweise vergleicht.
+     Weicht eine spätere Messung um mindestens 50 m von einer früheren ab — deutlich mehr als der
+     übliche Drift einer groben Netzwerk-Positionsbestimmung im Stillstand —, gilt das als
+     nachgewiesene Fortbewegung (z. B. Zimmer/Wohnung bereits verlassen), auch wenn das kurze
+     Sensor-Prüffenster selbst keine Bewegung erfasst hätte; der Alarm wird dann wie beim
+     Sensor-Treffer abgesagt und die "Wecken geskippt"-Benachrichtigung gezeigt. Fehlt die
+     Berechtigung oder ein aktivierter Standort-Provider, bleibt dieser zusätzliche Check einfach
+     wirkungslos — die sensorbasierte Vorprüfung läuft davon unberührt weiter.
    - **Kein Freifahrtschein durch bloßes Lösen des Notfall-Puzzles**: Wird bei einem solchen
      automatischen Schicht-Wecker das Notfall-Puzzle gelöst, OHNE dass `PostAlarmMonitoringService`
      zuvor echte Bewegung bestätigt hat, plant `AutomaticShiftRetryScheduler` ein Wieder-Klingeln zu

@@ -9,6 +9,7 @@ import de.letheapp.nocturn.data.db.AlarmEntity
 import de.letheapp.nocturn.monitoring.AutoShiftRetryReceiver
 import de.letheapp.nocturn.monitoring.EXTRA_MAIN_TRIGGER_AT_MILLIS
 import de.letheapp.nocturn.monitoring.PreAlarmCheckReceiver
+import de.letheapp.nocturn.monitoring.PreAlarmLocationCheckReceiver
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -25,9 +26,18 @@ const val EXTRA_IS_SNOOZE = "extra_is_snooze"
  */
 private const val PRE_CHECK_LEAD_MILLIS = 2 * 60_000L
 
+/**
+ * Wie weit vor dem Klingeln zusätzlich die Standort-Vorprüfung
+ * ([de.letheapp.nocturn.monitoring.PreAlarmLocationCheckService]) zu laufen beginnt. Deutlich
+ * länger als [PRE_CHECK_LEAD_MILLIS], da hier mehrere, über das Fenster verteilte Positions-
+ * messungen nötig sind, um echte Bewegung von normalem Standort-Messrauschen zu unterscheiden.
+ */
+private const val PRE_LOCATION_CHECK_LEAD_MILLIS = 10 * 60_000L
+
 /** Getrennte Request-Codes, damit Vorprüfung/Wieder-Klingeln nicht mit dem Haupt-Alarm kollidieren. */
 private const val PRE_CHECK_REQUEST_CODE_OFFSET = 2_000_000
 private const val RETRY_REQUEST_CODE_OFFSET = 3_000_000
+private const val PRE_LOCATION_CHECK_REQUEST_CODE_OFFSET = 4_000_000
 
 @Singleton
 class AlarmScheduler @Inject constructor(
@@ -58,14 +68,17 @@ class AlarmScheduler @Inject constructor(
         val triggerAtMillis = nextTriggerMillis(alarm)
         if (triggerAtMillis == null) {
             cancelPreCheck(alarm.id)
+            cancelLocationPreCheck(alarm.id)
             return
         }
         scheduleExact(alarm.id, triggerAtMillis, isSnooze = false)
 
         if (alarm.autoShiftWakeupEpochDay != null) {
             schedulePreCheck(alarm.id, triggerAtMillis)
+            scheduleLocationPreCheck(alarm.id, triggerAtMillis)
         } else {
             cancelPreCheck(alarm.id)
+            cancelLocationPreCheck(alarm.id)
         }
     }
 
@@ -96,6 +109,7 @@ class AlarmScheduler @Inject constructor(
     fun cancel(alarmId: Long) {
         alarmManager.cancel(pendingIntentFor(alarmId))
         cancelPreCheck(alarmId)
+        cancelLocationPreCheck(alarmId)
         cancelAutomaticRetry(alarmId)
     }
 
@@ -120,6 +134,31 @@ class AlarmScheduler @Inject constructor(
 
     private fun cancelPreCheck(alarmId: Long) {
         alarmManager.cancel(preCheckPendingIntentFor(alarmId, 0L))
+    }
+
+    /**
+     * Startet [de.letheapp.nocturn.monitoring.PreAlarmLocationCheckService]
+     * [PRE_LOCATION_CHECK_LEAD_MILLIS] vor dem eigentlichen Klingeln eines automatischen
+     * Schicht-Weckers — zusätzlich zur kürzeren, rein sensorbasierten Vorprüfung
+     * ([schedulePreCheck]). Liegt der Vorprüf-Zeitpunkt bereits in der Vergangenheit (sehr naher
+     * Alarm), entfällt die Standort-Vorprüfung.
+     */
+    private fun scheduleLocationPreCheck(alarmId: Long, mainTriggerAtMillis: Long) {
+        val preCheckTriggerAtMillis = mainTriggerAtMillis - PRE_LOCATION_CHECK_LEAD_MILLIS
+        if (preCheckTriggerAtMillis <= System.currentTimeMillis()) {
+            cancelLocationPreCheck(alarmId)
+            return
+        }
+        val pendingIntent = locationPreCheckPendingIntentFor(alarmId, mainTriggerAtMillis)
+        if (alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, preCheckTriggerAtMillis, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, preCheckTriggerAtMillis, pendingIntent)
+        }
+    }
+
+    private fun cancelLocationPreCheck(alarmId: Long) {
+        alarmManager.cancel(locationPreCheckPendingIntentFor(alarmId, 0L))
     }
 
     /**
@@ -172,6 +211,19 @@ class AlarmScheduler @Inject constructor(
         return PendingIntent.getBroadcast(
             context,
             PRE_CHECK_REQUEST_CODE_OFFSET + alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun locationPreCheckPendingIntentFor(alarmId: Long, mainTriggerAtMillis: Long): PendingIntent {
+        val intent = Intent(context, PreAlarmLocationCheckReceiver::class.java).apply {
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_MAIN_TRIGGER_AT_MILLIS, mainTriggerAtMillis)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            PRE_LOCATION_CHECK_REQUEST_CODE_OFFSET + alarmId.toInt(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

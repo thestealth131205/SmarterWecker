@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
@@ -217,6 +218,14 @@
             android:name=".monitoring.PreAlarmCheckReceiver"
             android:exported="false" />
 
+        <!--
+            Zusätzliche, über 10 Minuten verteilte Standort-Vorprüfung (siehe
+            PreAlarmLocationCheckService) neben der kürzeren, rein sensorbasierten Vorprüfung oben.
+        -->
+        <receiver
+            android:name=".monitoring.PreAlarmLocationCheckReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".monitoring.AutoShiftRetryReceiver"
             android:exported="false" />
@@ -291,6 +300,11 @@
             android:name=".monitoring.PreAlarmMovementCheckService"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <service
+            android:name=".monitoring.PreAlarmLocationCheckService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <service
             android:name=".monitoring.AutoShiftRetryService"

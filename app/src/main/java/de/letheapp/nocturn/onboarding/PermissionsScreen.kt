@@ -214,8 +214,10 @@ fun PermissionsScreen(
                     PermissionRow(
                         icon = Icons.Filled.LocationOn,
                         title = "Standort (ungefähr)",
-                        explanation = "Für die Wetteranzeige im Uhr-Homescreen-Widget. Es wird nur " +
-                            "die letzte bekannte, ungefähre Position genutzt, keine aktive GPS-Ortung.",
+                        explanation = "Für die Wetteranzeige im Uhr-Homescreen-Widget sowie für die " +
+                            "zusätzliche Standort-Vorprüfung vor automatischen Schicht-Weckern (erkennt, " +
+                            "ob du dich bereits fortbewegt hast). Es wird nur eine ungefähre Position " +
+                            "genutzt, keine echte GPS-Ortung.",
                         granted = remember(refreshKey) {
                             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
                                 android.content.pm.PackageManager.PERMISSION_GRANTED
