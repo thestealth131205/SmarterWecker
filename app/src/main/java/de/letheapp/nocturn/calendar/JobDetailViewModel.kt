@@ -15,7 +15,6 @@ import de.letheapp.nocturn.iobroker.IoBrokerRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,8 +41,7 @@ class JobDetailViewModel @Inject constructor(
     val lessons: StateFlow<List<LessonEntity>> = calendarRepository.observeLessonsForJob(jobId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
-        .map { it != null }
+    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _ioBrokerDataPoints = MutableStateFlow<List<IoBrokerDataPoint>>(emptyList())

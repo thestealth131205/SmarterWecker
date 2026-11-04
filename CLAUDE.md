@@ -89,6 +89,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
      Schritt, bis der Endwert erreicht ist oder der Notfall-Alarm endet (sanftes Aufdimmen
      statt eines abrupten Sprungs); endet der Notfall-Alarm, schaltet
      `turnOffAutoTurnOffActions` passend konfigurierte Ein/Aus-Aktionen automatisch wieder aus.
+   - **ioBroker oder Home Assistant (App-weit umschaltbar)**: Im Einstellungen-Screen (bzw. direkt im
+     "Smart-Home"-Screen des 3-Punkte-Menüs) wählt der Nutzer, ob die Notfall-Alarm-Aktionen über den
+     "iosync"-ioBroker-Adapter oder über Home Assistant laufen (`AppPreferences.smartHomeBackend`).
+     `HomeAssistantClient` ist aus der Iosync-App übernommen (REST-API `/api/states`,
+     `/api/services/{domain}/{service}`, Bearer-Langzeit-Token, Licht-Attribute wie Helligkeit als
+     virtuelle Datenpunkte `light.x#brightness`) und liefert dieselben `IoBrokerDataPoint`s wie der
+     ioBroker-Client — `IoBrokerRepository` routet Abruf/Schalten/Ramp je nach gewähltem Backend,
+     Auswahl-Dialoge und `EmergencyAlarmService` bleiben backend-unabhängig. HA-Verbindungsdaten in
+     SharedPreferences, Token AES/GCM-verschlüsselt im `IoBrokerCredentialsStore` (keine Room-Migration).
+     Der Alarm-Bearbeiten-Screen ist scrollbar und zeigt die drei Aktionen als eigene Karte "Smart-Home
+     bei Notfall-Alarm" — vorher rutschten die Zeilen ohne Scroll unten aus dem sichtbaren Bereich.
 
 5. **Schichtplan-Rotation / Stundenplan:**
    - Nutzer kann eigene Schichten definieren: Name der Schicht (z. B. "Frühschicht",

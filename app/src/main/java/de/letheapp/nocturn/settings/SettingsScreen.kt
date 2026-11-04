@@ -9,13 +9,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AppSettingsAlt
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,11 +36,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import de.letheapp.nocturn.onboarding.SmartHomeBackend
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenSmartHomeSettings: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
     val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsState()
+    val smartHomeBackend by viewModel.smartHomeBackend.collectAsState()
     val context = LocalContext.current
 
     Scaffold(
@@ -56,7 +66,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxWidth().padding(padding).padding(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -75,6 +85,41 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                         )
                     }
                     Switch(checked = dynamicColorEnabled, onCheckedChange = viewModel::setDynamicColorEnabled)
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Home, contentDescription = null)
+                        Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
+                            Text("Smart-Home-System", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Gilt für die gesamte App: Über welches System Lampe, Rollo und " +
+                                    "Skript beim Notfall-Alarm (Wecker und Schichten) geschaltet werden. " +
+                                    "Bereits gewählte Datenpunkte müssen nach einem Wechsel neu " +
+                                    "zugeordnet werden, da sich die IDs unterscheiden.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Row(modifier = Modifier.padding(top = 12.dp)) {
+                        FilterChip(
+                            selected = smartHomeBackend == SmartHomeBackend.IOBROKER,
+                            onClick = { viewModel.setSmartHomeBackend(SmartHomeBackend.IOBROKER) },
+                            label = { Text("ioBroker") },
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        FilterChip(
+                            selected = smartHomeBackend == SmartHomeBackend.HOME_ASSISTANT,
+                            onClick = { viewModel.setSmartHomeBackend(SmartHomeBackend.HOME_ASSISTANT) },
+                            label = { Text("Home Assistant") }
+                        )
+                    }
+                    Button(onClick = onOpenSmartHomeSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        Text("Verbindung einrichten")
+                    }
                 }
             }
 

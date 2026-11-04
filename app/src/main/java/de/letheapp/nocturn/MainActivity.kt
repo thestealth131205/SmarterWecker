@@ -210,7 +210,10 @@ private fun NocturnNavHost(
         }
 
         composable(ROUTE_SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSmartHomeSettings = { navController.navigate(ROUTE_IOBROKER_SETTINGS) }
+            )
         }
 
         composable(ROUTE_HOLIDAY_SETTINGS) {

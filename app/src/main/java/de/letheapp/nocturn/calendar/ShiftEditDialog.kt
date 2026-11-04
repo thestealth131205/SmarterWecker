@@ -301,7 +301,7 @@ fun ShiftEditDialog(
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column {
                         ShiftFormRow(
-                            label = "ioBroker-Datenpunkt 1 (z. B. Lampe)",
+                            label = "Datenpunkt 1 (z. B. Lampe)",
                             value = ioBrokerAction1Config?.summaryLabel(),
                             onClick = {
                                 onRefreshIoBrokerDataPoints()
@@ -310,7 +310,7 @@ fun ShiftEditDialog(
                             showChevron = false
                         )
                         ShiftFormRow(
-                            label = "ioBroker-Datenpunkt 2 (z. B. Rollo)",
+                            label = "Datenpunkt 2 (z. B. Rollo)",
                             value = ioBrokerAction2Config?.summaryLabel(),
                             onClick = {
                                 onRefreshIoBrokerDataPoints()
@@ -369,8 +369,8 @@ fun ShiftEditDialog(
         val slot = showIoBrokerDialog
         IoBrokerActionPickerDialog(
             title = when (slot) {
-                1 -> "ioBroker-Datenpunkt 1 (z. B. Lampe)"
-                2 -> "ioBroker-Datenpunkt 2 (z. B. Rollo)"
+                1 -> "Datenpunkt 1 (z. B. Lampe)"
+                2 -> "Datenpunkt 2 (z. B. Rollo)"
                 else -> "Skript auslösen (z. B. Radio)"
             },
             connected = ioBrokerConnected,

@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -435,7 +437,7 @@ private fun describeReminder(reminder: PendingReminder): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun AddReminderDialog(
     onSearchEmail: suspend (String) -> List<ContactEmailSuggestion>,
@@ -478,7 +480,12 @@ private fun AddReminderDialog(
                 }
 
                 Text("Zeitpunkt", style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // FlowRow statt Row: in der schmalen Dialogbreite passten die fünf Chips nicht in eine
+                // Zeile, "Benutzerdefiniert" fiel dadurch unsichtbar rechts aus dem Dialog heraus.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     listOf<Pair<Int?, String>>(
                         30 to "30 Min.",
                         60 to "1 Std.",

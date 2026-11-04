@@ -23,6 +23,19 @@ private const val KEY_ADDITIONAL_LOCATIONS = "weather_additional_locations"
 private const val KEY_VOICE_COMMANDS_ENABLED = "voice_commands_enabled"
 private const val KEY_WEATHER_RAIN_NOTIFIED_HOUR = "weather_rain_notified_hour"
 private const val KEY_WEATHER_MORNING_NOTIFIED_DAY = "weather_morning_notified_day"
+private const val KEY_SMART_HOME_BACKEND = "smart_home_backend"
+private const val KEY_HA_HOST = "home_assistant_host"
+private const val KEY_HA_PORT = "home_assistant_port"
+private const val KEY_HA_USE_HTTPS = "home_assistant_use_https"
+
+/** Welches Smart-Home-System die App-weiten Notfall-Alarm-Aktionen ansteuert. */
+enum class SmartHomeBackend { IOBROKER, HOME_ASSISTANT }
+
+/**
+ * Verbindungsdaten zu Home Assistant (ohne Token — der liegt verschlüsselt im
+ * [de.letheapp.nocturn.iobroker.IoBrokerCredentialsStore]).
+ */
+data class HomeAssistantConfig(val host: String, val port: Int, val useHttps: Boolean)
 
 /**
  * Merkt sich, ob das Berechtigungen-Onboarding (siehe CLAUDE.md Kernfunktion 10) bereits lief,
@@ -195,5 +208,43 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         val updated = _additionalLocations.value.filterNot { it.id == id }
         writeAdditionalLocations(updated)
         _additionalLocations.value = updated
+    }
+
+    /**
+     * Standardmäßig ioBroker: schaltet App-weit um, ob die Notfall-Alarm-Aktionen (Lampe/Rollo/
+     * Skript) über den "iosync"-ioBroker-Adapter oder über Home Assistant laufen — gleiches
+     * Prinzip wie in der Iosync-App.
+     */
+    private val _smartHomeBackend = MutableStateFlow(
+        if (prefs.getString(KEY_SMART_HOME_BACKEND, null) == SmartHomeBackend.HOME_ASSISTANT.name)
+            SmartHomeBackend.HOME_ASSISTANT else SmartHomeBackend.IOBROKER
+    )
+    val smartHomeBackend: StateFlow<SmartHomeBackend> = _smartHomeBackend
+
+    fun setSmartHomeBackend(backend: SmartHomeBackend) {
+        prefs.edit().putString(KEY_SMART_HOME_BACKEND, backend.name).apply()
+        _smartHomeBackend.value = backend
+    }
+
+    private val _homeAssistantConfig = MutableStateFlow(loadHomeAssistantConfig())
+    val homeAssistantConfig: StateFlow<HomeAssistantConfig?> = _homeAssistantConfig
+
+    private fun loadHomeAssistantConfig(): HomeAssistantConfig? {
+        val host = prefs.getString(KEY_HA_HOST, null) ?: return null
+        return HomeAssistantConfig(host, prefs.getInt(KEY_HA_PORT, 8123), prefs.getBoolean(KEY_HA_USE_HTTPS, false))
+    }
+
+    fun setHomeAssistantConfig(config: HomeAssistantConfig) {
+        prefs.edit()
+            .putString(KEY_HA_HOST, config.host)
+            .putInt(KEY_HA_PORT, config.port)
+            .putBoolean(KEY_HA_USE_HTTPS, config.useHttps)
+            .apply()
+        _homeAssistantConfig.value = config
+    }
+
+    fun clearHomeAssistantConfig() {
+        prefs.edit().remove(KEY_HA_HOST).remove(KEY_HA_PORT).remove(KEY_HA_USE_HTTPS).apply()
+        _homeAssistantConfig.value = null
     }
 }

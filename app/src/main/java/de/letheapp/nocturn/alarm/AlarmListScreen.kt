@@ -170,7 +170,7 @@ fun AlarmListScreen(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Smart-Home (ioBroker)") },
+                            text = { Text("Smart-Home") },
                             leadingIcon = { Icon(Icons.Filled.Lightbulb, contentDescription = null) },
                             onClick = {
                                 showOverflowMenu = false

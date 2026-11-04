@@ -59,8 +59,9 @@ fun IoBrokerActionPickerDialog(
                 val point = selected
                 if (!connected) {
                     Text(
-                        "Noch kein ioBroker-Server verbunden. Unter dem 3-Punkte-Menü \"Smart-Home " +
-                            "(ioBroker)\" zuerst eine Verbindung einrichten."
+                        "Noch kein Smart-Home-System verbunden (ioBroker oder Home Assistant, je nach " +
+                            "Auswahl in den Einstellungen). Unter dem 3-Punkte-Menü \"Smart-Home\" zuerst " +
+                            "eine Verbindung einrichten."
                     )
                 } else if (point == null) {
                     OutlinedTextField(

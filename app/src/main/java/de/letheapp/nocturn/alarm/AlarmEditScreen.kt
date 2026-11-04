@@ -1,6 +1,15 @@
 package de.letheapp.nocturn.alarm
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -115,7 +124,12 @@ fun AlarmEditScreen(
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
             val timeEditable = current.rotationId == null && current.timetableJobId == null
             Text(
                 text = "%02d:%02d".format(current.hour, current.minute),
@@ -139,7 +153,12 @@ fun AlarmEditScreen(
             )
 
             Text("Wiederholung", modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
-            Row {
+            // Alle 7 Tage teilen sich die Breite gleichmäßig — vorher scrollte die Reihe seitlich und
+            // der Sonntag-Chip war auf normalen Displays nur als abgeschnittener Rand sichtbar.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 listOf(
                     DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY,
                     DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
@@ -147,9 +166,16 @@ fun AlarmEditScreen(
                     FilterChip(
                         selected = AlarmRepeat.isSet(current.repeatDays, day),
                         onClick = { alarm = current.copy(repeatDays = AlarmRepeat.toggle(current.repeatDays, day)) },
-                        label = { Text(AlarmRepeat.shortLabel(day)) },
+                        label = {
+                            Text(
+                                AlarmRepeat.shortLabel(day),
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        },
                         enabled = current.rotationId == null && current.timetableJobId == null,
-                        modifier = Modifier.padding(end = 4.dp)
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -200,59 +226,43 @@ fun AlarmEditScreen(
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .clickable {
-                        viewModel.refreshIoBrokerDataPoints()
-                        showIoBrokerDialog = 1
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.Lightbulb, contentDescription = null)
-                Text(
-                    text = current.ioBrokerAction1()?.summaryLabel()?.let { "ioBroker-Datenpunkt 1 bei Notfall-Alarm: $it" }
-                        ?: "ioBroker-Datenpunkt 1 bei Notfall-Alarm (z. B. Lampe)",
-                    modifier = Modifier.padding(start = 16.dp)
-                )
+            Text(
+                text = "Smart-Home bei Notfall-Alarm (optional)",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            )
+            Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    EmergencyActionRow(
+                        icon = Icons.Filled.Lightbulb,
+                        label = "Datenpunkt 1 (z. B. Lampe)",
+                        value = current.ioBrokerAction1()?.summaryLabel(),
+                        onClick = {
+                            viewModel.refreshIoBrokerDataPoints()
+                            showIoBrokerDialog = 1
+                        }
+                    )
+                    EmergencyActionRow(
+                        icon = Icons.Filled.Blinds,
+                        label = "Datenpunkt 2 (z. B. Rollo)",
+                        value = current.ioBrokerAction2()?.summaryLabel(),
+                        onClick = {
+                            viewModel.refreshIoBrokerDataPoints()
+                            showIoBrokerDialog = 2
+                        }
+                    )
+                    EmergencyActionRow(
+                        icon = Icons.Filled.SettingsInputAntenna,
+                        label = "Skript auslösen (z. B. Radio)",
+                        value = current.ioBrokerScriptAction()?.summaryLabel(),
+                        onClick = {
+                            viewModel.refreshIoBrokerDataPoints()
+                            showIoBrokerDialog = 3
+                        }
+                    )
+                }
             }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .clickable {
-                        viewModel.refreshIoBrokerDataPoints()
-                        showIoBrokerDialog = 2
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.Blinds, contentDescription = null)
-                Text(
-                    text = current.ioBrokerAction2()?.summaryLabel()?.let { "ioBroker-Datenpunkt 2 bei Notfall-Alarm: $it" }
-                        ?: "ioBroker-Datenpunkt 2 bei Notfall-Alarm (z. B. Rollo)",
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .clickable {
-                        viewModel.refreshIoBrokerDataPoints()
-                        showIoBrokerDialog = 3
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Filled.SettingsInputAntenna, contentDescription = null)
-                Text(
-                    text = current.ioBrokerScriptAction()?.summaryLabel()?.let { "Skript bei Notfall-Alarm: $it" }
-                        ?: "Skript bei Notfall-Alarm auslösen (z. B. Radio)",
-                    modifier = Modifier.padding(start = 16.dp)
-                )
-            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -352,8 +362,8 @@ fun AlarmEditScreen(
         val slot = showIoBrokerDialog
         IoBrokerActionPickerDialog(
             title = when (slot) {
-                1 -> "ioBroker-Datenpunkt 1 bei Notfall-Alarm (z. B. Lampe)"
-                2 -> "ioBroker-Datenpunkt 2 bei Notfall-Alarm (z. B. Rollo)"
+                1 -> "Datenpunkt 1 bei Notfall-Alarm (z. B. Lampe)"
+                2 -> "Datenpunkt 2 bei Notfall-Alarm (z. B. Rollo)"
                 else -> "Skript bei Notfall-Alarm auslösen (z. B. Radio)"
             },
             connected = ioBrokerConnected,
@@ -373,6 +383,29 @@ fun AlarmEditScreen(
             },
             onDismiss = { showIoBrokerDialog = null }
         )
+    }
+}
+
+/** Eine Zeile der "Smart-Home bei Notfall-Alarm"-Karte — gleiches Layout wie im Schicht-Editor. */
+@Composable
+private fun EmergencyActionRow(icon: ImageVector, label: String, value: String?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (value != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = value ?: "Nicht gesetzt",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (value != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

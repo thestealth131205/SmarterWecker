@@ -54,8 +54,7 @@ class AlarmListViewModel @Inject constructor(
     val alarms: StateFlow<List<AlarmEntity>> = alarmRepository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeAccount()
-        .map { it != null }
+    val ioBrokerConnected: StateFlow<Boolean> = ioBrokerRepository.observeConnected()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _ioBrokerDataPoints = MutableStateFlow<List<IoBrokerDataPoint>>(emptyList())
