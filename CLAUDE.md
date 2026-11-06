@@ -786,7 +786,17 @@ ob der Nutzer tatsächlich aufgestanden ist — reines Wegdrücken des Alarms re
   `AppWidgetManager.partiallyUpdateAppWidget` (kein Netzwerk-/DB-Zugriff), Wetter und
   Kalender-Agenda nur alle 20 Minuten über den vollen, asynchronen Refresh — sonst hätte
   die Uhrzeit sichtbar nachgehinkt, nur weil sie am selben Takt wie die teureren
-  Netzwerk-/DB-Abfragen hing. `android:previewImage` in `clock_widget_info.xml` zeigt im
+  Netzwerk-/DB-Abfragen hing. Da Android beim Geräte-Neustart alle `AlarmManager`-Alarme
+  löscht und `updatePeriodMillis="0"` danach kein automatisches `onUpdate` mehr auslöst,
+  stößt `BootReceiver` die Tick-Kette (`ClockWidgetProvider.scheduleTicks`, dafür
+  öffentlich im Companion Object statt privater Instanzmethode) nach `ACTION_BOOT_COMPLETED`
+  explizit neu an — sonst bliebe die zuletzt angezeigte Uhrzeit nach jedem Neustart für
+  immer auf dem alten Stand eingefroren. Der 20-Minuten-Datentakt ruft zusätzlich bei jedem
+  Durchlauf selbst `scheduleNextClockTick` erneut auf (reine Selbstheilung, falls die
+  minütliche Kette aus einem anderen Grund als einem Neustart abreißt), und der
+  Minuten-Tick-Handler plant den nächsten Tick jetzt in einem `finally`-Block, damit eine
+  Exception beim Refresh die Kette nicht ebenfalls abreißen lässt. `android:previewImage`
+  in `clock_widget_info.xml` zeigt im
   Android-Widget-Auswahlmenü einen echten Screenshot des Widgets, da die automatische
   Vorschau-Generierung aus dem Layout (seit Android 12) für dieses Widget leer blieb.
   "nächster Alarm" kommt direkt von `AlarmManager.getNextAlarmClock()` statt aus der eigenen DB, da
