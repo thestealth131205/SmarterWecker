@@ -68,7 +68,9 @@ data class AllDayAgendaItem(
     val appointmentId: Long? = null,
     val highPriority: Boolean = false,
     /** Anhänge (Dateiname zu content://-URI) — nur bei Terminen befüllt, siehe [AppointmentAttachmentEntity]. */
-    val attachments: List<AttachmentRef> = emptyList()
+    val attachments: List<AttachmentRef> = emptyList(),
+    /** Adresse eines Termins — antippbar, öffnet die Karten-App mit Pin (siehe [CalendarDayScreen]). */
+    val location: String? = null
 ) : DayAgendaItem
 
 data class TimedAgendaItem(
@@ -85,7 +87,9 @@ data class TimedAgendaItem(
     val jobId: Long? = null,
     val shiftId: Long? = null,
     val occurrenceRef: ShiftOccurrenceRef? = null,
-    val attachments: List<AttachmentRef> = emptyList()
+    val attachments: List<AttachmentRef> = emptyList(),
+    /** Adresse eines Termins — antippbar, öffnet die Karten-App mit Pin (siehe [CalendarDayScreen]). */
+    val location: String? = null
 ) : DayAgendaItem
 
 data class AttachmentRef(val uri: String, val fileName: String)
@@ -294,6 +298,7 @@ class CalendarDayViewModel @Inject constructor(
             return AllDayAgendaItem(
                 title = appointment.title,
                 subtitle = appointment.location.ifBlank { null },
+                location = appointment.location.ifBlank { null },
                 colorArgb = appointment.colorArgb,
                 agendaKey = "appt:${appointment.id}",
                 kind = AgendaItemKind.APPOINTMENT,
@@ -308,6 +313,7 @@ class CalendarDayViewModel @Inject constructor(
         return TimedAgendaItem(
             title = appointment.title,
             subtitle = appointment.location.ifBlank { null },
+            location = appointment.location.ifBlank { null },
             startMinuteOfDay = start.hour * 60 + start.minute,
             endMinuteOfDay = end.hour * 60 + end.minute,
             colorArgb = appointment.colorArgb,
@@ -368,6 +374,7 @@ class CalendarDayViewModel @Inject constructor(
             return AllDayAgendaItem(
                 title = event.title,
                 subtitle = event.location.ifBlank { null },
+                location = event.location.ifBlank { null },
                 colorArgb = event.colorArgb,
                 agendaKey = key,
                 kind = AgendaItemKind.IMPORTED
@@ -379,6 +386,7 @@ class CalendarDayViewModel @Inject constructor(
         return TimedAgendaItem(
             title = event.title,
             subtitle = event.location.ifBlank { null },
+            location = event.location.ifBlank { null },
             startMinuteOfDay = start.hour * 60 + start.minute,
             endMinuteOfDay = end.hour * 60 + end.minute,
             colorArgb = event.colorArgb,

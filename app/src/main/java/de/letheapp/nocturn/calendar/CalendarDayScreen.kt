@@ -2,6 +2,7 @@ package de.letheapp.nocturn.calendar
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -512,8 +514,13 @@ private fun AllDayCard(
                 Box(modifier = Modifier.size(12.dp).background(accentColor, CircleShape))
                 Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                     Text(item.title, style = MaterialTheme.typography.bodyLarge)
-                    item.subtitle?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val location = item.location
+                    if (location != null) {
+                        LocationText(location)
+                    } else {
+                        item.subtitle?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 if (item.attachments.isNotEmpty()) {
@@ -563,8 +570,13 @@ private fun TimedCard(
                 )
                 Column(modifier = Modifier.padding(start = 16.dp).weight(1f)) {
                     Text(item.title, style = MaterialTheme.typography.bodyLarge)
-                    item.subtitle?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val location = item.location
+                    if (location != null) {
+                        LocationText(location)
+                    } else {
+                        item.subtitle?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 if (item.attachments.isNotEmpty()) {
@@ -575,6 +587,38 @@ private fun TimedCard(
                 AgendaActionRow(onEdit, onDelete)
             }
         }
+    }
+}
+
+/**
+ * Antippbare Termin-Adresse: öffnet die installierte Karten-App per `geo:0,0?q=<Adresse>`-Intent
+ * (Android-Standard, funktioniert mit Google Maps, OsmAnd, Organic Maps usw.) mit der Adresse als
+ * Pin. Eigenes Klickziel innerhalb der Kachel, damit Antippen der Adresse die Kachel nicht
+ * gleichzeitig auf-/zuklappt.
+ */
+@Composable
+private fun LocationText(location: String) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.clickable {
+            runCatching { context.startActivity(buildMapsIntent(location)) }.onFailure {
+                Toast.makeText(context, "Keine Karten-App installiert", Toast.LENGTH_SHORT).show()
+            }
+        },
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            Icons.Filled.Place,
+            contentDescription = "In Karten öffnen",
+            modifier = Modifier.size(16.dp).padding(top = 2.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            location,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
     }
 }
 

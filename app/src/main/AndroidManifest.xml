@@ -24,6 +24,11 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!-- Karten-Apps sichtbar machen, damit die Termin-Erinnerung "In Maps öffnen" nur anbietet, wenn es einen Empfänger gibt. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
     </queries>
 
     <application

@@ -82,13 +82,14 @@ class AppointmentReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_APPOINTMENT_REMINDERS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_APPOINTMENT_REMINDERS)
             .setContentTitle(appointment.title.ifBlank { "Termin" })
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
-            .build()
+        addMapsAction(context, builder, reminder, appointment)
+        val notification = builder.build()
 
         notificationManager.notify(NOTIFICATION_ID_BASE + reminder.id.toInt(), notification)
     }
@@ -114,16 +115,40 @@ class AppointmentReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_APPOINTMENT_REMINDERS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_APPOINTMENT_REMINDERS)
             .setContentTitle(appointment.title.ifBlank { "Termin" })
             .setContentText("$timeText · E-Mail an $recipient")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentIntent(composePendingIntent)
             .addAction(0, "E-Mail senden", composePendingIntent)
             .setAutoCancel(true)
-            .build()
+        addMapsAction(context, builder, reminder, appointment)
+        val notification = builder.build()
 
         notificationManager.notify(NOTIFICATION_ID_BASE + reminder.id.toInt(), notification)
+    }
+
+    /**
+     * Hängt eine "In Maps öffnen"-Aktion an, sofern der Termin eine Adresse hat und eine Karten-App
+     * installiert ist (sonst liefe der Button ins Leere). Der `geo:`-Intent unterscheidet sich über
+     * seine Daten-URI von den übrigen PendingIntents, kollidiert also nicht trotz gleichem Request-Code.
+     */
+    private fun addMapsAction(
+        context: Context,
+        builder: NotificationCompat.Builder,
+        reminder: AppointmentReminderEntity,
+        appointment: AppointmentEntity
+    ) {
+        if (appointment.location.isBlank()) return
+        val mapsIntent = buildMapsIntent(appointment.location)
+        if (mapsIntent.resolveActivity(context.packageManager) == null) return
+        val mapsPendingIntent = PendingIntent.getActivity(
+            context,
+            reminder.id.toInt(),
+            mapsIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        builder.addAction(0, "In Maps öffnen", mapsPendingIntent)
     }
 
     private fun ensureChannel(context: Context): NotificationManager {
