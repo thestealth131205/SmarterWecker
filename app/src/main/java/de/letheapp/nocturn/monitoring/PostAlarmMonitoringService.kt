@@ -64,6 +64,7 @@ class PostAlarmMonitoringService : Service() {
             Intent(this, EmergencyAlarmService::class.java)
                 .setAction(ACTION_EMERGENCY_SOLVED)
                 .putExtra(EXTRA_RESOLVED_VIA_MOVEMENT, true)
+                .putExtra(EXTRA_ALARM_ID, alarmId)
         )
         sendBroadcast(Intent(ACTION_EMERGENCY_AUTO_RESOLVED).setPackage(packageName))
         stopSelfCleanly()

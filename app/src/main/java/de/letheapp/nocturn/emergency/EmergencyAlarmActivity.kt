@@ -61,6 +61,7 @@ class EmergencyAlarmActivity : ComponentActivity() {
                                 startService(
                                     Intent(this@EmergencyAlarmActivity, EmergencyAlarmService::class.java)
                                         .setAction(ACTION_EMERGENCY_SOLVED)
+                                        .putExtra(EXTRA_ALARM_ID, intent.getLongExtra(EXTRA_ALARM_ID, -1L))
                                 )
                                 stopService(Intent(this@EmergencyAlarmActivity, PostAlarmMonitoringService::class.java))
                                 finish()

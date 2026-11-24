@@ -233,9 +233,10 @@ else
         die "Keine Änderungen zum Committen (versionCode/versionName wurden nicht angepasst?)"
     fi
 
-    COMMIT_MSG="Version ${NEW_NAME}: Release-Deploy
+    # Optionale Kurzbeschreibung per RELEASE_SUMMARY="..." (wird beim Daemonisieren vererbt).
+    COMMIT_MSG="Version ${NEW_NAME}: ${RELEASE_SUMMARY:-Release-Deploy}
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
     git commit -m "$COMMIT_MSG"
     HEAD_SHA="$(git rev-parse HEAD)"
     log "Commit $HEAD_SHA erstellt, pushe nach main..."
@@ -416,7 +417,7 @@ set_phase "fdroid_metadata_updated"
 log "Starte F-Droid-Index-Rebuild auf dem Server (läuft dort unabhängig im Hintergrund)..."
 # pgrep-Check macht den Start resume-sicher: läuft (z.B. nach einem Abbruch und "resume")
 # bereits ein Rebuild auf dem Server, wird kein zweiter, konkurrierender Lauf gestartet.
-FDROID_START_CMD="cd /root/my-fdroid-repo && if pgrep -f 'fdroid update' >/dev/null 2>&1; then echo already_running; else rm -f fdroid_update.exit; nohup bash -c 'fdroid update --clean; echo \$? > fdroid_update.exit' > fdroid_update.log 2>&1 < /dev/null & disown; sleep 1; echo started; fi"
+FDROID_START_CMD="cd /root/my-fdroid-repo && if pgrep -f 'python[0-9.]* [^ ]*fdroid update' >/dev/null 2>&1; then echo already_running; else rm -f fdroid_update.exit; nohup bash -c 'fdroid update --clean; echo \$? > fdroid_update.exit' > fdroid_update.log 2>&1 < /dev/null & disown; sleep 1; echo started; fi"
 retry 3 10 -- ssh_remote "$FDROID_START_CMD" \
     || die "Konnte F-Droid-Index-Rebuild auf dem Server nicht starten"
 set_phase "fdroid_update_started"

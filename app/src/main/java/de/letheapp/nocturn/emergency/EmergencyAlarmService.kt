@@ -12,11 +12,13 @@ import android.media.MediaPlayer
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.IBinder
+import android.util.Log
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import de.letheapp.nocturn.alarm.EXTRA_ALARM_ID
 import de.letheapp.nocturn.data.repository.AlarmRepository
+import de.letheapp.nocturn.iobroker.IoBrokerActionConfig
 import de.letheapp.nocturn.iobroker.IoBrokerActionMode
 import de.letheapp.nocturn.iobroker.IoBrokerRepository
 import de.letheapp.nocturn.iobroker.allIoBrokerActions
@@ -24,6 +26,8 @@ import de.letheapp.nocturn.monitoring.AutomaticShiftRetryScheduler
 import de.letheapp.nocturn.sound.LoudnessBooster
 import de.letheapp.nocturn.sound.SoundRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -44,6 +48,7 @@ const val EXTRA_RESOLVED_VIA_MOVEMENT = "extra_resolved_via_movement"
 const val CHANNEL_EMERGENCY = "emergency_alarm"
 const val NOTIFICATION_ID_EMERGENCY = 1003
 private const val ESCALATION_STEP_MILLIS = 30_000L
+private const val TAG = "EmergencyAlarmService"
 
 /**
  * Notfall-Alarm: lässt sich NICHT durch einfaches Stoppen beenden, sondern nur über
@@ -69,27 +74,36 @@ class EmergencyAlarmService : Service() {
     private var currentPitch = 1.0f
     private var currentUri: Uri = Uri.EMPTY
     private var toneCompletionCount = 0
+    /** Beim Start ausgeführte Smart-Home-Aktionen, siehe [turnOffAutoTurnOffActions]. */
+    @Volatile private var startedActions: List<IoBrokerActionConfig>? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_EMERGENCY_SOLVED) {
             val resolvedViaMovement = intent.getBooleanExtra(EXTRA_RESOLVED_VIA_MOVEMENT, false)
-            val solvedAlarmId = alarmId
-            // Erst das ggf. nötige Wieder-Klingeln verbindlich einplanen, DANACH stopRinging()
-            // (stoppt diesen Dienst via stopSelf()) – sonst könnte scope abgebrochen werden,
-            // bevor die DB-Abfrage/AlarmManager-Planung abgeschlossen ist.
+            // alarmId aus dem Intent bevorzugen: wurde der Dienst zwischenzeitlich vom System
+            // neu gestartet (Prozess beendet, START_STICKY mit leerem Intent), steht im Feld nur
+            // noch -1 und das automatische Ausschalten fände keinen Alarm mehr.
+            val solvedAlarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L).takeIf { it != -1L } ?: alarmId
+            // Erst ausschalten und ggf. Wieder-Klingeln einplanen, DANACH stopRinging() (stoppt
+            // diesen Dienst via stopSelf() und bricht scope ab). Beide Schritte einzeln
+            // abgesichert: vorher hätte eine Exception beim Einplanen das Ausschalten übersprungen.
             scope.launch {
+                runCatching { turnOffAutoTurnOffActions(solvedAlarmId) }
+                    .onFailure { Log.e(TAG, "Automatisches Ausschalten fehlgeschlagen", it) }
                 if (!resolvedViaMovement) {
-                    automaticShiftRetryScheduler.scheduleRetryIfApplicable(solvedAlarmId)
+                    runCatching { automaticShiftRetryScheduler.scheduleRetryIfApplicable(solvedAlarmId) }
+                        .onFailure { Log.e(TAG, "Wieder-Klingeln konnte nicht eingeplant werden", it) }
                 }
-                turnOffAutoTurnOffActions(solvedAlarmId)
-                stopRinging()
+                withContext(Dispatchers.Main) { stopRinging() }
             }
             return START_NOT_STICKY
         }
 
-        alarmId = intent?.getLongExtra(EXTRA_ALARM_ID, -1L) ?: alarmId
+        // Nur mit einer gültigen ID überschreiben – ein späterer Start ohne Extra (z. B. ein
+        // System-Neustart des Dienstes) darf die bekannte alarmId nicht auf -1 zurücksetzen.
+        intent?.getLongExtra(EXTRA_ALARM_ID, -1L)?.takeIf { it != -1L }?.let { alarmId = it }
         // Full-Screen-Intent-Benachrichtigung zeigt die Aufgabe zuverlässig sofort an, auch
         // wenn die App gerade keine sichtbare Activity hat – deshalb immer aktuell halten,
         // aber Ton/Eskalation nur einmal starten (sonst Audio-Hänger bei mehrfachem Aufruf,
@@ -98,10 +112,11 @@ class EmergencyAlarmService : Service() {
         if (!isRinging) {
             isRinging = true
             toneCompletionCount = 0
+            startedActions = null
             currentVolume = 0.7f
             currentPitch = 1.0f
             acquireWakeLock()
-            playSound()
+            playConfiguredSound()
             startEscalation()
             runConfiguredIoBrokerActions()
         }
@@ -119,23 +134,32 @@ class EmergencyAlarmService : Service() {
     private fun runConfiguredIoBrokerActions() {
         scope.launch {
             val alarm = alarmRepository.getById(alarmId) ?: return@launch
-            alarm.allIoBrokerActions().forEach { action ->
+            val actions = alarm.allIoBrokerActions()
+            startedActions = actions
+            actions.forEach { action ->
                 scope.launch { ioBrokerRepository.executeAction(action) }
             }
         }
     }
 
     /**
-     * Schaltet jede diesem Alarm zugeordnete ioBroker-Aktion wieder aus, die mit "Einschalten" +
-     * "Automatisch ausschalten" konfiguriert ist (siehe [de.letheapp.nocturn.iobroker.IoBrokerActionConfig.autoTurnOff])
-     * — läuft, sobald der Notfall-Alarm endet (Puzzle gelöst oder Bewegung erkannt), statt die
-     * Lampe/Steckdose dauerhaft eingeschaltet zu lassen.
+     * Schaltet jede beim Start des Notfall-Alarms ausgeführte Aktion wieder aus, die mit
+     * "Einschalten" + "Automatisch ausschalten" konfiguriert ist (siehe
+     * [de.letheapp.nocturn.iobroker.IoBrokerActionConfig.autoTurnOff]) — läuft, sobald der
+     * Notfall-Alarm endet (Puzzle gelöst oder Bewegung erkannt). Nutzt die beim Start gemerkten
+     * Aktionen ([startedActions]) statt den Alarm neu aus der DB zu lesen: ein automatischer
+     * Schicht-Wecker kann zwischenzeitlich von [de.letheapp.nocturn.calendar.ShiftWakeupAlarmSyncer]
+     * schon auf die nächste Schicht (mit evtl. anderer Smart-Home-Konfiguration) umgestellt worden
+     * sein. Die DB dient nur als Fallback, falls der Dienst inzwischen neu gestartet wurde.
      */
     private suspend fun turnOffAutoTurnOffActions(forAlarmId: Long) {
-        val alarm = alarmRepository.getById(forAlarmId) ?: return
-        alarm.allIoBrokerActions()
-            .filter { it.mode == IoBrokerActionMode.ON_OFF && it.turnOn && it.autoTurnOff }
-            .forEach { action -> ioBrokerRepository.turnOnOrOff(action.dataPointId, turnOn = false) }
+        val actions = startedActions ?: alarmRepository.getById(forAlarmId)?.allIoBrokerActions().orEmpty()
+        val toTurnOff = actions.filter { it.mode == IoBrokerActionMode.ON_OFF && it.turnOn && it.autoTurnOff }
+        Log.i(TAG, "Notfall-Alarm beendet, schalte ${toTurnOff.size} Aktion(en) automatisch aus")
+        toTurnOff.forEach { action ->
+            ioBrokerRepository.turnOnOrOff(action.dataPointId, turnOn = false)
+                .onFailure { Log.e(TAG, "Ausschalten von ${action.dataPointId} fehlgeschlagen", it) }
+        }
     }
 
     /**
@@ -175,6 +199,23 @@ class EmergencyAlarmService : Service() {
                 loudnessEnhancer = enhancer
             } else {
                 enhancer?.release()
+            }
+        }
+    }
+
+    /**
+     * Startet den Notfall-Alarm mit dem am Alarm gewählten Weckton statt immer mit dem Standardton
+     * — vorher klang nach "Stop" (Notfall-Alarm startet sofort) jeder Wecker gleich, egal welcher
+     * Ton gewählt war. Alle zwei Durchläufe wechselt [onToneCompleted] weiterhin zufällig.
+     */
+    private fun playConfiguredSound() {
+        val requestedAlarmId = alarmId
+        scope.launch {
+            val configured = alarmRepository.getById(requestedAlarmId)?.soundUri?.let { Uri.parse(it) }
+            withContext(Dispatchers.Main) {
+                if (!isRinging || mediaPlayer != null) return@withContext
+                val ok = configured != null && runCatching { playSound(configured) }.isSuccess
+                if (!ok) playSound()
             }
         }
     }

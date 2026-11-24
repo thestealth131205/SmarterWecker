@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -122,7 +123,9 @@ class AlarmListViewModel @Inject constructor(
     }
 
     fun save(alarm: AlarmEntity) {
-        viewModelScope.launch {
+        // NonCancellable: save() läuft direkt vor dem Verlassen des Screens — der viewModelScope wird
+        // beim Entfernen des Navigations-Eintrags abgebrochen und dürfte das Speichern nicht abwürgen.
+        viewModelScope.launch(NonCancellable) {
             alarmRepository.save(alarm)
             if (alarm.enabled) alarmScheduler.schedule(alarm) else alarmScheduler.cancel(alarm.id)
         }

@@ -155,7 +155,10 @@ class AlarmRingingService : Service() {
     private fun startEscalation(primaryUri: Uri) {
         escalationJob?.cancel()
         escalationJob = scope.launch {
-            val fallbackUri = soundRepository.defaultAlarmSoundUri()
+            // Wechselton: zufällig ein ANDERER Ton aus der Liste statt fest des Standardtons
+            // alarm_ton_1 — sonst hörte man nach zwei Minuten immer denselben Standardton,
+            // unabhängig vom gewählten Weckton.
+            val fallbackUri = pickRandomTone(excluding = primaryUri)
             val alternatingAvailable = fallbackUri != Uri.EMPTY && fallbackUri != primaryUri
             var step = 0
             while (true) {

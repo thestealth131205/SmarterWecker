@@ -1,5 +1,6 @@
 package de.letheapp.nocturn.alarm
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -100,6 +101,14 @@ fun AlarmEditScreen(
     }
 
     val current = alarm ?: return
+
+    // System-Zurück (Geste/Taste) muss genauso speichern wie der Pfeil oben links — vorher gingen
+    // dabei stillschweigend alle Änderungen verloren (z. B. gewählter Weckton, "Automatisch
+    // ausschalten" einer Smart-Home-Aktion), da nur der Topbar-Pfeil viewModel.save() aufrief.
+    BackHandler {
+        viewModel.save(current)
+        onBack()
+    }
 
     Scaffold(
         topBar = {
